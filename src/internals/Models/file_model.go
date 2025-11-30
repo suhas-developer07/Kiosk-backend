@@ -1,10 +1,11 @@
 package models
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type File struct {
     ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-    FileID       primitive.ObjectID `bson:"file_id,omitempty" json:"file_id,omitempty"`
     FileName     string             `bson:"file_name" json:"file_name"`
     FileURL      string             `bson:"file_url" json:"file_url"`
     Description  string             `bson:"description" json:"description"`
@@ -30,4 +31,5 @@ type PrintJob struct {
     Token               string             `bson:"token" json:"token"`
     TotalSheetsRequired int                `bson:"total_sheets_required" json:"total_sheets_required"`
 }
+
 

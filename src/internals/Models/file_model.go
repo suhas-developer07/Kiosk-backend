@@ -17,6 +17,16 @@ type File struct {
     Date         primitive.DateTime `bson:"date" json:"date"`
 }
 
+type FileUploadRequest struct {
+    File        []byte `json:"file"`
+    FileName    string `json:"file_name"`
+    Description string `json:"description"`
+    Subject     string `json:"subject"`
+    FacultyID   string `json:"faculty_id"`
+    GroupAllowed string `json:"group_allowed"`
+    Type        string `json:"type"`
+}
+
 
 type PrintJob struct {
     ID                  primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`

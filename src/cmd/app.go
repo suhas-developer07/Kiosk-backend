@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"github.com/labstack/echo/v4"
-	"go.mongodb.org/mongo-driver/mongo"
 	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/Files_repo"
 	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service"
+	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func Start(mongoClient *mongo.Client)*echo.Echo {
@@ -12,8 +13,12 @@ func Start(mongoClient *mongo.Client)*echo.Echo {
 
 	db := mongoClient.Database("kiosk_db")
 
-	Files_repo := repository_Files.NewFilesRepo(db)
-	File_service := service_File.NewFileService(Files_repo)
+	var storage filestore.FileStorage
+
+	storage = filestore.NewLocalStorage("uploads")
+
+	Files_repo := repository_Files.NewFilesRepo(db,mongoClient)
+	File_service := service_File.NewFileService(Files_repo,storage)
 
 	SetupRouter(
 		e,

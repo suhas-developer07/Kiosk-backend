@@ -1,4 +1,4 @@
-package filesrepo
+package db
 
 import (
 	"context"
@@ -8,34 +8,44 @@ import (
 )
 
 type FilesRepo struct {
-	FilesCollection   *mongo.Collection
-	PrintJobsCollection *mongo.Collection
+	client          *mongo.Client
+	FilesCollection *mongo.Collection
 }
 
-func NewFilesRepo(db *mongo.Database) *FilesRepo {
+func NewFilesRepo(db *mongo.Database, client *mongo.Client) *FilesRepo {
 	return &FilesRepo{
-		FilesCollection:     db.Collection("files"),
-		PrintJobsCollection: db.Collection("print_jobs"),
+		client:          client,
+		FilesCollection: db.Collection("files"),
 	}
 }
 
-func (r *FilesRepo) InsertFile(ctx context.Context,file domain.File) ( error) {
-	_,err := r.FilesCollection.InsertOne(ctx,file);
+func (r *FilesRepo) SaveFileRecord(ctx context.Context, file domain.File) error {
+	_, err := r.FilesCollection.InsertOne(ctx, file)
+	return err
+}
 
+func (r *FilesRepo) WithTransaction(
+	ctx context.Context,
+	fn func(sc mongo.SessionContext) error,
+) error {
+
+	session, err := r.client.StartSession()
 	if err != nil {
-		return  err
+		return err
 	}
+	defer session.EndSession(ctx)
 
-	return  nil
+	return mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
+
+		if err := session.StartTransaction(); err != nil {
+			return err
+		}
+
+		if err := fn(sc); err != nil {
+			_ = session.AbortTransaction(sc)
+			return err
+		}
+
+		return session.CommitTransaction(sc)
+	})
 }
-
-func (r *FilesRepo) InsertPrintJob(ctx context.Context,job domain.PrintJob) (*mongo.InsertOneResult, error) {
-	id,err := r.PrintJobsCollection.InsertOne(ctx,job);
-
-	if err != nil {
-		return nil, err
-	}
-
-	return id, nil
-}
-

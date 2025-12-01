@@ -18,7 +18,6 @@ type File struct {
 }
 
 type FileUploadRequest struct {
-	File         string             `json:"file"`
 	FileName     string             `json:"file_name"`
 	Description  string             `json:"description"`
 	Subject      string             `json:"subject"`

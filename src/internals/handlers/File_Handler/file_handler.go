@@ -21,85 +21,50 @@ func NewFileHandler(fs *service.FileService) *FileHandler {
 		Validator: validator.New(),
 	}
 }
-
 func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 
-	var req domain.FileUploadRequest
+    req := domain.FileUploadRequest{
+        FileName:     c.FormValue("file_name"),
+        Description:  c.FormValue("description"),
+        Subject:      c.FormValue("subject"),
+        GroupAllowed: c.FormValue("group_allowed"),
+        Type:         c.FormValue("type"),
+    }
 
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "invalid request body",
-		})
-	}
+    file, err := c.FormFile("file")
+    if err != nil {
+        return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+            Status: "error",
+            Error:  "invalid file upload",
+        })
+    }
 
-	file , err := c.FormFile("file")
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "invalid file upload",
-		})
-	}
+    src, err := file.Open()
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+            Status: "error",
+            Error:  "failed to open uploaded file",
+        })
+    }
+    defer src.Close()
 
-	src, err := file.Open()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "failed to open uploaded file",
-		})
-	}
-	defer src.Close()
+    path, err := h.FileService.UploadFileService(
+        c.Request().Context(),
+        file.Filename,
+        src,
+        req,
+    )
 
-	path, err := h.FileService.UploadFileService(
-		c.Request().Context(),
-		file.Filename,
-		src,
-		req,
-	)
+    if err != nil {
+        return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+            Status: "error",
+            Error:  "failed to upload file: " + err.Error(),
+        })
+    }
 
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "failed to upload file: " + err.Error(),
-		})
-	}
-	
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "file uploaded successfully",
-		Data:    map[string]string{"file_url": path},
-	})
-
+    return c.JSON(http.StatusOK, domain.SuccessResponse{
+        Status:  "success",
+        Message: "file uploaded successfully",
+        Data:    map[string]string{"file_url": path},
+    })
 }
-
-// func (h *FileHandler) UploadFileHandler(c echo.Context) error {
-// 	//Basic implementation of flow of file upload
-// 	var req domain.FileUploadRequest
-
-// 	if err := c.Bind(&req); err != nil {
-// 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-// 			Status: "error",
-// 			Error:  "invalid request body",
-// 		})
-// 	}
-
-// 	if err := h.Validator.Struct(req); err != nil {
-// 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-// 			Status: "error",
-// 			Error:  "Some required details are missing or incorrect: " + strings.ReplaceAll(err.Error(), "\n", ", "),
-// 		})
-// 	}
-
-// 	if err := h.FileService.UploadFileService(c.Request().Context(), req); err != nil {
-// 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-// 			Status: "error",
-// 			Error:  "failed to upload file: " + err.Error(),
-// 		})
-// 	}
-
-// 	return c.JSON(http.StatusOK, domain.SuccessResponse{
-// 		Status:  "success",
-// 		Message: "file uploaded successfully",
-// 	})
-
-// }

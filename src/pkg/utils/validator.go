@@ -5,11 +5,12 @@ import (
 	"net/url"
 	"strings"
 
-	models "github.com/suhas-developer07/Kiosk-backend/src/internals/Models"
+	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+
 	// "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func ValidateFileInput(f *models.File) error{
+func ValidateFileInput(f *domain.File) error{
 
 	if strings.TrimSpace(f.FileName) == ""{
 		return errors.New("file name is required")

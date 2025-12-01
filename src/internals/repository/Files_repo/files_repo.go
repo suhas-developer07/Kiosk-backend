@@ -3,7 +3,7 @@ package filesrepo
 import (
 	"context"
 
-	models "github.com/suhas-developer07/Kiosk-backend/src/internals/Models"
+	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -19,17 +19,17 @@ func NewFilesRepo(db *mongo.Database) *FilesRepo {
 	}
 }
 
-func (r *FilesRepo) InsertFile(ctx context.Context,file models.File) (*mongo.InsertOneResult, error) {
-	id,err := r.FilesCollection.InsertOne(ctx,file);
+func (r *FilesRepo) InsertFile(ctx context.Context,file domain.File) ( error) {
+	_,err := r.FilesCollection.InsertOne(ctx,file);
 
 	if err != nil {
-		return nil, err
+		return  err
 	}
 
-	return id, nil
+	return  nil
 }
 
-func (r *FilesRepo) InsertPrintJob(ctx context.Context,job models.PrintJob) (*mongo.InsertOneResult, error) {
+func (r *FilesRepo) InsertPrintJob(ctx context.Context,job domain.PrintJob) (*mongo.InsertOneResult, error) {
 	id,err := r.PrintJobsCollection.InsertOne(ctx,job);
 
 	if err != nil {

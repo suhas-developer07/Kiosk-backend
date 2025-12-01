@@ -2,9 +2,13 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type FilesRepo struct {
@@ -48,4 +52,38 @@ func (r *FilesRepo) WithTransaction(
 
 		return session.CommitTransaction(sc)
 	})
+}
+
+func (r *FilesRepo) GetFileByGradeAndSubject(
+	ctx context.Context,
+	grade string,
+	subject string,
+) ([]domain.File, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"grade":   grade,
+		"subject": subject,
+	}
+
+	opts := options.Find().SetSort(bson.M{"uploaded_at": -1})
+
+	cursor, err := r.FilesCollection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("db.Find error: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var files []domain.File
+	if err = cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error: %w", err)
+	}
+
+	if len(files) == 0 {
+		return []domain.File{}, nil
+	}
+
+	return files, nil
 }

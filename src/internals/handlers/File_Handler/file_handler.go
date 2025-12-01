@@ -2,69 +2,133 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
-	"github.com/go-playground/validator"
 	"github.com/labstack/echo/v4"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+	"go.uber.org/zap"
 
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/service"
 )
 
 type FileHandler struct {
 	FileService *service.FileService
-	Validator   *validator.Validate
+	Logger      *zap.SugaredLogger
 }
 
-func NewFileHandler(fs *service.FileService) *FileHandler {
+func NewFileHandler(fs *service.FileService,Logger *zap.SugaredLogger) *FileHandler {
 	return &FileHandler{
 		FileService: fs,
-		Validator: validator.New(),
+        Logger:Logger,
 	}
 }
+
 func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 
-    req := domain.FileUploadRequest{
-        FileName:     c.FormValue("file_name"),
-        Description:  c.FormValue("description"),
-        Subject:      c.FormValue("subject"),
-        GroupAllowed: c.FormValue("group_allowed"),
-        Type:         c.FormValue("type"),
-    }
+	req := domain.FileUploadRequest{
+		Title:        c.FormValue("title"),
+		Description:  c.FormValue("description"),
+		Grade:        c.FormValue("grade"),
+		Subject:      c.FormValue("subject"),
+		Category:     c.FormValue("category"),
+		GroupAllowed: c.FormValue("group_allowed"),
+		FileType:     c.FormValue("type"),
+	}
 
-    file, err := c.FormFile("file")
-    if err != nil {
-        return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-            Status: "error",
-            Error:  "invalid file upload",
-        })
-    }
+	file, err := c.FormFile("file")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid file upload",
+		})
+	}
 
-    src, err := file.Open()
-    if err != nil {
-        return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-            Status: "error",
-            Error:  "failed to open uploaded file",
-        })
-    }
-    defer src.Close()
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "failed to open uploaded file",
+		})
+	}
+	defer src.Close()
 
-    path, err := h.FileService.UploadFileService(
-        c.Request().Context(),
-        file.Filename,
-        src,
-        req,
-    )
+	path, err := h.FileService.UploadFileService(
+		c.Request().Context(),
+		file.Filename,
+		src,
+		req,
+	)
 
-    if err != nil {
-        return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-            Status: "error",
-            Error:  "failed to upload file: " + err.Error(),
-        })
-    }
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "failed to upload file: " + err.Error(),
+		})
+	}
 
-    return c.JSON(http.StatusOK, domain.SuccessResponse{
-        Status:  "success",
-        Message: "file uploaded successfully",
-        Data:    map[string]string{"file_url": path},
-    })
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "file uploaded successfully",
+		Data:    map[string]string{"file_url": path},
+	})
+}
+
+func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	grade := strings.TrimSpace(strings.ToUpper(c.Param("grade")))
+	subject := strings.TrimSpace(strings.Title(c.Param("subject")))
+
+	if grade == "" || subject == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "grade and subject are required fields",
+		})
+	}
+
+	allowedGrades := map[string]bool{"1PUC": true, "2PUC": true}
+	if !allowedGrades[grade] {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid grade; allowed values: 1PUC, 2PUC",
+		})
+	}
+
+	// TODO:subject list can be loaded from config
+	if subject == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "subject cannot be empty",
+		})
+	}
+
+	h.Logger.Infof("Fetching files | Grade=%s | Subject=%s | IP=%s",
+		grade, subject, c.RealIP(),
+	)
+
+	files, err := h.FileService.GetFileByGradeAndSubjectService(ctx, grade, subject)
+	if err != nil {
+		h.Logger.Errorf("Failed to fetch files | Grade=%s | Subject=%s | Error=%v",
+			grade, subject, err,
+		)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "internal error fetching files",
+		})
+	}
+
+	if len(files) == 0 {
+		return c.JSON(http.StatusOK, domain.SuccessResponse{
+			Status:  "success",
+			Message: "no files available for selected grade and subject",
+			Data:    []domain.File{},
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "files fetched successfully",
+		Data:    files,
+	})
 }

@@ -6,24 +6,27 @@ import (
 
 type File struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	FileName     string             `bson:"file_name" json:"file_name"`
-	FileURL      string             `bson:"file_url" json:"file_url"`
+	Title        string             `bson:"title" json:"title"`
 	Description  string             `bson:"description" json:"description"`
+	FileURL      string             `bson:"file_url" json:"file_url"`
+	Grade        string             `bson:"grade" json:"grade"`
 	Subject      string             `bson:"subject" json:"subject"`
+	Category     string             `bson:"category" json:"category"`
 	FacultyID    primitive.ObjectID `bson:"faculty_id" json:"faculty_id"`
-	FacultyName  string             `bson:"faculty_name" json:"faculty_name"`
 	GroupAllowed string             `bson:"group_allowed" json:"group_allowed"`
-	Type         string             `bson:"type" json:"type"`
-	Date         primitive.DateTime `bson:"date" json:"date"`
+	FileType     string             `bson:"file_type" json:"file_type"`
+	UploadedAt   primitive.DateTime `bson:"uploaded_at" json:"uploaded_at"`
 }
 
 type FileUploadRequest struct {
-	FileName     string             `json:"file_name"`
+	Title        string             `json:"file_name"`
 	Description  string             `json:"description"`
+	Grade        string             `json:"grade"`
 	Subject      string             `json:"subject"`
+	Category     string             `json:"category"`
 	FacultyID    primitive.ObjectID `json:"faculty_id"`
 	GroupAllowed string             `json:"group_allowed"`
-	Type         string             `json:"type"`
+	FileType     string             `json:"file_type"`
 }
 
 type PrintJob struct {

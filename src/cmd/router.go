@@ -5,7 +5,6 @@ import (
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/File_Handler"
 )
 
-
 func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler) {
 
 	files := e.Group("/files")

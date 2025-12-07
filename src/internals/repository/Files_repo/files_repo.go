@@ -7,6 +7,7 @@ import (
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -14,12 +15,14 @@ import (
 type FilesRepo struct {
 	client          *mongo.Client
 	FilesCollection *mongo.Collection
+	PrintJobCollection *mongo.Collection
 }
 
 func NewFilesRepo(db *mongo.Database, client *mongo.Client) *FilesRepo {
 	return &FilesRepo{
 		client:          client,
 		FilesCollection: db.Collection("files"),
+		PrintJobCollection: db.Collection("PrintJobs"),
 	}
 }
 
@@ -86,4 +89,42 @@ func (r *FilesRepo) GetFileByGradeAndSubject(
 	}
 
 	return files, nil
+}
+
+func (r *FilesRepo) GetFileByID(ctx context.Context,id string)(bool,error){
+
+	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	objectID,err := primitive.ObjectIDFromHex(id)
+
+	if err != nil {
+		return false,fmt.Errorf("invalid objectID:%w",err)
+	}
+
+	filter := bson.M{"_id":objectID}
+
+	var result domain.File
+
+	err = r.FilesCollection.FindOne(ctx,filter).Decode(&result)
+	if err != nil {
+		if err != mongo.ErrNoDocuments{
+			return false,nil
+		}
+		return false,fmt.Errorf("db.FindOne error:%w",err)
+	}
+
+	return true,nil
+}
+
+func (r *FilesRepo) CreatePrintJob(ctx context.Context,req domain.PrintJob)error{
+	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	_,err := r.PrintJobCollection.InsertOne(ctx,req)
+	if err != nil {
+		return fmt.Errorf("repo:insert print Job failed: %w", err)
+	}
+
+	return nil
 }

@@ -98,3 +98,56 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 
 	return files, nil
 }
+
+func (s *FileService) CreatePrintJobService(
+	ctx context.Context,
+	req domain.PrintJobPayload,
+)(string,error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	s.Logger.Infof("Cretting print Job=%d: file_id=%s copies=%d PageLayout=%s",
+	   req.FileID.Hex(), req.Copies,req.PageLayout,
+	)
+
+	if req.Copies <1 || req.Copies >100 {
+		return "",domain.ErrInvalidCopies
+	}
+
+	exists,err := s.FileRepo.GetFileByID(ctx,req.FileID.Hex())
+
+	if err != nil {
+		return "",fmt.Errorf("Service:db error While checking file:%w",&err)
+	}
+
+	if !exists {
+		return "",domain.ErrFileNotFound
+	}
+
+	//TODO1:Generate an Token for the JOB Store that into an DB
+	//TODO 2 : calculate the price for the JOB
+
+	PrintJOB := domain.PrintJob{
+		FileID: req.FileID,
+		Copies:req.Copies,
+		PrintingSide: req.PrintingSide,
+		PrintingMode: req.PrintingMode,
+		PageRange: req.PageRange,
+		PageLayout: req.PageLayout,
+		OrderStatus: "Innitialized",
+		CreatedAt: time.Now(),
+		//TODO: Add the Token ,Price and TotalSheetsRequired fields
+	}
+
+	err = s.FileRepo.CreatePrintJob(ctx,PrintJOB)
+
+	if err != nil {
+		s.Logger.Errorf("Failed to create Print Job: file_ids=%s error=%v",
+	        req.FileID.Hex(),err,
+		)
+		return "",fmt.Errorf("Service: Create print Job :%w",err)
+	}
+
+	return "",nil
+	
+}

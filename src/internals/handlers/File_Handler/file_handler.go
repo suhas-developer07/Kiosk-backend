@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.uber.org/zap"
 
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/service"
@@ -130,5 +131,45 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 		Status:  "success",
 		Message: "files fetched successfully",
 		Data:    files,
+	})
+}
+
+func (h *FileHandler) PrintUploadHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	var payload domain.PrintJobPayload
+
+	if err := c.Bind(&payload);err!=nil{
+		h.Logger.Warnf("Invalid print payload | IP=%s |Error=%v",c.RealIP(),err)
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error:"Invalid request body. Please ensure the JSON structure matches backend expectaions",
+		})
+	}
+
+	if err := utils.ValidatePrintJobPayload(payload);err!=nil{
+		h.Logger.Warnf("validation failed for printJob  | payload= %v |Error = %v",payload,err)
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: err.Error(),
+		})
+	}
+	h.Logger.Infof("Recieved print Job | FileID=%s | Copies=%d | IP=%s",
+	        payload.FileID.Hex(),payload.Copies,c.RealIP(),
+		)
+	
+	token,err := h.FileService.CreatePrintJobService(ctx,payload)
+	if err != nil {
+		h.Logger.Error("failed to create an printJob | payload= %v |Error |%v",payload,err)
+		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+			Status: "error",
+			Error:"Internal error creating print job",
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Print Job created successfully",
+		Data: token,
 	})
 }

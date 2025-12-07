@@ -1,6 +1,8 @@
 package Files
 
 import (
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -36,9 +38,19 @@ type PrintJob struct {
 	PrintingSide        string             `bson:"printing_side" json:"printing_side"`
 	PrintingMode        string             `bson:"printing_mode" json:"printing_mode"`
 	PageRange           string             `bson:"page_range" json:"page_range"`
-	PaperSize           string             `bson:"paper_size" json:"paper_size"`
-	Price               float64            `bson:"price" json:"price"`
+	PageLayout          string             `bson:"paper_size" json:"PageLayout"`
+	Price               int                `bson:"price" json:"price"`
 	OrderStatus         string             `bson:"order_status" json:"order_status"`
 	Token               string             `bson:"token" json:"token"`
 	TotalSheetsRequired int                `bson:"total_sheets_required" json:"total_sheets_required"`
+	CreatedAt           time.Time          `bson:"created_at" json:"created_at"`
+}
+type PrintJobPayload struct {
+	FileID       primitive.ObjectID `json:"file_id" validate:"required"`
+	FileName     string             `json:"file_name" validate:"required,min=3"`
+	Copies       int                `json:"copies" validate:"required,min=1,max=100"`
+	PrintingSide string             `json:"printing_side" validate:"required,oneof=single double"`
+	PrintingMode string             `json:"printing_mode" validate:"required,oneof=color bw"`
+	PageRange    string             `json:"page_range" validate:"omitempty"`
+	PageLayout   string             `json:"PageLayout" validate:"required,oneof=2-up 4-up 1-up"`
 }

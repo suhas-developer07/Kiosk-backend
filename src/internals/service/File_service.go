@@ -11,6 +11,7 @@ import (
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/Files_repo"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
+	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -104,7 +105,6 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	return files, nil
 }
 
-
 func (s *FileService) CreatePrintJobService(
     ctx context.Context,
     req domain.PrintJobPayload,
@@ -138,7 +138,13 @@ func (s *FileService) CreatePrintJobService(
     }
 
     //TODO1 : Generate an Token for the JOB Store that into an DB
-    //TODO 2 : calculate the price for the JOB
+    //TODO 2 : calculate the price for the JOB  --> DONE  
+	
+	TotalSheetsRequired,Price := utils.CalculatePrintJob(req.PageRange,req.PageLayout,req.PrintingSide,req.PrintingMode,req.Copies)
+
+	if TotalSheetsRequired < 0 || Price <0{
+		return "",fmt.Errorf("Error while calculating the cost")
+	}
 
     printJob := domain.PrintJob{
         FileID:       req.FileID,
@@ -148,6 +154,8 @@ func (s *FileService) CreatePrintJobService(
         PageRange:    req.PageRange,
         PageLayout:   req.PageLayout,
         OrderStatus:  "Initialized",
+		Price: Price,
+		TotalSheetsRequired: TotalSheetsRequired,
         CreatedAt:    time.Now(),
     }
 

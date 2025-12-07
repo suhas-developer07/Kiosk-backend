@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -35,6 +36,8 @@ func (s *FileService) UploadFileService(
 	file io.Reader,
 	req domain.FileUploadRequest,
 ) (string, error) {
+
+	//TODO:Need to check file type if its not .PDF convert that into .PDF formate
 
 	fileURL, err := s.Storage.Save(file, filename)
 	if err != nil {
@@ -96,58 +99,62 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 		return []domain.File{}, nil
 	}
 
+	//TODO: Need to check if the file exist in s3
+
 	return files, nil
 }
 
+
 func (s *FileService) CreatePrintJobService(
-	ctx context.Context,
-	req domain.PrintJobPayload,
-)(string,error){
-	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
-	defer cancel()
+    ctx context.Context,
+    req domain.PrintJobPayload,
+) (string, error) {
 
-	s.Logger.Infof("Cretting print Job=%d: file_id=%s copies=%d PageLayout=%s",
-	   req.FileID.Hex(), req.Copies,req.PageLayout,
-	)
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
 
-	if req.Copies <1 || req.Copies >100 {
-		return "",domain.ErrInvalidCopies
-	}
+    s.Logger.Infof(
+        "Creating print Job | file_id=%s | copies=%d | PageLayout=%s",
+        req.FileID.Hex(), req.Copies, req.PageLayout,
+    )
 
-	exists,err := s.FileRepo.GetFileByID(ctx,req.FileID.Hex())
+    if req.Copies < 1 || req.Copies > 100 {
+        return "", domain.ErrInvalidCopies
+    }
 
-	if err != nil {
-		return "",fmt.Errorf("Service:db error While checking file:%w",&err)
-	}
+    exists, err := s.FileRepo.GetFileByID(ctx, req.FileID.Hex())
+    if err != nil {
+        if errors.Is(err, domain.ErrInvalidID) {
+            return "", domain.ErrInvalidID
+        }
+        if errors.Is(err, domain.ErrFileNotFound) {
+            return "", domain.ErrFileNotFound
+        }
+        return "", fmt.Errorf("service: db error while checking file: %w", err)
+    }
 
-	if !exists {
-		return "",domain.ErrFileNotFound
-	}
+    if !exists {
+        return "", domain.ErrFileNotFound
+    }
 
-	//TODO1:Generate an Token for the JOB Store that into an DB
-	//TODO 2 : calculate the price for the JOB
+    //TODO1 : Generate an Token for the JOB Store that into an DB
+    //TODO 2 : calculate the price for the JOB
 
-	PrintJOB := domain.PrintJob{
-		FileID: req.FileID,
-		Copies:req.Copies,
-		PrintingSide: req.PrintingSide,
-		PrintingMode: req.PrintingMode,
-		PageRange: req.PageRange,
-		PageLayout: req.PageLayout,
-		OrderStatus: "Innitialized",
-		CreatedAt: time.Now(),
-		//TODO: Add the Token ,Price and TotalSheetsRequired fields
-	}
+    printJob := domain.PrintJob{
+        FileID:       req.FileID,
+        Copies:       req.Copies,
+        PrintingSide: req.PrintingSide,
+        PrintingMode: req.PrintingMode,
+        PageRange:    req.PageRange,
+        PageLayout:   req.PageLayout,
+        OrderStatus:  "Initialized",
+        CreatedAt:    time.Now(),
+    }
 
-	err = s.FileRepo.CreatePrintJob(ctx,PrintJOB)
+    err = s.FileRepo.CreatePrintJob(ctx, printJob)
+    if err != nil {
+        return "", fmt.Errorf("service: create print job failed: %w", err)
+    }
 
-	if err != nil {
-		s.Logger.Errorf("Failed to create Print Job: file_ids=%s error=%v",
-	        req.FileID.Hex(),err,
-		)
-		return "",fmt.Errorf("Service: Create print Job :%w",err)
-	}
-
-	return "",nil
-	
+    return "", nil
 }

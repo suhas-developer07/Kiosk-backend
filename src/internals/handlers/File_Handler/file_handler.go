@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -35,6 +36,8 @@ func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 		GroupAllowed: c.FormValue("group_allowed"),
 		FileType:     c.FormValue("type"),
 	}
+
+	//TODO : faculty id and faculty name comes from middleware
 
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -134,42 +137,70 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 	})
 }
 
-func (h *FileHandler) PrintUploadHandler(c echo.Context)error{
-	ctx := c.Request().Context()
+func (h *FileHandler) PrintUploadHandler(c echo.Context) error {
+    ctx := c.Request().Context()
 
-	var payload domain.PrintJobPayload
-
-	if err := c.Bind(&payload);err!=nil{
-		h.Logger.Warnf("Invalid print payload | IP=%s |Error=%v",c.RealIP(),err)
-		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
-			Status: "error",
-			Error:"Invalid request body. Please ensure the JSON structure matches backend expectaions",
-		})
-	}
-
-	if err := utils.ValidatePrintJobPayload(payload);err!=nil{
-		h.Logger.Warnf("validation failed for printJob  | payload= %v |Error = %v",payload,err)
+    var payload domain.PrintJobPayload
+	
+	if err := utils.DecodeAndValidateJSON(c.Request().Body,&payload);err != nil {
+		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v",c.RealIP(),err)
 		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
 			Status: "error",
 			Error: err.Error(),
 		})
 	}
-	h.Logger.Infof("Recieved print Job | FileID=%s | Copies=%d | IP=%s",
-	        payload.FileID.Hex(),payload.Copies,c.RealIP(),
-		)
-	
-	token,err := h.FileService.CreatePrintJobService(ctx,payload)
-	if err != nil {
-		h.Logger.Error("failed to create an printJob | payload= %v |Error |%v",payload,err)
-		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
-			Status: "error",
-			Error:"Internal error creating print job",
-		})
-	}
 
-	return c.JSON(http.StatusOK,domain.SuccessResponse{
-		Status: "success",
-		Message: "Print Job created successfully",
-		Data: token,
-	})
+    if err := utils.ValidatePrintJobPayload(payload); err != nil {
+        h.Logger.Warnf("Validation failed for printJob | payload=%v | Error=%v", payload, err)
+        return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+            Status: "error",
+            Error:  err.Error(),
+        })
+    }
+
+    token, err := h.FileService.CreatePrintJobService(ctx, payload)
+    if err != nil {
+
+        switch {
+        case errors.Is(err, domain.ErrInvalidID):
+			h.Logger.Warnf("Invalid ObjectID formate | Error=%v",err)
+            return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+                Status: "error",
+                Error:  "Invalid FileID.",
+            })
+
+        case errors.Is(err, domain.ErrInvalidCopies):
+			h.Logger.Warnf("Invalid copies | Error=%v",err)
+            return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+                Status: "error",
+                Error:  "Copies value must be between 1 and 100.",
+            })
+
+        case errors.Is(err, domain.ErrFileNotFound):
+			h.Logger.Warnf("File not found in the Databse |Error=%v",err)
+            return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+                Status: "error",
+                Error:  "File not found.",
+            })
+
+        case errors.Is(err, domain.ErrDBFailure):
+            h.Logger.Errorf("DB error while creating printJob | err=%v", err)
+            return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+                Status: "error",
+                Error:  "Database error. Please try again later.",
+            })
+        }
+
+        h.Logger.Errorf("Unexpected error while creating printJob | err=%v", err)
+        return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+            Status: "error",
+            Error:  "Internal error creating print job.",
+        })
+    }
+
+    return c.JSON(http.StatusOK, domain.SuccessResponse{
+        Status:  "success",
+        Message: "Print job created successfully",
+        Data:    token,
+    })
 }

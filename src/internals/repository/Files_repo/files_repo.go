@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -90,41 +91,37 @@ func (r *FilesRepo) GetFileByGradeAndSubject(
 
 	return files, nil
 }
+func (r *FilesRepo) GetFileByID(ctx context.Context, id string) (bool, error) {
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
 
-func (r *FilesRepo) GetFileByID(ctx context.Context,id string)(bool,error){
+    objectID, err := primitive.ObjectIDFromHex(id)
+    if err != nil {
+        return false, domain.ErrInvalidID
+    }
 
-	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+    filter := bson.M{"_id": objectID}
+    var result domain.File
 
-	objectID,err := primitive.ObjectIDFromHex(id)
+    err = r.FilesCollection.FindOne(ctx, filter).Decode(&result)
+    if err != nil {
+        if errors.Is(err, mongo.ErrNoDocuments) {
+            return false, domain.ErrFileNotFound
+        }
+        return false, fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
+    }
 
-	if err != nil {
-		return false,fmt.Errorf("invalid objectID:%w",err)
-	}
-
-	filter := bson.M{"_id":objectID}
-
-	var result domain.File
-
-	err = r.FilesCollection.FindOne(ctx,filter).Decode(&result)
-	if err != nil {
-		if err != mongo.ErrNoDocuments{
-			return false,nil
-		}
-		return false,fmt.Errorf("db.FindOne error:%w",err)
-	}
-
-	return true,nil
+    return true, nil
 }
 
-func (r *FilesRepo) CreatePrintJob(ctx context.Context,req domain.PrintJob)error{
-	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+func (r *FilesRepo) CreatePrintJob(ctx context.Context, req domain.PrintJob) error {
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
 
-	_,err := r.PrintJobCollection.InsertOne(ctx,req)
-	if err != nil {
-		return fmt.Errorf("repo:insert print Job failed: %w", err)
-	}
+    _, err := r.PrintJobCollection.InsertOne(ctx, req)
+    if err != nil {
+        return fmt.Errorf("%w: failed to insert print job: %v", domain.ErrDBFailure, err)
+    }
 
-	return nil
+    return nil
 }

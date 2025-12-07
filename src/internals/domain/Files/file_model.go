@@ -45,6 +45,7 @@ type PrintJob struct {
 	TotalSheetsRequired int                `bson:"total_sheets_required" json:"total_sheets_required"`
 	CreatedAt           time.Time          `bson:"created_at" json:"created_at"`
 }
+
 type PrintJobPayload struct {
 	FileID       primitive.ObjectID `json:"file_id" validate:"required"`
 	FileName     string             `json:"file_name" validate:"required,min=3"`

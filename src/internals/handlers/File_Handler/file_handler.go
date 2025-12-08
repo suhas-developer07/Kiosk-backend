@@ -18,10 +18,10 @@ type FileHandler struct {
 	Logger      *zap.SugaredLogger
 }
 
-func NewFileHandler(fs *service.FileService,Logger *zap.SugaredLogger) *FileHandler {
+func NewFileHandler(fs *service.FileService, Logger *zap.SugaredLogger) *FileHandler {
 	return &FileHandler{
 		FileService: fs,
-        Logger:Logger,
+		Logger:      Logger,
 	}
 }
 
@@ -138,69 +138,69 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 }
 
 func (h *FileHandler) PrintUploadHandler(c echo.Context) error {
-    ctx := c.Request().Context()
+	ctx := c.Request().Context()
 
-    var payload domain.PrintJobPayload
-	
-	if err := utils.DecodeAndValidateJSON(c.Request().Body,&payload);err != nil {
-		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v",c.RealIP(),err)
-		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+	var payload domain.PrintJobPayload
+
+	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
+		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v", c.RealIP(), err)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error: err.Error(),
+			Error:  err.Error(),
 		})
 	}
 
-    if err := utils.ValidatePrintJobPayload(payload); err != nil {
-        h.Logger.Warnf("Validation failed for printJob | payload=%v | Error=%v", payload, err)
-        return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-            Status: "error",
-            Error:  err.Error(),
-        })
-    }
+	if err := utils.ValidatePrintJobPayload(payload); err != nil {
+		h.Logger.Warnf("Validation failed for printJob | payload=%v | Error=%v", payload, err)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
 
-    token, err := h.FileService.CreatePrintJobService(ctx, payload)
-    if err != nil {
+	token, err := h.FileService.CreatePrintJobService(ctx, payload)
+	if err != nil {
 
-        switch {
-        case errors.Is(err, domain.ErrInvalidID):
-			h.Logger.Warnf("Invalid ObjectID formate | Error=%v",err)
-            return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-                Status: "error",
-                Error:  "Invalid FileID.",
-            })
+		switch {
+		case errors.Is(err, domain.ErrInvalidID):
+			h.Logger.Warnf("Invalid ObjectID formate | Error=%v", err)
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Invalid FileID.",
+			})
 
-        case errors.Is(err, domain.ErrInvalidCopies):
-			h.Logger.Warnf("Invalid copies | Error=%v",err)
-            return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-                Status: "error",
-                Error:  "Copies value must be between 1 and 100.",
-            })
+		case errors.Is(err, domain.ErrInvalidCopies):
+			h.Logger.Warnf("Invalid copies | Error=%v", err)
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Copies value must be between 1 and 100.",
+			})
 
-        case errors.Is(err, domain.ErrFileNotFound):
-			h.Logger.Warnf("File not found in the Databse |Error=%v",err)
-            return c.JSON(http.StatusNotFound, domain.ErrorResponse{
-                Status: "error",
-                Error:  "File not found.",
-            })
+		case errors.Is(err, domain.ErrFileNotFound):
+			h.Logger.Warnf("File not found in the Databse |Error=%v", err)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "File not found.",
+			})
 
-        case errors.Is(err, domain.ErrDBFailure):
-            h.Logger.Errorf("DB error while creating printJob | err=%v", err)
-            return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-                Status: "error",
-                Error:  "Database error. Please try again later.",
-            })
-        }
+		case errors.Is(err, domain.ErrDBFailure):
+			h.Logger.Errorf("DB error while creating printJob | err=%v", err)
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Database error. Please try again later.",
+			})
+		}
 
-        h.Logger.Errorf("Unexpected error while creating printJob | err=%v", err)
-        return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-            Status: "error",
-            Error:  "Internal error creating print job.",
-        })
-    }
+		h.Logger.Errorf("Unexpected error while creating printJob | err=%v", err)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Internal error creating print job.",
+		})
+	}
 
-    return c.JSON(http.StatusOK, domain.SuccessResponse{
-        Status:  "success",
-        Message: "Print job created successfully",
-        Data:    token,
-    })
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Print job created successfully",
+		Data:    token,
+	})
 }

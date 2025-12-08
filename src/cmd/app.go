@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/File_Handler"
 	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/Files_repo"
 	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service"

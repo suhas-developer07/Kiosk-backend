@@ -23,11 +23,11 @@ type FileService struct {
 	Logger   *zap.SugaredLogger
 }
 
-func NewFileService(repo *db.FilesRepo, storage filestore.FileStorage,Logger *zap.SugaredLogger) *FileService {
+func NewFileService(repo *db.FilesRepo, storage filestore.FileStorage, Logger *zap.SugaredLogger) *FileService {
 	return &FileService{
 		FileRepo: repo,
 		Storage:  storage,
-		Logger:Logger,
+		Logger:   Logger,
 	}
 }
 
@@ -106,63 +106,63 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 }
 
 func (s *FileService) CreatePrintJobService(
-    ctx context.Context,
-    req domain.PrintJobPayload,
+	ctx context.Context,
+	req domain.PrintJobPayload,
 ) (string, error) {
 
-    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-    s.Logger.Infof(
-        "Creating print Job | file_id=%s | copies=%d | PageLayout=%s",
-        req.FileID.Hex(), req.Copies, req.PageLayout,
-    )
+	s.Logger.Infof(
+		"Creating print Job | file_id=%s | copies=%d | PageLayout=%s",
+		req.FileID.Hex(), req.Copies, req.PageLayout,
+	)
 
-    if req.Copies < 1 || req.Copies > 100 {
-        return "", domain.ErrInvalidCopies
-    }
-
-    exists, err := s.FileRepo.GetFileByID(ctx, req.FileID.Hex())
-    if err != nil {
-        if errors.Is(err, domain.ErrInvalidID) {
-            return "", domain.ErrInvalidID
-        }
-        if errors.Is(err, domain.ErrFileNotFound) {
-            return "", domain.ErrFileNotFound
-        }
-        return "", fmt.Errorf("service: db error while checking file: %w", err)
-    }
-
-    if !exists {
-        return "", domain.ErrFileNotFound
-    }
-
-    //TODO1 : Generate an Token for the JOB Store that into an DB
-    //TODO 2 : calculate the price for the JOB  --> DONE  
-	
-	TotalSheetsRequired,Price := utils.CalculatePrintJob(req.PageRange,req.PageLayout,req.PrintingSide,req.PrintingMode,req.Copies)
-
-	if TotalSheetsRequired < 0 || Price <0{
-		return "",fmt.Errorf("Error while calculating the cost")
+	if req.Copies < 1 || req.Copies > 100 {
+		return "", domain.ErrInvalidCopies
 	}
 
-    printJob := domain.PrintJob{
-        FileID:       req.FileID,
-        Copies:       req.Copies,
-        PrintingSide: req.PrintingSide,
-        PrintingMode: req.PrintingMode,
-        PageRange:    req.PageRange,
-        PageLayout:   req.PageLayout,
-        OrderStatus:  "Initialized",
-		Price: Price,
+	exists, err := s.FileRepo.GetFileByID(ctx, req.FileID.Hex())
+	if err != nil {
+		if errors.Is(err, domain.ErrInvalidID) {
+			return "", domain.ErrInvalidID
+		}
+		if errors.Is(err, domain.ErrFileNotFound) {
+			return "", domain.ErrFileNotFound
+		}
+		return "", fmt.Errorf("service: db error while checking file: %w", err)
+	}
+
+	if !exists {
+		return "", domain.ErrFileNotFound
+	}
+
+	//TODO1 : Generate an Token for the JOB Store that into an DB
+	//TODO 2 : calculate the price for the JOB  --> DONE
+
+	TotalSheetsRequired, Price := utils.CalculatePrintJob(req.PageRange, req.PageLayout, req.PrintingSide, req.PrintingMode, req.Copies)
+
+	if TotalSheetsRequired < 0 || Price < 0 {
+		return "", fmt.Errorf("Error while calculating the cost")
+	}
+
+	printJob := domain.PrintJob{
+		FileID:              req.FileID,
+		Copies:              req.Copies,
+		PrintingSide:        req.PrintingSide,
+		PrintingMode:        req.PrintingMode,
+		PageRange:           req.PageRange,
+		PageLayout:          req.PageLayout,
+		OrderStatus:         "Initialized",
+		Price:               Price,
 		TotalSheetsRequired: TotalSheetsRequired,
-        CreatedAt:    time.Now(),
-    }
+		CreatedAt:           time.Now(),
+	}
 
-    err = s.FileRepo.CreatePrintJob(ctx, printJob)
-    if err != nil {
-        return "", fmt.Errorf("service: create print job failed: %w", err)
-    }
+	err = s.FileRepo.CreatePrintJob(ctx, printJob)
+	if err != nil {
+		return "", fmt.Errorf("service: create print job failed: %w", err)
+	}
 
-    return "", nil
+	return "", nil
 }

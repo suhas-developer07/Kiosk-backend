@@ -14,15 +14,15 @@ import (
 )
 
 type FilesRepo struct {
-	client          *mongo.Client
-	FilesCollection *mongo.Collection
+	client             *mongo.Client
+	FilesCollection    *mongo.Collection
 	PrintJobCollection *mongo.Collection
 }
 
 func NewFilesRepo(db *mongo.Database, client *mongo.Client) *FilesRepo {
 	return &FilesRepo{
-		client:          client,
-		FilesCollection: db.Collection("files"),
+		client:             client,
+		FilesCollection:    db.Collection("files"),
 		PrintJobCollection: db.Collection("PrintJobs"),
 	}
 }
@@ -92,36 +92,36 @@ func (r *FilesRepo) GetFileByGradeAndSubject(
 	return files, nil
 }
 func (r *FilesRepo) GetFileByID(ctx context.Context, id string) (bool, error) {
-    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-    objectID, err := primitive.ObjectIDFromHex(id)
-    if err != nil {
-        return false, domain.ErrInvalidID
-    }
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return false, domain.ErrInvalidID
+	}
 
-    filter := bson.M{"_id": objectID}
-    var result domain.File
+	filter := bson.M{"_id": objectID}
+	var result domain.File
 
-    err = r.FilesCollection.FindOne(ctx, filter).Decode(&result)
-    if err != nil {
-        if errors.Is(err, mongo.ErrNoDocuments) {
-            return false, domain.ErrFileNotFound
-        }
-        return false, fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
-    }
+	err = r.FilesCollection.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return false, domain.ErrFileNotFound
+		}
+		return false, fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
+	}
 
-    return true, nil
+	return true, nil
 }
 
 func (r *FilesRepo) CreatePrintJob(ctx context.Context, req domain.PrintJob) error {
-    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-    _, err := r.PrintJobCollection.InsertOne(ctx, req)
-    if err != nil {
-        return fmt.Errorf("%w: failed to insert print job: %v", domain.ErrDBFailure, err)
-    }
+	_, err := r.PrintJobCollection.InsertOne(ctx, req)
+	if err != nil {
+		return fmt.Errorf("%w: failed to insert print job: %v", domain.ErrDBFailure, err)
+	}
 
-    return nil
+	return nil
 }

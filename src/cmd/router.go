@@ -10,5 +10,5 @@ func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler) {
 	files := e.Group("/files")
 	files.POST("/upload", fileHandler.UploadFileHandler)
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
-	files.POST("/printjob",fileHandler.PrintUploadHandler)
+	files.POST("/printjob", fileHandler.PrintUploadHandler)
 }

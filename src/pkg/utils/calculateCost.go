@@ -29,16 +29,16 @@ func ParsePageLayout(up string) int {
 	up = strings.TrimSuffix(up, "-up")
 	n, err := strconv.Atoi(up)
 	if err != nil {
-		return 1 
+		return 1
 	}
 	return n
 }
 
 func CalculatePrintJob(
-	PageRange string,  
-	PageLayout string,    
-	PrintingSide string,       
-	PrintingMode string,       
+	PageRange string,
+	PageLayout string,
+	PrintingSide string,
+	PrintingMode string,
 	Copies int,
 ) (int, int) {
 
@@ -79,4 +79,3 @@ func CalculatePrintJob(
 
 	return sheets * Copies, price
 }
-

@@ -41,11 +41,11 @@ func main() {
 		log.Fatalf("Cannot init Mongo: %v", err)
 	}
 
-	server :=  cmd.Start(client)
+	server := cmd.Start(client)
 
-	go func(){
-		if err := server.Start(os.Getenv("SERVER_LISTEN_ADDR"));err != nil {
-			log.Fatalf("Error starting server: %v", err)	
+	go func() {
+		if err := server.Start(os.Getenv("SERVER_LISTEN_ADDR")); err != nil {
+			log.Fatalf("Error starting server: %v", err)
 		}
 	}()
 

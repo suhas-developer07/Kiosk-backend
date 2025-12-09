@@ -15,4 +15,5 @@ func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler,facultyHand
 
 	faculty := e.Group("/faculty")
 	faculty.POST("/signup",facultyHandler.CreateAccount)
+	faculty.POST("/signin",facultyHandler.Signin)
 }

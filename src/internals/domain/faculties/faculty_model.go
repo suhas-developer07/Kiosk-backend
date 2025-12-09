@@ -20,7 +20,7 @@ type Faculty struct {
 }
 
 type FacultyProfile struct {
-	FacultyID     string `bson:"faculty_id" json:"faculty_id"`
+	FacultyID     string `bson:"faculty_id,omitemty" json:"faculty_id"`
 	Gender        string `bson:"gender,omitempty" json:"gender,omitempty"`
 	Qualification string `bson:"qualification,omitempty" json:"qualification,omitempty"`
 	Experience    int    `bson:"experience,omitempty" json:"experience,omitempty"`
@@ -35,6 +35,11 @@ type Subject struct {
 
 type AccoutCreationPayload struct {
 	Name     string `json:"username" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
+}
+
+type SigninPayload struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=6"`
 }

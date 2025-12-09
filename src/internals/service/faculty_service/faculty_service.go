@@ -69,3 +69,36 @@ func (s *FacultyService) CreateAccountService(
 
 	return nil
 }
+
+func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPayload) (string, string, error) {
+
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
+
+    s.Logger.Infof("Signin attempt | email=%s", req.Email)
+
+    faculty, err := s.FacultyRepo.GetFacultyByEmail(ctx, req.Email)
+    if err != nil {
+        if errors.Is(err, domain.ErrUserNotFound) {
+            return "", "", domain.ErrUserNotFound
+        }
+        return "", "", fmt.Errorf("service: db lookup failed: %w", err)
+    }
+
+    if !utils.CheckPassword(req.Password, faculty.Password) {
+        return "", "", domain.ErrInvalidPassword
+    }
+
+    accessToken, err := utils.GenerateAccessToken(faculty.ID.Hex())
+    if err != nil {
+        return "", "", fmt.Errorf("service: failed generating access token: %w", err)
+    }
+
+    refreshToken, err := utils.GenerateRefreshToken(faculty.ID.Hex())
+    if err != nil {
+        return "", "", fmt.Errorf("service: failed generating refresh token: %w", err)
+    }
+
+    s.Logger.Infof("Signin successful | email=%s", req.Email)
+    return accessToken, refreshToken, nil
+}

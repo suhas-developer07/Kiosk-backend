@@ -1,4 +1,4 @@
-package service
+package Fileservice
 
 import (
 	"context"
@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
-	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/Files_repo"
+	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
+	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
+
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"

@@ -1,4 +1,4 @@
-package models
+package faculties
 
 import (
 	"time"
@@ -8,6 +8,7 @@ import (
 
 type Faculty struct {
 	ID                 primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Username           string             `bson:"username" json:"username"`
 	Email              string             `bson:"email" json:"email"`
 	Password           string             `bson:"password,omitempty" json:"password,omitempty"`
 	GoogleID           string             `bson:"google_id,omitempty" json:"google_id,omitempty"`
@@ -30,4 +31,10 @@ type Subject struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	SubjectCode string             `bson:"subject_code" json:"subject_code"`
 	SubjectName string             `bson:"subject_name" json:"subject_name"`
+}
+
+type AccoutCreationPayload struct {
+	Name     string `json:"username" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
 }

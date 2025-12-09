@@ -1,4 +1,4 @@
-package handlers
+package filehandlers
 
 import (
 	"errors"
@@ -6,11 +6,10 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
+	service "github.com/suhas-developer07/Kiosk-backend/src/internals/service/file_service"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.uber.org/zap"
-
-	"github.com/suhas-developer07/Kiosk-backend/src/internals/service"
 )
 
 type FileHandler struct {

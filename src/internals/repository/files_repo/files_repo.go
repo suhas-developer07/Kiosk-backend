@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

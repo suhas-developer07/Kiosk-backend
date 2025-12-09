@@ -3,9 +3,12 @@ package cmd
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/File_Handler"
-	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/Files_repo"
-	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service"
+	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
+	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
+	facultyrepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
+	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
+	service_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/service/faculty_service"
+	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service/file_service"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -30,7 +33,13 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	fileHandler := handler_File.NewFileHandler(fileService, sugar)
 
-	SetupRouter(e, fileHandler)
+	facultyRepo := facultyrepo.NewFacultyRepo(db,mongoClient)
+
+	facultyService :=service_Faculty.NewFacultyService(facultyRepo,sugar)
+
+	facultyHandler := handler_Faculty.NewFacultyHandler(facultyService,sugar)
+
+	SetupRouter(e, fileHandler,facultyHandler)
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{

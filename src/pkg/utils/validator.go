@@ -2,11 +2,15 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 
-	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/Files"
+	validator "github.com/go-playground/validator/v10"
+	
+	faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
+	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 )
 
 func ValidateFileInput(f *domain.File) error {
@@ -61,4 +65,67 @@ func ValidatePrintJobPayload(p domain.PrintJobPayload) error {
 	}
 
 	return nil
+}
+
+func ValidateAccountPayload(req faculty.AccoutCreationPayload) error {
+	if req.Email == "" {
+		return errors.New("email is required")
+	}
+	if !IsValidEmail(req.Email) {
+		return errors.New("invalid email format")
+	}
+	if req.Password == "" {
+		return errors.New("password required for non-google signup")
+	}
+	return nil
+}
+
+func IsValidEmail(email string) bool {
+	re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
+	return re.MatchString(email)
+}
+
+
+
+func FormatValidationError(err error) string {
+	if errs, ok := err.(validator.ValidationErrors); ok {
+		e := errs[0]
+
+		field := e.Field()
+		tag := e.Tag()
+		param := e.Param()
+
+		switch tag {
+
+		case "required":
+			return fmt.Sprintf("missing required field: %s", field)
+
+		case "min":
+			return fmt.Sprintf("%s must be at least %s characters long", field, param)
+
+		case "max":
+			return fmt.Sprintf("%s must be at most %s characters long", field, param)
+
+		// Specific value rules (oneof)
+		case "oneof":
+			return fmt.Sprintf("%s must be one of: %s", field, param)
+
+		// Email rule
+		case "email":
+			return fmt.Sprintf("%s must be a valid email address", field)
+
+		// Custom validators
+		case "objectid":
+			return "file_id must be a valid MongoDB ObjectID"
+
+		case "pagerange":
+			return "invalid page_range format. Example: 1-5 or 2,3,7"
+		}
+
+		// Fallback for unexpected tags
+		return fmt.Sprintf("invalid value for field '%s'", field)
+	}
+
+	// Not a validator.ValidationErrors type
+	return "invalid request payload"
 }

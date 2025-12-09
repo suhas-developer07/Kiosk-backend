@@ -102,3 +102,44 @@ func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPay
     s.Logger.Infof("Signin successful | email=%s", req.Email)
     return accessToken, refreshToken, nil
 }
+
+func (s *FacultyService) UpdateProfileService(
+	ctx context.Context,
+	userID string,
+	req domain.UpdateProfilePayload,
+) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	s.Logger.Infof("Updating faculty profile | faculty_id=%s", req.FacultyID)
+
+	objectID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return domain.ErrInvalidID
+	}
+
+	profile := domain.FacultyProfile{
+		FacultyID:     req.FacultyID,
+		Subjects:      req.Subjects,
+		Gender:        req.Gender,
+		Qualification: req.Qualification,
+		Experience:    req.Experience,
+		PhoneNumber:   req.PhoneNumber,
+	}
+
+	err = s.FacultyRepo.UpdateProfile(ctx, objectID, profile)
+	if err != nil {
+
+		switch {
+		case errors.Is(err, domain.ErrUserNotFound):
+			return domain.ErrUserNotFound
+
+		default:
+			return fmt.Errorf("service: update profile failed: %w", err)
+		}
+	}
+
+	s.Logger.Infof("Profile updated successfully | faculty_id=%s", req.FacultyID)
+	return nil
+}

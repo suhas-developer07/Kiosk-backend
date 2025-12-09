@@ -55,19 +55,48 @@ func (r *FacultyRepo) CreateAccount(ctx context.Context, req domain.Faculty) err
 	return nil
 }
 func (r *FacultyRepo) GetFacultyByEmail(ctx context.Context, email string) (*domain.Faculty, error) {
-    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-    filter := bson.M{"email": email}
-    var faculty domain.Faculty
+	filter := bson.M{"email": email}
+	var faculty domain.Faculty
 
-    err := r.FacultyCollection.FindOne(ctx, filter).Decode(&faculty)
-    if err != nil {
-        if errors.Is(err, mongo.ErrNoDocuments) {
-            return nil, domain.ErrUserNotFound
-        }
-        return nil, fmt.Errorf("db error while checking email: %w", err)
-    }
+	err := r.FacultyCollection.FindOne(ctx, filter).Decode(&faculty)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("db error while checking email: %w", err)
+	}
 
-    return &faculty, nil
+	return &faculty, nil
+}
+
+func (r *FacultyRepo) UpdateProfile(
+	ctx context.Context,
+	id primitive.ObjectID,
+	profile domain.FacultyProfile,
+) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$set": bson.M{
+			"profile":              profile,
+			"is_profile_completed": true,
+			"updated_at":           time.Now(),
+		},
+	}
+
+	result, err := r.FacultyCollection.UpdateByID(ctx, id, update)
+	if err != nil {
+		return fmt.Errorf("db: failed updating profile: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return domain.ErrUserNotFound
+	}
+
+	return nil
 }

@@ -119,6 +119,7 @@ func (s *FacultyService) UpdateProfileService(
 		return domain.ErrInvalidID
 	}
 
+	//TODO : I need to check faculty id in id database.
 	profile := domain.FacultyProfile{
 		FacultyID:     req.FacultyID,
 		Subjects:      req.Subjects,

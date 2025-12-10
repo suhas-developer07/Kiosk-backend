@@ -6,7 +6,8 @@ import (
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
 )
 
-func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler,facultyHandler *handler_Faculty.FacultyHandler) {
+func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler,facultyHandler *handler_Faculty.FacultyHandler,auth echo.MiddlewareFunc) {
+
 
 	files := e.Group("/files")
 	files.POST("/upload", fileHandler.UploadFileHandler)
@@ -16,4 +17,9 @@ func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler,facultyHand
 	faculty := e.Group("/faculty")
 	faculty.POST("/signup",facultyHandler.CreateAccount)
 	faculty.POST("/signin",facultyHandler.Signin)
+
+	facultyAuth := faculty.Group("")   
+	facultyAuth.Use(auth)              
+
+	facultyAuth.PUT("/profileupdate", facultyHandler.UpdateProfile)
 }

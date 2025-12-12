@@ -2,6 +2,7 @@ package facultyhandler
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -137,6 +138,7 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	userID := c.Get("user_id").(string)
+	fmt.Println("UserID:",userID)
 
 	var payload domain.UpdateProfilePayload
 
@@ -150,7 +152,7 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 
 	if err := h.validate.Struct(&payload); err != nil {
 		msg := utils.FormatValidationError(err)
-		h.Logger.Warnf("Profile validation failed | error=%v", msg)
+		h.Logger.Warnf("Profile validation failed | error=%v", msg,err)
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
 			Error:  msg,

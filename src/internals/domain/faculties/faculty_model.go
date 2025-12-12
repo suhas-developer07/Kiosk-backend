@@ -46,7 +46,6 @@ type SigninPayload struct {
 
 
 type UpdateProfilePayload struct {
-	FacultyID     string    `json:"faculty_id" validate:"required"`
 	Subjects      []Subject `json:"subjects" validate:"required,dive"`
 	Gender        string    `json:"gender" validate:"required,oneof=male female other"`
 	Qualification string    `json:"qualification" validate:"required"`

@@ -112,7 +112,7 @@ func (s *FacultyService) UpdateProfileService(
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	s.Logger.Infof("Updating faculty profile | faculty_id=%s", req.FacultyID)
+	s.Logger.Infof("Updating faculty profile | faculty_id=%s", userID)
 
 	objectID, err := primitive.ObjectIDFromHex(userID)
 	if err != nil {
@@ -121,7 +121,7 @@ func (s *FacultyService) UpdateProfileService(
 
 	//TODO : I need to check faculty id in id database.
 	profile := domain.FacultyProfile{
-		FacultyID:     req.FacultyID,
+		FacultyID:     userID,
 		Subjects:      req.Subjects,
 		Gender:        req.Gender,
 		Qualification: req.Qualification,
@@ -141,6 +141,6 @@ func (s *FacultyService) UpdateProfileService(
 		}
 	}
 
-	s.Logger.Infof("Profile updated successfully | faculty_id=%s", req.FacultyID)
+	s.Logger.Infof("Profile updated successfully | faculty_id=%s", userID)
 	return nil
 }

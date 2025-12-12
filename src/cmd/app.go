@@ -24,13 +24,29 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 	e.Use(echomiddleware.Logger())
 	e.Use(echomiddleware.Recover())
 
+	e.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{
+			echo.GET,
+			echo.POST,
+			echo.PUT,
+			echo.DELETE,
+			echo.PATCH,
+			echo.OPTIONS,
+		},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+		},
+	}))
+
 	db := mongoClient.Database("kiosk_db")
 
 	storage := filestore.NewLocalStorage("uploads")
 
 	auth := middleware.AuthMiddleware(sugar)
-
-
 
 	filesRepo := repository_Files.NewFilesRepo(db, mongoClient)
 
@@ -38,13 +54,13 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	fileHandler := handler_File.NewFileHandler(fileService, sugar)
 
-	facultyRepo := facultyrepo.NewFacultyRepo(db,mongoClient)
+	facultyRepo := facultyrepo.NewFacultyRepo(db, mongoClient)
 
-	facultyService :=service_Faculty.NewFacultyService(facultyRepo,sugar)
+	facultyService := service_Faculty.NewFacultyService(facultyRepo, sugar)
 
-	facultyHandler := handler_Faculty.NewFacultyHandler(facultyService,sugar)
+	facultyHandler := handler_Faculty.NewFacultyHandler(facultyService, sugar)
 
-	SetupRouter(e, fileHandler,facultyHandler,auth)
+	SetupRouter(e, fileHandler, facultyHandler, auth)
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{

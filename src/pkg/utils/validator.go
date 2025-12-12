@@ -106,7 +106,6 @@ func FormatValidationError(err error) string {
 		case "max":
 			return fmt.Sprintf("%s must be at most %s characters long", field, param)
 
-		// Specific value rules (oneof)
 		case "oneof":
 			return fmt.Sprintf("%s must be one of: %s", field, param)
 

@@ -144,7 +144,7 @@ func (s *FileService) CreatePrintJobService(
 	TotalSheetsRequired, Price := utils.CalculatePrintJob(req.PageRange, req.PageLayout, req.PrintingSide, req.PrintingMode, req.Copies)
 
 	if TotalSheetsRequired < 0 || Price < 0 {
-		return "", fmt.Errorf("Error while calculating the cost")
+		return "", fmt.Errorf("error while calculating the cost")
 	}
 
 	printJob := domain.PrintJob{

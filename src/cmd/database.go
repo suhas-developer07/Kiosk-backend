@@ -22,34 +22,33 @@ type Config struct {
 	MinPoolSize uint64
 	Timeout     time.Duration
 }
-
 func InitMongo(cfg Config) (*mongo.Client, error) {
 	var err error
 
 	mongoOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
-		defer cancel()
-
 		clientOpts := options.Client().
 			ApplyURI(cfg.URI).
 			SetMaxPoolSize(cfg.MaxPoolSize).
 			SetMinPoolSize(cfg.MinPoolSize)
 
-		client, e := mongo.Connect(ctx, clientOpts)
+		client, e := mongo.Connect(context.Background(), clientOpts)
 		if e != nil {
-			err = fmt.Errorf("mongo.connect error :%w", e)
+			err = fmt.Errorf("mongo.connect error: %w", e)
 			return
 		}
 
-		//verify connection
-		if e := client.Ping(ctx, nil); e != nil {
-			err = fmt.Errorf("mongo.ping error:%w", e)
+		pingCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if e := client.Ping(pingCtx, nil); e != nil {
+			err = fmt.Errorf("mongo.ping error: %w", e)
 			return
 		}
 
 		mongoClient = client
 		log.Println("Connected to MongoDB")
 	})
+
 	return mongoClient, err
 }
 
@@ -61,7 +60,7 @@ func DisconnectMongo() error {
 	if mongoClient == nil {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := mongoClient.Disconnect(ctx); err != nil {
 		return fmt.Errorf("mongo.Disconnect error :%w", err)

@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Kiosk Backend (Go + Echo + Mongo + S3)
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Runtime: provided.al2
+    Architectures:
+    - x86_64
+Resources:
+  KioskApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: '''GET,POST,PUT,DELETE,OPTIONS'''
+        AllowHeaders: '''Authorization,Content-Type'''
+        AllowOrigin: '''*'''
+  KioskBackendFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: KioskBackendFunction
+      Handler: bootstrap
+      Events:
+        ProxyApi:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: KioskApi
+            Path: /{proxy+}
+            Method: ANY
+      Environment:
+        Variables:
+          MONGO_URI: your-mongo-uri
+          FILES_BUCKET: kiosk-print-files-dev
+      Policies:
+      - AWSLambdaBasicExecutionRole
+      - S3CrudPolicy:
+          BucketName: kiosk-print-files-dev
+    Metadata:
+      SamResourceId: KioskBackendFunction

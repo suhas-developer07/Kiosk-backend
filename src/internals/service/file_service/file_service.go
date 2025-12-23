@@ -39,18 +39,23 @@ func (s *FileService) UploadFileService(
 	req domain.FileUploadRequest,
 ) (string, error) {
 
-	//TODO:Need to check file type if its not .PDF convert that into .PDF formate
-
-	fileURL, err := s.Storage.Save(file, filename)
+	fileKey, err := s.Storage.Save(
+		ctx,
+		file,
+		filename,
+		req.Grade,
+		req.Subject,
+	)
 	if err != nil {
 		return "", err
 	}
 
 	fileData := domain.File{
 		Title:        req.Title,
-		FileURL:      fileURL,
-		Description:  req.Description,
+		FileKey:      fileKey, // ✅ STORE KEY, NOT URL
+		Grade:        req.Grade,
 		Subject:      req.Subject,
+		Description:  req.Description,
 		FacultyID:    req.FacultyID,
 		GroupAllowed: req.GroupAllowed,
 		FileType:     req.FileType,
@@ -62,11 +67,11 @@ func (s *FileService) UploadFileService(
 	})
 
 	if err != nil {
-		_ = s.Storage.Delete(fileURL)
+		_ = s.Storage.Delete(ctx, fileKey)
 		return "", err
 	}
 
-	return fileURL, nil
+	return fileKey, nil // ✅ return key (optional)
 }
 
 func (s *FileService) GetFileByGradeAndSubjectService(
@@ -85,7 +90,6 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 		return nil, domain.ErrInvalidGrade
 	}
 
-	//Todo: need to validate a subject in enum list
 	if subject == "" {
 		return nil, domain.ErrInvalidSubject
 	}
@@ -101,10 +105,18 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 		return []domain.File{}, nil
 	}
 
-	//TODO: Need to check if the file exist in s3
+	// ✅ SIGN URLS HERE (THIS ANSWERS YOUR QUESTION)
+	for i := range files {
+		signedURL, err := s.Storage.GenerateSignedURL(ctx, files[i].FileKey)
+		if err != nil {
+			return nil, err
+		}
+		files[i].FileURL = signedURL
+	}
 
 	return files, nil
 }
+
 
 func (s *FileService) CreatePrintJobService(
 	ctx context.Context,

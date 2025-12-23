@@ -1,6 +1,12 @@
 package cmd
 
 import (
+	"context"
+	"log"
+	"os"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
@@ -20,6 +26,13 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	logger, _ := zap.NewProduction()
 	sugar := logger.Sugar()
+
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			log.Println("🔎 Echo received path:", c.Request().URL.Path)
+			return next(c)
+		}
+	})
 
 	e.Use(echomiddleware.Logger())
 	e.Use(echomiddleware.Recover())
@@ -42,9 +55,19 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 		},
 	}))
 
-	db := mongoClient.Database("kiosk_db")
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	storage := filestore.NewLocalStorage("uploads")
+	s3Client := s3.NewFromConfig(cfg)
+
+	storage := filestore.NewS3Storage(
+		s3Client,
+		os.Getenv("FILES_BUCKET"),
+	)
+
+	db := mongoClient.Database("kiosk_db")
 
 	auth := middleware.AuthMiddleware(sugar)
 

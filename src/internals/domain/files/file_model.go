@@ -11,6 +11,7 @@ type File struct {
 	Title        string             `bson:"title" json:"title"`
 	Description  string             `bson:"description" json:"description"`
 	FileURL      string             `bson:"file_url" json:"file_url"`
+	FileKey      string             `bson:"file_key" json:"-"`
 	Grade        string             `bson:"grade" json:"grade"`
 	Subject      string             `bson:"subject" json:"subject"`
 	Category     string             `bson:"category" json:"category"`

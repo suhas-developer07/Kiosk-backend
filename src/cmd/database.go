@@ -65,7 +65,6 @@ func DisconnectMongo() error {
 	if err := mongoClient.Disconnect(ctx); err != nil {
 		return fmt.Errorf("mongo.Disconnect error :%w", err)
 	}
-
 	log.Println("MongoDB  Connection closed")
 
 	return nil

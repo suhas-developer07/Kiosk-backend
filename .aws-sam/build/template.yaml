@@ -32,11 +32,13 @@ Resources:
             Method: ANY
       Environment:
         Variables:
-          MONGO_URI: your-mongo-uri
-          FILES_BUCKET: kiosk-print-files-dev
+          MONGO_URI:
+            Fn::Sub: '{{resolve:secretsmanager:kiosk/mongo_uri:SecretString}}'
+          FILES_BUCKET: kiosk-files-storage
       Policies:
       - AWSLambdaBasicExecutionRole
       - S3CrudPolicy:
-          BucketName: kiosk-print-files-dev
+          BucketName: kiosk-files-storage
+      - SecretsManagerReadWrite
     Metadata:
       SamResourceId: KioskBackendFunction

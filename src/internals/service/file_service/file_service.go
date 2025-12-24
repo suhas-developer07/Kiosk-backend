@@ -52,9 +52,9 @@ func (s *FileService) UploadFileService(
 
 	fileData := domain.File{
 		Title:        req.Title,
-		FileKey:      fileKey, // ✅ STORE KEY, NOT URL
-		Grade:        req.Grade,
-		Subject:      req.Subject,
+		FileKey:      fileKey, 
+		Grade:        strings.ToUpper(strings.TrimSpace(req.Grade)),
+		Subject:      strings.ToLower(strings.TrimSpace(req.Subject)),
 		Description:  req.Description,
 		FacultyID:    req.FacultyID,
 		GroupAllowed: req.GroupAllowed,
@@ -71,7 +71,7 @@ func (s *FileService) UploadFileService(
 		return "", err
 	}
 
-	return fileKey, nil // ✅ return key (optional)
+	return fileKey, nil 
 }
 
 func (s *FileService) GetFileByGradeAndSubjectService(
@@ -83,8 +83,9 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
+
 	grade = strings.TrimSpace(strings.ToUpper(grade))
-	subject = strings.TrimSpace(strings.Title(subject))
+	subject = strings.TrimSpace(strings.ToLower(subject))
 
 	if grade != "1PUC" && grade != "2PUC" {
 		return nil, domain.ErrInvalidGrade
@@ -97,6 +98,7 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	s.Logger.Infof("fetching files: grade=%s subject=%s", grade, subject)
 
 	files, err := s.FileRepo.GetFileByGradeAndSubject(ctx, grade, subject)
+
 	if err != nil {
 		return nil, fmt.Errorf("service: get files: %w", err)
 	}
@@ -105,7 +107,7 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 		return []domain.File{}, nil
 	}
 
-	// ✅ SIGN URLS HERE (THIS ANSWERS YOUR QUESTION)
+	//  SIGN URLS HERE 
 	for i := range files {
 		signedURL, err := s.Storage.GenerateSignedURL(ctx, files[i].FileKey)
 		if err != nil {

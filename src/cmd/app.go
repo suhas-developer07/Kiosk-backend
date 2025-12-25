@@ -29,7 +29,7 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			log.Println("🔎 Echo received path:", c.Request().URL.Path)
+			log.Println("Echo received path:", c.Request().URL.Path)
 			return next(c)
 		}
 	})

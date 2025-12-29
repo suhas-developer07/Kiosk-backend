@@ -39,6 +39,7 @@ func (s *FileService) UploadFileService(
 	req domain.FileUploadRequest,
 ) (string, error) {
 
+	//TODO: acceept etag from s3
 	fileKey, err := s.Storage.Save(
 		ctx,
 		file,
@@ -50,6 +51,7 @@ func (s *FileService) UploadFileService(
 		return "", err
 	}
 
+	//todo:store etag to the bd 
 	fileData := domain.File{
 		Title:        req.Title,
 		FileKey:      fileKey, 
@@ -107,7 +109,7 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 		return []domain.File{}, nil
 	}
 
-	//  SIGN URLS HERE 
+	//todo: discard this block of code 
 	for i := range files {
 		signedURL, err := s.Storage.GenerateSignedURL(ctx, files[i].FileKey)
 		if err != nil {

@@ -203,3 +203,33 @@ func (h *FileHandler) PrintUploadHandler(c echo.Context) error {
 		Data:    token,
 	})
 }
+
+
+// func (h *FileHandler) AccessFileHandler(c echo.Context)error{
+// 	ctx := c.Request().Context()
+
+// 	id := strings.TrimSpace(strings.ToLower(c.Param("file_id")))
+
+// 	if id == ""{
+// 		return  c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+// 			Status: "error",
+// 			Error: "Missing file id",
+// 		})
+// 	}
+
+// 	signedUrl,err := h.FileService.AccessFileService(ctx,id)
+
+// 	if err != nil {
+// 		h.Logger.Error("Error while signing the url | err=%v",err)
+// 		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+// 			Status: "error",
+// 			Error: "Error while signing the url ",
+// 		})
+// 	}
+
+// 	return c.JSON(http.StatusOK,domain.SuccessResponse{
+// 		Status: "success",
+// 		Message: "one time signed url for accessing this file this url valid only for 5 mins",
+// 		Data: signedUrl,
+// 	})
+// }

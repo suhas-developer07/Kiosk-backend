@@ -11,6 +11,14 @@ Globals:
     Architectures:
       - x86_64
 
+  Api:
+    BinaryMediaTypes:
+      - multipart/form-data
+      - application/octet-stream
+      - application/pdf
+      - image/jpeg
+      - image/png
+
 Resources:
   KioskApi:
     Type: AWS::Serverless::Api
@@ -18,7 +26,7 @@ Resources:
       StageName: Prod
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Authorization,Content-Type'"
+        AllowHeaders: "'Authorization,Content-Type,X-Requested-With'"
         AllowOrigin: "'*'"
 
   KioskBackendFunction:

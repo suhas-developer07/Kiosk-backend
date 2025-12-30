@@ -3,9 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"net/url"
 	"regexp"
-	"strings"
 
 	validator "github.com/go-playground/validator/v10"
 	
@@ -13,20 +11,20 @@ import (
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 )
 
-func ValidateFileInput(f *domain.File) error {
+// func ValidateFileInput(f *domain.File) error {
 
-	if strings.TrimSpace(f.Title) == "" {
-		return errors.New("file name is required")
-	}
-	if strings.TrimSpace(f.FileURL) == "" {
-		return errors.New("file URL is required")
-	}
-	if _, err := url.ParseRequestURI(f.FileURL); err != nil {
-		return errors.New("invalid file URL")
-	}
+// 	if strings.TrimSpace(f.Title) == "" {
+// 		return errors.New("file name is required")
+// 	}
+// 	if strings.TrimSpace(f.FileURL) == "" {
+// 		return errors.New("file URL is required")
+// 	}
+// 	if _, err := url.ParseRequestURI(f.FileURL); err != nil {
+// 		return errors.New("invalid file URL")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 var pageRangeRegex = regexp.MustCompile(`^(\d+(-\d+)?)(,\d+(-\d+)?)*$`)
 

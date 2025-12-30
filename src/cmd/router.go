@@ -13,6 +13,7 @@ func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler,facultyHand
 	files.POST("/upload", fileHandler.UploadFileHandler)
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
 	files.POST("/printjob", fileHandler.PrintUploadHandler)
+	files.GET("/accessfile/:file_id",fileHandler.AccessFileHandler)
 
 	faculty := e.Group("/faculty")
 	faculty.POST("/signup",facultyHandler.CreateAccount)

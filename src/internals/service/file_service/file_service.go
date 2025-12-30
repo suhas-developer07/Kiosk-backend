@@ -183,3 +183,28 @@ func (s *FileService) CreatePrintJobService(
 
 	return "", nil
 }
+
+func (s *FileService) AccessFileService(ctx context.Context,req string)(string,error){
+	ctx, cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	s.Logger.Infof("Creating service for accessing the file | file ID=%v",req)
+
+	S3Key,err := s.FileRepo. GetS3KeyfromtheFileID(ctx,req)
+
+	if err != nil {
+		return "",fmt.Errorf("Failed to get the s3 key from the database.Error:%v",err)
+	}
+
+	if S3Key == ""{
+		return "",fmt.Errorf("something unsusual happend s3 key did not get from the db:error",err)
+	}
+
+	signedURL,err := s.Storage.GenerateSignedURL(ctx,S3Key)
+
+	if err!=nil {
+		return "",fmt.Errorf("Failed to get the signedURL from the S3. Error:%v",err)
+	}
+
+	return signedURL,nil	
+}

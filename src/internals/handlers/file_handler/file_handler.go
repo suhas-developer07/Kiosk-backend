@@ -79,6 +79,8 @@ func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
+	h.Logger.Info("Unfortunetly requst reached here")
+
 	grade := strings.TrimSpace(strings.ToUpper(c.Param("grade")))
 	subject := strings.TrimSpace(strings.Title(c.Param("subject")))
 
@@ -204,32 +206,34 @@ func (h *FileHandler) PrintUploadHandler(c echo.Context) error {
 	})
 }
 
+func (h *FileHandler) AccessFileHandler(c echo.Context) error {
+	ctx := c.Request().Context()
 
-// func (h *FileHandler) AccessFileHandler(c echo.Context)error{
-// 	ctx := c.Request().Context()
+	id := strings.TrimSpace(strings.ToLower(c.Param("file_id")))
 
-// 	id := strings.TrimSpace(strings.ToLower(c.Param("file_id")))
+	h.Logger.Info("Request reachead successfully to the correct handler")
+	
 
-// 	if id == ""{
-// 		return  c.JSON(http.StatusBadRequest,domain.ErrorResponse{
-// 			Status: "error",
-// 			Error: "Missing file id",
-// 		})
-// 	}
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Missing file id",
+		})
+	}
 
-// 	signedUrl,err := h.FileService.AccessFileService(ctx,id)
+	signedUrl, err := h.FileService.AccessFileService(ctx, id)
 
-// 	if err != nil {
-// 		h.Logger.Error("Error while signing the url | err=%v",err)
-// 		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
-// 			Status: "error",
-// 			Error: "Error while signing the url ",
-// 		})
-// 	}
+	if err != nil {
+		h.Logger.Errorf("Error while signing the url | err=%v", err)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Error while signing the url ",
+		})
+	}
 
-// 	return c.JSON(http.StatusOK,domain.SuccessResponse{
-// 		Status: "success",
-// 		Message: "one time signed url for accessing this file this url valid only for 5 mins",
-// 		Data: signedUrl,
-// 	})
-// }
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "one time signed url for accessing this file this url valid only for 5 mins",
+		Data:    signedUrl,
+	})
+}

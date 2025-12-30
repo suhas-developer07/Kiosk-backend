@@ -6,12 +6,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-//todo: should need to add etag property here 
+// todo: should need to add etag property here
 type File struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Title        string             `bson:"title" json:"title"`
 	Description  string             `bson:"description" json:"description"`
-	FileURL      string             `bson:"file_url" json:"file_url"` //todo :eliminate this file url from the struct 
 	FileKey      string             `bson:"file_key" json:"-"`
 	Grade        string             `bson:"grade" json:"grade"`
 	Subject      string             `bson:"subject" json:"subject"`

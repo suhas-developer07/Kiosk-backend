@@ -126,3 +126,40 @@ func (r *FilesRepo) CreatePrintJob(ctx context.Context, req domain.PrintJob) err
 
 	return nil
 }
+
+func (r *FilesRepo) GetS3KeyfromtheFileID(ctx context.Context, req string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	type S3Key struct {
+		File_key string `bson:"file_key"`
+	}
+
+	var res S3Key
+
+	objectID, err := primitive.ObjectIDFromHex(req)
+	if err != nil {
+		return "", domain.ErrInvalidID
+	}
+
+	filter := bson.M{
+		"_id": objectID,
+	}
+
+	// opts := options.FindOne().SetProjection(bson.M{
+	// 	"file_key": 1
+	// })
+	err = r.FilesCollection.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"file_key":1})).Decode(&res)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "" ,domain.ErrFileNotFound
+		}
+
+		fmt.Printf("Error in database layer:error:%v",err)
+		return "",fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
+	}
+
+	fmt.Println("File_key:",res.File_key)
+	return res.File_key, nil
+}

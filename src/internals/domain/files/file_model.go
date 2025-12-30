@@ -6,7 +6,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// todo: should need to add etag property here
 type File struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	Title        string             `bson:"title" json:"title"`
@@ -17,6 +16,7 @@ type File struct {
 	Category     string             `bson:"category" json:"category"`
 	FacultyID    primitive.ObjectID `bson:"faculty_id" json:"faculty_id"`
 	GroupAllowed string             `bson:"group_allowed" json:"group_allowed"`
+	ETag         string             `bson:"etag" json:"etag"`
 	FileType     string             `bson:"file_type" json:"file_type"`
 	UploadedAt   primitive.DateTime `bson:"uploaded_at" json:"uploaded_at"`
 }

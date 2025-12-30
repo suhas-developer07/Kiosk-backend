@@ -28,20 +28,25 @@ func (s *S3Storage) Save(
 	filename string,
 	grade string,
 	subject string,
-) (string, error) {
+) (string, string, error) {
 
 	key := fmt.Sprintf("grade-%s/%s/%s", grade, subject, filename)
 
-	_, err := s.Client.PutObject(ctx, &s3.PutObjectInput{
+	out, err := s.Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(key),
 		Body:   file,
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return key, nil
+	etag := ""
+	if out.ETag != nil {
+		etag = aws.ToString(out.ETag)
+	}
+
+	return key, etag, nil
 }
 
 func (s *S3Storage) Delete(ctx context.Context, key string) error {

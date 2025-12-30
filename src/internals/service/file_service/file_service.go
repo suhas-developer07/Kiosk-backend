@@ -39,8 +39,7 @@ func (s *FileService) UploadFileService(
 	req domain.FileUploadRequest,
 ) (string, error) {
 
-	//TODO: acceept etag from s3
-	fileKey, err := s.Storage.Save(
+	fileKey,etag,err := s.Storage.Save(
 		ctx,
 		file,
 		filename,
@@ -51,7 +50,6 @@ func (s *FileService) UploadFileService(
 		return "", err
 	}
 
-	//todo:store etag to the bd 
 	fileData := domain.File{
 		Title:        req.Title,
 		FileKey:      fileKey, 
@@ -60,6 +58,7 @@ func (s *FileService) UploadFileService(
 		Description:  req.Description,
 		FacultyID:    req.FacultyID,
 		GroupAllowed: req.GroupAllowed,
+		ETag:         strings.Trim(etag,`"`),
 		FileType:     req.FileType,
 		UploadedAt:   primitive.NewDateTimeFromTime(time.Now()),
 	}
@@ -107,15 +106,6 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 
 	if len(files) == 0 {
 		return []domain.File{}, nil
-	}
-
-	//todo: discard this block of code 
-	for i := range files {
-		signedURL, err := s.Storage.GenerateSignedURL(ctx, files[i].FileKey)
-		if err != nil {
-			return nil, err
-		}
-		files[i].FileURL = signedURL
 	}
 
 	return files, nil
@@ -197,7 +187,7 @@ func (s *FileService) AccessFileService(ctx context.Context,req string)(string,e
 	}
 
 	if S3Key == ""{
-		return "",fmt.Errorf("something unsusual happend s3 key did not get from the db:error",err)
+		return "",fmt.Errorf("something unsusual happend s3 key did not get from the db")
 	}
 
 	signedURL,err := s.Storage.GenerateSignedURL(ctx,S3Key)

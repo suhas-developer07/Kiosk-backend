@@ -146,9 +146,6 @@ func (r *FilesRepo) GetS3KeyfromtheFileID(ctx context.Context, req string) (stri
 		"_id": objectID,
 	}
 
-	// opts := options.FindOne().SetProjection(bson.M{
-	// 	"file_key": 1
-	// })
 	err = r.FilesCollection.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"file_key":1})).Decode(&res)
 
 	if err != nil {

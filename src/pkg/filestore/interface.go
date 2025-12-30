@@ -12,7 +12,7 @@ type FileStorage interface {
 		filename string,
 		grade string,
 		subject string,
-	) (string, error)
+	) (string, string, error)
 
 	Delete(ctx context.Context, key string) error
 

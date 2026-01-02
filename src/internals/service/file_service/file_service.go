@@ -9,6 +9,7 @@ import (
 	"time"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
+	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
 
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
@@ -36,9 +37,27 @@ func (s *FileService) UploadFileService(
 	filename string,
 	file io.Reader,
 	req domain.FileUploadRequest,
+	facultyID string,
 ) (string, error) {
 
-	fileKey,etag,err := s.Storage.Save(
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	facultyID = strings.TrimSpace(facultyID)
+	if facultyID == "" {
+		return "", domain.ErrInvalidID
+	}
+
+	objID, err := primitive.ObjectIDFromHex(facultyID)
+	if err != nil {
+		return "", domain.ErrInvalidID
+	}
+
+	if !subjects.IsValidSubject(req.Subject) {
+		return "", fmt.Errorf("service:subject is not valid")
+	}
+
+	fileKey, etag, err := s.Storage.Save(
 		ctx,
 		file,
 		filename,
@@ -51,13 +70,13 @@ func (s *FileService) UploadFileService(
 
 	fileData := domain.File{
 		Title:        req.Title,
-		FileKey:      fileKey, 
+		FileKey:      fileKey,
 		Grade:        strings.ToUpper(strings.TrimSpace(req.Grade)),
 		Subject:      strings.ToLower(strings.TrimSpace(req.Subject)),
 		Description:  req.Description,
-		FacultyID:    req.FacultyID,
+		FacultyID:    objID,
 		GroupAllowed: req.GroupAllowed,
-		ETag:         strings.Trim(etag,`"`),
+		ETag:         strings.Trim(etag, `"`),
 		FileType:     req.FileType,
 		UploadedAt:   primitive.NewDateTimeFromTime(time.Now()),
 	}
@@ -71,7 +90,7 @@ func (s *FileService) UploadFileService(
 		return "", err
 	}
 
-	return fileKey, nil 
+	return fileKey, nil
 }
 
 func (s *FileService) GetFileByGradeAndSubjectService(
@@ -83,7 +102,6 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-
 	grade = strings.TrimSpace(strings.ToUpper(grade))
 	subject = strings.TrimSpace(strings.ToLower(subject))
 
@@ -93,6 +111,10 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 
 	if subject == "" {
 		return nil, domain.ErrInvalidSubject
+	}
+
+	if !subjects.IsValidSubject(subject) {
+		return nil, fmt.Errorf("service:subject is not valid type")
 	}
 
 	s.Logger.Infof("fetching files: grade=%s subject=%s", grade, subject)
@@ -110,7 +132,6 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	return files, nil
 }
 
-//Todo:required many changes in this functions 
 func (s *FileService) CreatePrintJobService(
 	ctx context.Context,
 	req domain.PrintJobPayload,
@@ -142,7 +163,6 @@ func (s *FileService) CreatePrintJobService(
 	if !exists {
 		return "", domain.ErrFileNotFound
 	}
-
 
 	printJob := domain.PrintJob{
 		FileID:              req.FileID,
@@ -222,5 +242,3 @@ func (s *FileService) AccessFileService(
 
 	return signedURL, nil
 }
-
-

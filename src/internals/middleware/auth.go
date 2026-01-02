@@ -61,7 +61,7 @@ func AuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 				})
 			}
 
-			userID, ok := claims["user_id"].(string)
+			FacultyID, ok := claims["faculty_id"].(string)
 			if !ok {
 				logger.Error("Missing user_id in token")
 				return c.JSON(http.StatusUnauthorized, map[string]string{
@@ -70,7 +70,7 @@ func AuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 				})
 			}
 
-			c.Set("user_id", userID)
+			c.Set("faculty_id", FacultyID)
 
 			return next(c)
 		}

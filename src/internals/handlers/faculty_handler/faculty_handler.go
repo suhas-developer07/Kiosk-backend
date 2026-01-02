@@ -3,7 +3,6 @@ package facultyhandler
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -137,7 +136,7 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	userID := c.Get("user_id").(string)
+	FacultyID := c.Get("faculty_id").(string)
 
 	var payload domain.UpdateProfilePayload
 
@@ -158,7 +157,7 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 		})
 	}
 
-	err := h.Facultyservice.UpdateProfileService(ctx, userID, payload)
+	err := h.Facultyservice.UpdateProfileService(ctx, FacultyID, payload)
 	if err != nil {
 
 		switch {
@@ -189,10 +188,12 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 		Message: "Profile updated successfully",
 	})
 }
+
+//This handler used when he is configuring the file details to upload 
 func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	facultyID := strings.TrimSpace(c.Param("faculty_id"))
+	facultyID := c.Get("faculty_id").(string)
 
 	h.Logger.Infow(
 		"get subjects by faculty id request received",
@@ -236,7 +237,6 @@ func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {
 		}
 	}
 
-	// 5. Success response
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "subjects fetched successfully",
@@ -245,3 +245,28 @@ func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {
 		},
 	})
 }
+
+func (h *FacultyHandler) GetAvailableSubjectsHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	h.Logger.Infow("get available subjects request received")
+
+	subjectsList, err := h.Facultyservice.GetAvailableSubjects(ctx)
+	if err != nil {
+		h.Logger.Errorw("failed to fetch available subjects", "error", err)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "failed to fetch subjects",
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "available subjects fetched successfully",
+		Data: map[string]interface{}{
+			"subjects": subjectsList,
+		},
+	})
+}
+

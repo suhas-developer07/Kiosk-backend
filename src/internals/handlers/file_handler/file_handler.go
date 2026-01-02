@@ -25,8 +25,9 @@ func NewFileHandler(fs *service.FileService, Logger *zap.SugaredLogger) *FileHan
 }
 
 func (h *FileHandler) UploadFileHandler(c echo.Context) error {
+	ctx := c.Request().Context()
 
-	//userID := c.Get("user_id").(string)
+	FacultyID := c.Get("faculty_id").(string)
 
 	req := domain.FileUploadRequest{
 		Title:        c.FormValue("title"),
@@ -38,7 +39,7 @@ func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 		FileType:     c.FormValue("type"),
 	}
 
-	//TODO : faculty id and faculty name comes from middleware
+	//TODO : faculty id and faculty name comes from middleware -->done  need to test 
 
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -58,10 +59,11 @@ func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 	defer src.Close()
 
 	path, err := h.FileService.UploadFileService(
-		c.Request().Context(),
+		ctx,
 		file.Filename,
 		src,
 		req,
+		FacultyID,
 	)
 
 	if err != nil {
@@ -101,7 +103,6 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 		})
 	}
 
-	// TODO:subject list can be loaded from config
 	if subject == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",

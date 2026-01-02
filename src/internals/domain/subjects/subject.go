@@ -32,3 +32,15 @@ func IsValidSubject(s string)bool{
 	_,ok := ValidSubjects[NormalizeSubject(s)]
 	return ok
 }
+
+func AllSubjects() []Subject {
+	return []Subject{
+		Kannada,
+		English,
+		Maths,
+		Chemistry,
+		Physics,
+		Biology,
+		ComputerScience,
+	}
+}

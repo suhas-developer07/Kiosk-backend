@@ -107,23 +107,23 @@ func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPay
 
 func (s *FacultyService) UpdateProfileService(
 	ctx context.Context,
-	userID string,
+	FacultyId string,
 	req domain.UpdateProfilePayload,
 ) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	s.Logger.Infof("Updating faculty profile | faculty_id=%s", userID)
+	s.Logger.Infof("Updating faculty profile | faculty_id=%s", FacultyId)
 
-	objectID, err := primitive.ObjectIDFromHex(userID)
+	objectID, err := primitive.ObjectIDFromHex(FacultyId)
 	if err != nil {
 		return domain.ErrInvalidID
 	}
 
 	//TODO : I need to check faculty id in id database.
 	profile := domain.FacultyProfile{
-		FacultyID:     userID,
+		FacultyID:     FacultyId,
 		Subjects:      req.Subjects,
 		Gender:        req.Gender,
 		Qualification: req.Qualification,
@@ -143,7 +143,7 @@ func (s *FacultyService) UpdateProfileService(
 		}
 	}
 
-	s.Logger.Infof("Profile updated successfully | faculty_id=%s", userID)
+	s.Logger.Infof("Profile updated successfully | faculty_id=%s", FacultyId)
 	return nil
 }
 
@@ -201,4 +201,13 @@ func (s *FacultyService) GetSubjectsByFacultyID(
 	}
 
 	return validSubjects, nil
+}
+
+func (s *FacultyService) GetAvailableSubjects(
+	ctx context.Context,
+) ([]subjects.Subject, error) {
+
+	s.Logger.Infow("fetching available subjects")
+
+	return subjects.AllSubjects(), nil
 }

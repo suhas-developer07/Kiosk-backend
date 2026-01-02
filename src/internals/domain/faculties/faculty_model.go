@@ -19,18 +19,12 @@ type Faculty struct {
 }
 
 type FacultyProfile struct {
-	FacultyID     string    `bson:"faculty_id,omitemty" json:"faculty_id"`
-	Subjects      []Subject `bson:"subjects,omitempty" json:"subjects,omitempty"`
-	Gender        string    `bson:"gender,omitempty" json:"gender,omitempty"`
-	Qualification string    `bson:"qualification,omitempty" json:"qualification,omitempty"`
-	Experience    int       `bson:"experience,omitempty" json:"experience,omitempty"`
-	PhoneNumber   string    `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
-}
-
-type Subject struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	SubjectCode string             `bson:"subject_code" json:"subject_code"`
-	SubjectName string             `bson:"subject_name" json:"subject_name"`
+	FacultyID     string `bson:"faculty_id,omitemty" json:"faculty_id"`
+	Subjects      []string `bson:"subjects,omitempty" json:"subjects,omitempty"`
+	Gender        string `bson:"gender,omitempty" json:"gender,omitempty"`
+	Qualification string `bson:"qualification,omitempty" json:"qualification,omitempty"`
+	Experience    int    `bson:"experience,omitempty" json:"experience,omitempty"`
+	PhoneNumber   string `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
 }
 
 type AccoutCreationPayload struct {
@@ -44,11 +38,10 @@ type SigninPayload struct {
 	Password string `json:"password" validate:"required,min=6"`
 }
 
-
 type UpdateProfilePayload struct {
-	Subjects      []Subject `json:"subjects" validate:"required,dive"`
-	Gender        string    `json:"gender" validate:"required,oneof=male female other"`
-	Qualification string    `json:"qualification" validate:"required"`
-	Experience    int       `json:"experience" validate:"required,min=0,max=50"`
-	PhoneNumber   string    `json:"phone_number" validate:"required,e164"`
+	Subjects      []string `json:"subjects" validate:"required,dive"`
+	Gender        string   `json:"gender" validate:"required,oneof=male female other"`
+	Qualification string   `json:"qualification" validate:"required"`
+	Experience    int      `json:"experience" validate:"required,min=0,max=50"`
+	PhoneNumber   string   `json:"phone_number" validate:"required,e164"`
 }

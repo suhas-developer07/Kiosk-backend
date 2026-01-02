@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type FacultyRepo struct {
@@ -100,3 +101,29 @@ func (r *FacultyRepo) UpdateProfile(
 
 	return nil
 }
+
+func (r *FacultyRepo) GetFacultyProfileByID(
+	ctx context.Context,
+	id primitive.ObjectID,
+) (domain.FacultyProfile, error) {
+
+	var faculty domain.Faculty
+
+	err := r.FacultyCollection.FindOne(
+		ctx,
+		bson.M{"_id": id},
+		options.FindOne().SetProjection(bson.M{
+			"profile": 1,
+		}),
+	).Decode(&faculty)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return domain.FacultyProfile{}, domain.ErrFacultyNotFound
+		}
+		return domain.FacultyProfile{}, err
+	}
+
+	return faculty.Profile, nil
+}
+

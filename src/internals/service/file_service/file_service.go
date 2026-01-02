@@ -12,7 +12,6 @@ import (
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
 
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
-	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -144,14 +143,6 @@ func (s *FileService) CreatePrintJobService(
 		return "", domain.ErrFileNotFound
 	}
 
-	//TODO1 : Generate an Token for the JOB Store that into an DB
-	//TODO 2 : calculate the price for the JOB  --> DONE
-
-	TotalSheetsRequired, Price := utils.CalculatePrintJob(req.PageRange, req.PageLayout, req.PrintingSide, req.PrintingMode, req.Copies)
-
-	if TotalSheetsRequired < 0 || Price < 0 {
-		return "", fmt.Errorf("error while calculating the cost")
-	}
 
 	printJob := domain.PrintJob{
 		FileID:              req.FileID,
@@ -161,8 +152,8 @@ func (s *FileService) CreatePrintJobService(
 		PageRange:           req.PageRange,
 		PageLayout:          req.PageLayout,
 		OrderStatus:         "Initialized",
-		Price:               Price,
-		TotalSheetsRequired: TotalSheetsRequired,
+		Price:               req.Price,
+		TotalSheetsRequired: req.TotalSheets,
 		CreatedAt:           time.Now(),
 	}
 
@@ -174,27 +165,62 @@ func (s *FileService) CreatePrintJobService(
 	return "", nil
 }
 
-func (s *FileService) AccessFileService(ctx context.Context,req string)(string,error){
-	ctx, cancel := context.WithTimeout(ctx,5*time.Second)
+func (s *FileService) AccessFileService(
+	ctx context.Context,
+	fileID string,
+) (string, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	s.Logger.Infof("Creating service for accessing the file | file ID=%v",req)
+	fileID = strings.TrimSpace(fileID)
+	if fileID == "" {
+		return "", domain.ErrInvalidID
+	}
 
-	S3Key,err := s.FileRepo. GetS3KeyfromtheFileID(ctx,req)
+	if _, err := primitive.ObjectIDFromHex(fileID); err != nil {
+		return "", domain.ErrInvalidID
+	}
 
+	s.Logger.Infow(
+		"accessing file",
+		"file_id", fileID,
+	)
+
+	fileKey, err := s.FileRepo.GetFileKeyfromtheFileID(ctx, fileID)
 	if err != nil {
-		return "",fmt.Errorf("Failed to get the s3 key from the database.Error:%v",err)
+		if errors.Is(err, domain.ErrFileNotFound) {
+			return "", domain.ErrFileNotFound
+		}
+
+		return "", fmt.Errorf(
+			"service: failed to fetch file key for file_id=%s: %w",
+			fileID, err,
+		)
 	}
 
-	if S3Key == ""{
-		return "",fmt.Errorf("something unsusual happend s3 key did not get from the db")
+	if fileKey == "" {
+		s.Logger.Errorw(
+			"empty file key returned from repository",
+			"file_id", fileID,
+		)
+		return "", errors.New("internal error: empty file key")
 	}
 
-	signedURL,err := s.Storage.GenerateSignedURL(ctx,S3Key)
-
-	if err!=nil {
-		return "",fmt.Errorf("Failed to get the signedURL from the S3. Error:%v",err)
+	signedURL, err := s.Storage.GenerateSignedURL(ctx, fileKey)
+	if err != nil {
+		return "", fmt.Errorf(
+			"service: failed to generate signed url for key=%s: %w",
+			fileKey, err,
+		)
 	}
 
-	return signedURL,nil	
+	s.Logger.Infow(
+		"signed url generated successfully",
+		"file_id", fileID,
+	)
+
+	return signedURL, nil
 }
+
+

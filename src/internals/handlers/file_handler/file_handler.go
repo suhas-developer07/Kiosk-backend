@@ -26,6 +26,8 @@ func NewFileHandler(fs *service.FileService, Logger *zap.SugaredLogger) *FileHan
 
 func (h *FileHandler) UploadFileHandler(c echo.Context) error {
 
+	//userID := c.Get("user_id").(string)
+
 	req := domain.FileUploadRequest{
 		Title:        c.FormValue("title"),
 		Description:  c.FormValue("description"),
@@ -209,31 +211,55 @@ func (h *FileHandler) PrintUploadHandler(c echo.Context) error {
 func (h *FileHandler) AccessFileHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	id := strings.TrimSpace(strings.ToLower(c.Param("file_id")))
+	fileID := strings.TrimSpace(c.Param("file_id"))
 
-	h.Logger.Info("Request reachead successfully to the correct handler")
-	
+	h.Logger.Infow(
+		"access file request received",
+		"file_id", fileID,
+	)
 
-	if id == "" {
+	if fileID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Missing file id",
+			Error:  "file_id is required",
 		})
 	}
 
-	signedUrl, err := h.FileService.AccessFileService(ctx, id)
-
+	signedURL, err := h.FileService.AccessFileService(ctx, fileID)
 	if err != nil {
-		h.Logger.Errorf("Error while signing the url | err=%v", err)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Error while signing the url ",
-		})
+
+		switch {
+		case errors.Is(err, domain.ErrInvalidID):
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "invalid file id",
+			})
+
+		case errors.Is(err, domain.ErrFileNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "file not found",
+			})
+
+		default:
+			h.Logger.Errorw(
+				"failed to generate signed url",
+				"file_id", fileID,
+				"error", err,
+			)
+
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to generate access url",
+			})
+		}
 	}
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
-		Message: "one time signed url for accessing this file this url valid only for 5 mins",
-		Data:    signedUrl,
+		Message: "signed url generated successfully (valid for limited time)",
+		Data: map[string]string{
+			"signed_url": signedURL,
+		},
 	})
 }

@@ -55,4 +55,6 @@ type PrintJobPayload struct {
 	PrintingMode string             `json:"printing_mode" validate:"required,oneof=color bw"`
 	PageRange    string             `json:"page_range" validate:"omitempty"`
 	PageLayout   string             `json:"PageLayout" validate:"required,oneof=2-up 4-up 1-up"`
+	Price        int                `json:"price" validate:"required"`
+	TotalSheets  int                `json:"totalsheets" validate:"required"`
 }

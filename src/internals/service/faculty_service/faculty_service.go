@@ -8,6 +8,7 @@ import (
 	"time"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
+	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -25,6 +26,7 @@ func NewFacultyService(repo *db.FacultyRepo, Logger *zap.SugaredLogger) *Faculty
 		Logger:      Logger,
 	}
 }
+
 func (s *FacultyService) CreateAccountService(
 	ctx context.Context,
 	req domain.AccoutCreationPayload,
@@ -143,4 +145,60 @@ func (s *FacultyService) UpdateProfileService(
 
 	s.Logger.Infof("Profile updated successfully | faculty_id=%s", userID)
 	return nil
+}
+
+func (s *FacultyService) GetSubjectsByFacultyID(
+	ctx context.Context,
+	facultyID string,
+) ([]subjects.Subject, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	facultyID = strings.TrimSpace(facultyID)
+	if facultyID == "" {
+		return nil, domain.ErrInvalidID
+	}
+
+	objID, err := primitive.ObjectIDFromHex(facultyID)
+	if err != nil {
+		return nil, domain.ErrInvalidID
+	}
+
+	s.Logger.Infow(
+		"fetching subjects for faculty",
+		"faculty_id", objID.Hex(),
+	)
+
+	profile, err := s.FacultyRepo.GetFacultyProfileByID(ctx, objID)
+	if err != nil {
+
+		if errors.Is(err, domain.ErrFacultyNotFound) {
+			return nil, domain.ErrFacultyNotFound
+		}
+
+		return nil, fmt.Errorf(
+			"service: failed to fetch faculty profile: %w",
+			err,
+		)
+	}
+
+	if len(profile.Subjects) == 0 {
+		return []subjects.Subject{}, nil
+	}
+
+	validSubjects := make([]subjects.Subject, 0, len(profile.Subjects))
+	for _, sub := range profile.Subjects {
+		if subjects.IsValidSubject(string(sub)) {
+			validSubjects = append(validSubjects, sub)
+		} else {
+			s.Logger.Warnw(
+				"invalid subject found in faculty profile",
+				"faculty_id", facultyID,
+				"subject", sub,
+			)
+		}
+	}
+
+	return validSubjects, nil
 }

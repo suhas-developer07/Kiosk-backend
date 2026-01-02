@@ -127,7 +127,7 @@ func (r *FilesRepo) CreatePrintJob(ctx context.Context, req domain.PrintJob) err
 	return nil
 }
 
-func (r *FilesRepo) GetS3KeyfromtheFileID(ctx context.Context, req string) (string, error) {
+func (r *FilesRepo) GetFileKeyfromtheFileID(ctx context.Context, req string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

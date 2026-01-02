@@ -2,8 +2,8 @@ package facultyhandler
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -138,7 +138,6 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	userID := c.Get("user_id").(string)
-	fmt.Println("UserID:",userID)
 
 	var payload domain.UpdateProfilePayload
 
@@ -152,7 +151,7 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 
 	if err := h.validate.Struct(&payload); err != nil {
 		msg := utils.FormatValidationError(err)
-		h.Logger.Warnf("Profile validation failed | error=%v", msg,err)
+		h.Logger.Warnf("Profile validation failed | error=%v", msg, err)
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
 			Error:  msg,
@@ -188,5 +187,61 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "Profile updated successfully",
+	})
+}
+func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	facultyID := strings.TrimSpace(c.Param("faculty_id"))
+
+	h.Logger.Infow(
+		"get subjects by faculty id request received",
+		"faculty_id", facultyID,
+	)
+
+	if facultyID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "faculty_id is required",
+		})
+	}
+
+	subjectsList, err := h.Facultyservice.GetSubjectsByFacultyID(ctx, facultyID)
+	if err != nil {
+
+		switch {
+		case errors.Is(err, domain.ErrInvalidID):
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "invalid faculty id",
+			})
+
+		case errors.Is(err, domain.ErrFacultyNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "faculty not found",
+			})
+
+		default:
+			h.Logger.Errorw(
+				"failed to fetch subjects for faculty",
+				"faculty_id", facultyID,
+				"error", err,
+			)
+
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to fetch subjects",
+			})
+		}
+	}
+
+	// 5. Success response
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "subjects fetched successfully",
+		Data: map[string]interface{}{
+			"subjects": subjectsList,
+		},
 	})
 }

@@ -8,7 +8,6 @@ import (
 
 func SetupRouter(e *echo.Echo, fileHandler *handler_File.FileHandler,facultyHandler *handler_Faculty.FacultyHandler,auth echo.MiddlewareFunc) {
 
-
 	files := e.Group("/files")
 	files.POST("/upload", fileHandler.UploadFileHandler)
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)

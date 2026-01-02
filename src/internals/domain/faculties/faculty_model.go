@@ -3,6 +3,7 @@ package faculties
 import (
 	"time"
 
+	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -19,12 +20,12 @@ type Faculty struct {
 }
 
 type FacultyProfile struct {
-	FacultyID     string `bson:"faculty_id,omitemty" json:"faculty_id"`
-	Subjects      []string `bson:"subjects,omitempty" json:"subjects,omitempty"`
-	Gender        string `bson:"gender,omitempty" json:"gender,omitempty"`
-	Qualification string `bson:"qualification,omitempty" json:"qualification,omitempty"`
-	Experience    int    `bson:"experience,omitempty" json:"experience,omitempty"`
-	PhoneNumber   string `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
+	FacultyID     string             `bson:"faculty_id,omitemty" json:"faculty_id"`
+	Subjects      []subjects.Subject `bson:"subjects,omitempty" json:"subjects,omitempty"`
+	Gender        string             `bson:"gender,omitempty" json:"gender,omitempty"`
+	Qualification string             `bson:"qualification,omitempty" json:"qualification,omitempty"`
+	Experience    int                `bson:"experience,omitempty" json:"experience,omitempty"`
+	PhoneNumber   string             `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
 }
 
 type AccoutCreationPayload struct {
@@ -39,9 +40,9 @@ type SigninPayload struct {
 }
 
 type UpdateProfilePayload struct {
-	Subjects      []string `json:"subjects" validate:"required,dive"`
-	Gender        string   `json:"gender" validate:"required,oneof=male female other"`
-	Qualification string   `json:"qualification" validate:"required"`
-	Experience    int      `json:"experience" validate:"required,min=0,max=50"`
-	PhoneNumber   string   `json:"phone_number" validate:"required,e164"`
+	Subjects      []subjects.Subject `json:"subjects" validate:"required,dive"`
+	Gender        string             `json:"gender" validate:"required,oneof=male female other"`
+	Qualification string             `json:"qualification" validate:"required"`
+	Experience    int                `json:"experience" validate:"required,min=0,max=50"`
+	PhoneNumber   string             `json:"phone_number" validate:"required,e164"`
 }

@@ -4,12 +4,14 @@ import (
 	"github.com/labstack/echo/v4"
 	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
+	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
 )
 
 func SetupRouter(
 	e *echo.Echo, 
 	fileHandler *handler_File.FileHandler,
 	facultyHandler *handler_Faculty.FacultyHandler,
+	orchestratorHandler *handler_orchestrator.UploadHandler,
 	auth echo.MiddlewareFunc,
 	) {
 
@@ -26,7 +28,7 @@ func SetupRouter(
 	fileAuth := files.Group("")
 	fileAuth.Use(auth)
 
-	fileAuth.POST("/upload",fileHandler.UploadFileHandler)
+	fileAuth.POST("/upload",orchestratorHandler.UploadFileHandler)
 
 	facultyAuth := faculty.Group("")   
 	facultyAuth.Use(auth)              

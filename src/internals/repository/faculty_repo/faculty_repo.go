@@ -7,6 +7,7 @@ import (
 	"time"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
+	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -125,5 +126,28 @@ func (r *FacultyRepo) GetFacultyProfileByID(
 	}
 
 	return faculty.Profile, nil
+}
+
+func (r *FacultyRepo) HasSubject(
+	ctx context.Context,
+	facultyID primitive.ObjectID,
+	subject subjects.Subject,
+) (bool, error) {
+
+	filter := bson.M{
+		"_id": facultyID,
+		"profile.subjects": subject,
+	}
+
+	err := r.FacultyCollection.FindOne(ctx, filter).Err()
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }
 

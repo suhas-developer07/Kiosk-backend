@@ -211,3 +211,4 @@ func (s *FacultyService) GetAvailableSubjects(
 
 	return subjects.AllSubjects(), nil
 }
+

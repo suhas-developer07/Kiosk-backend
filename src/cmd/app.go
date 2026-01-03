@@ -11,6 +11,8 @@ import (
 	echomiddleware "github.com/labstack/echo/v4/middleware"
 	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
+	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
+	service_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/service/orchestrator"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/middleware"
 	facultyrepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
 	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
@@ -83,7 +85,10 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	facultyHandler := handler_Faculty.NewFacultyHandler(facultyService, sugar)
 
-	SetupRouter(e, fileHandler, facultyHandler, auth)
+	orchestratorService := service_orchestrator.NewUploadService(filesRepo,facultyRepo,storage,sugar)
+	orchestratorHandler := handler_orchestrator.NewUploadHandler(orchestratorService,sugar)
+
+	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,auth)
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{

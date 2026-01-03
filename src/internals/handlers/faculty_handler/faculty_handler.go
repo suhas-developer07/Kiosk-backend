@@ -13,14 +13,14 @@ import (
 )
 
 type FacultyHandler struct {
-	Facultyservice *service.FacultyService
+	FacultyService *service.FacultyService
 	Logger         *zap.SugaredLogger
 	validate       *validator.Validate
 }
 
 func NewFacultyHandler(fs *service.FacultyService, Logger *zap.SugaredLogger) *FacultyHandler {
 	return &FacultyHandler{
-		Facultyservice: fs,
+		FacultyService: fs,
 		Logger:         Logger,
 		validate:       validator.New(),
 	}
@@ -49,7 +49,7 @@ func (h *FacultyHandler) CreateAccount(c echo.Context) error {
 		})
 	}
 
-	err := h.Facultyservice.CreateAccountService(ctx, payload)
+	err := h.FacultyService.CreateAccountService(ctx, payload)
 	if err != nil {
 
 		switch {
@@ -97,7 +97,7 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 		})
 	}
 
-	access, refresh, err := h.Facultyservice.SigninService(ctx, payload)
+	access, refresh, err := h.FacultyService.SigninService(ctx, payload)
 	if err != nil {
 
 		switch {
@@ -157,7 +157,7 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 		})
 	}
 
-	err := h.Facultyservice.UpdateProfileService(ctx, FacultyID, payload)
+	err := h.FacultyService.UpdateProfileService(ctx, FacultyID, payload)
 	if err != nil {
 
 		switch {
@@ -207,7 +207,7 @@ func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {
 		})
 	}
 
-	subjectsList, err := h.Facultyservice.GetSubjectsByFacultyID(ctx, facultyID)
+	subjectsList, err := h.FacultyService.GetSubjectsByFacultyID(ctx, facultyID)
 	if err != nil {
 
 		switch {
@@ -251,7 +251,7 @@ func (h *FacultyHandler) GetAvailableSubjectsHandler(c echo.Context) error {
 
 	h.Logger.Infow("get available subjects request received")
 
-	subjectsList, err := h.Facultyservice.GetAvailableSubjects(ctx)
+	subjectsList, err := h.FacultyService.GetAvailableSubjects(ctx)
 	if err != nil {
 		h.Logger.Errorw("failed to fetch available subjects", "error", err)
 

@@ -8,19 +8,19 @@ import (
 
 var jwtSecret = []byte("SUPER_SECRET_KEY") 
 
-func GenerateAccessToken(userID string) (string, error) {
+func GenerateAccessToken(FacultyID string) (string, error) {
     claims := jwt.MapClaims{
-        "user_id": userID,
-        "exp":     time.Now().Add(15 * time.Minute).Unix(),
+        "faculty_id": FacultyID,
+        "exp":     time.Now().Add(150 * time.Minute).Unix(),
     }
 
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     return token.SignedString(jwtSecret)
 }
 
-func GenerateRefreshToken(userID string) (string, error) {
+func GenerateRefreshToken(FacultyID string) (string, error) {
     claims := jwt.MapClaims{
-        "user_id": userID,
+        "faculty_id": FacultyID,
         "exp":     time.Now().Add(31* 24 * time.Hour).Unix(),
     }
 

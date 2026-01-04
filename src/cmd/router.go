@@ -23,7 +23,7 @@ func SetupRouter(
 	faculty := e.Group("/faculty")
 	faculty.POST("/signup",facultyHandler.CreateAccount)
 	faculty.POST("/signin",facultyHandler.Signin)
-	faculty.GET("/subjects",facultyHandler.GetAvailableSubjectsHandler)
+	faculty.GET("/subjects",facultyHandler.GetAvailableSubjectsHandler) //todo:need to change this place 
 
 	fileAuth := files.Group("")
 	fileAuth.Use(auth)

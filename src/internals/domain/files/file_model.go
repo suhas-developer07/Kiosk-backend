@@ -54,7 +54,7 @@ type PrintJobPayload struct {
 	PrintingSide string             `json:"printing_side" validate:"required,oneof=single double"`
 	PrintingMode string             `json:"printing_mode" validate:"required,oneof=color bw"`
 	PageRange    string             `json:"page_range" validate:"omitempty"`
-	PageLayout   string             `json:"PageLayout" validate:"required,oneof=2-up 4-up 1-up"`
+	PageLayout   string             `json:"PageLayout" validate:"required,oneof=2-up 4-up 1-up"`//todo:change  P->p
 	Price        int                `json:"price" validate:"required"`
 	TotalSheets  int                `json:"totalsheets" validate:"required"`
 }

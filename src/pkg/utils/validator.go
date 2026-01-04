@@ -57,6 +57,10 @@ func ValidatePrintJobPayload(p domain.PrintJobPayload) error {
 		return errors.New("invalid page_range format. Example: 1-5 or 2,3,7")
 	}
 
+	if p.TotalSheets <= 0  {
+		return errors.New("Total sheets is  required")
+	}
+
 	validPageLayout := map[string]bool{"2-up": true, "4-up": true, "1-up": true}
 	if !validPageLayout[p.PageLayout] {
 		return errors.New("Page Layout must be one of:2-up,4-up,1-up")

@@ -51,7 +51,7 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	}
 
 	if !subjects.IsValidSubject(subject) {
-		return nil, fmt.Errorf("service:subject is not valid type")
+		return nil, domain.ErrInvalidSubject
 	}
 
 	s.Logger.Infof("fetching files: grade=%s subject=%s", grade, subject)

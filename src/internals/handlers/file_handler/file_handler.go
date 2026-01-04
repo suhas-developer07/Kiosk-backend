@@ -24,11 +24,8 @@ func NewFileHandler(fs *service.FileService, Logger *zap.SugaredLogger) *FileHan
 	}
 }
 
-
 func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 	ctx := c.Request().Context()
-
-	h.Logger.Info("Unfortunetly requst reached here")
 
 	grade := strings.TrimSpace(strings.ToUpper(c.Param("grade")))
 	subject := strings.TrimSpace(strings.Title(c.Param("subject")))
@@ -61,6 +58,15 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 
 	files, err := h.FileService.GetFileByGradeAndSubjectService(ctx, grade, subject)
 	if err != nil {
+
+		if errors.Is(err, domain.ErrInvalidSubject) {
+			h.Logger.Warnf("Invalid subject | Grade=%s |subject=%s", grade, subject)
+
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Invalid subject name:" + subject,
+			})
+		}
 		h.Logger.Errorf("Failed to fetch files | Grade=%s | Subject=%s | Error=%v",
 			grade, subject, err,
 		)

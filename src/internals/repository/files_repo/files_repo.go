@@ -146,17 +146,47 @@ func (r *FilesRepo) GetFileKeyfromtheFileID(ctx context.Context, req string) (st
 		"_id": objectID,
 	}
 
-	err = r.FilesCollection.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"file_key":1})).Decode(&res)
+	err = r.FilesCollection.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"file_key": 1})).Decode(&res)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return "" ,domain.ErrFileNotFound
+			return "", domain.ErrFileNotFound
 		}
 
-		fmt.Printf("Error in database layer:error:%v",err)
-		return "",fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
+		fmt.Printf("Error in database layer:error:%v", err)
+		return "", fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
 	}
 
-	fmt.Println("File_key:",res.File_key)
+	fmt.Println("File_key:", res.File_key)
 	return res.File_key, nil
+}
+
+func (r *FilesRepo) GetRecentUploadedFilesByFacultyID(ctx context.Context, FacultyID string) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(FacultyID)
+	if err != nil {
+		return nil, fmt.Errorf("Faculty not found in the database")
+	}
+
+	filter := bson.M{"faculty_id": objectID}
+	opts := options.Find().SetSort(bson.M{"uploaded_at": -1})
+
+	cursor, err := r.FilesCollection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("db.Find error: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var files []domain.File
+	if err = cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error: %w", err)
+	}
+
+	if len(files) == 0 {
+		return []domain.File{}, nil
+	}
+
+	return files, nil
 }

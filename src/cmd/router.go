@@ -11,7 +11,7 @@ func SetupRouter(
 	e *echo.Echo, 
 	fileHandler *handler_File.FileHandler,
 	facultyHandler *handler_Faculty.FacultyHandler,
-	orchestratorHandler *handler_orchestrator.UploadHandler,
+	orchestratorHandler *handler_orchestrator.OrchestrateHandler,
 	auth echo.MiddlewareFunc,
 	) {
 

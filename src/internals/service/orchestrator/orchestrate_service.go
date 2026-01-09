@@ -17,15 +17,15 @@ import (
 	"go.uber.org/zap"
 )
 
-type UploadService struct {
+type OrchestrateService struct {
 	FileRepo    *filedb.FilesRepo
 	FacultyRepo *facultydb.FacultyRepo
 	Storage     filestore.FileStorage
 	Logger      *zap.SugaredLogger
 }
 
-func NewUploadService(FileRepo *filedb.FilesRepo, FacultyRepo *facultydb.FacultyRepo, storage filestore.FileStorage, Logger *zap.SugaredLogger) *UploadService {
-	return &UploadService{
+func NewOrchestrateService(FileRepo *filedb.FilesRepo, FacultyRepo *facultydb.FacultyRepo, storage filestore.FileStorage, Logger *zap.SugaredLogger) *OrchestrateService {
+	return &OrchestrateService{
 		FileRepo:    FileRepo,
 		FacultyRepo: FacultyRepo,
 		Storage:     storage,
@@ -33,7 +33,7 @@ func NewUploadService(FileRepo *filedb.FilesRepo, FacultyRepo *facultydb.Faculty
 	}
 }
 
-func (s *UploadService) UploadFileService(
+func (s *OrchestrateService) UploadFileService(
 	ctx context.Context,
 	filename string,
 	file io.Reader,
@@ -60,10 +60,10 @@ func (s *UploadService) UploadFileService(
 		return "", fmt.Errorf("service:subject is not valid")
 	}
 
-	checkSubject,err := s.FacultyRepo.HasSubject(ctx,objID,subjects.Subject(req.Subject))
+	checkSubject, err := s.FacultyRepo.HasSubject(ctx, objID, subjects.Subject(req.Subject))
 
 	if !checkSubject {
-		return "",fmt.Errorf("You can't have an access to upload this subject files ")
+		return "", fmt.Errorf("You can't have an access to upload this subject file ")
 	}
 
 	fileKey, etag, err := s.Storage.Save(
@@ -100,4 +100,24 @@ func (s *UploadService) UploadFileService(
 	}
 
 	return fileKey, nil
+}
+
+func (s *OrchestrateService) GetRecentUploadedFilesByFacultyIDService(ctx context.Context, FacultyID string) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if FacultyID == "" {
+		return nil, fmt.Errorf("Faculty id is empty")
+	}
+
+	files, err := s.FileRepo.GetRecentUploadedFilesByFacultyID(ctx, FacultyID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(files) == 0 {
+		return []domain.File{}, nil
+	}
+
+	return files, nil
 }

@@ -85,8 +85,8 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	facultyHandler := handler_Faculty.NewFacultyHandler(facultyService, sugar)
 
-	orchestratorService := service_orchestrator.NewUploadService(filesRepo,facultyRepo,storage,sugar)
-	orchestratorHandler := handler_orchestrator.NewUploadHandler(orchestratorService,sugar)
+	orchestratorService := service_orchestrator.NewOrchestrateService(filesRepo,facultyRepo,storage,sugar)
+	orchestratorHandler := handler_orchestrator.NewOrchestrateHandler(orchestratorService,sugar)
 
 	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,auth)
 

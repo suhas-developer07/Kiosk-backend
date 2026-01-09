@@ -9,19 +9,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type UploadHandler struct {
-	UploadService *orchestrator.UploadService
-	Logger         *zap.SugaredLogger
+type OrchestrateHandler struct {
+	OrchestrateService *orchestrator.OrchestrateService
+	Logger             *zap.SugaredLogger
 }
 
-func NewUploadHandler(UploadService *orchestrator.UploadService,Logger *zap.SugaredLogger) *UploadHandler {
-	return &UploadHandler{
-		UploadService: UploadService,
-		Logger:         Logger,
+func NewOrchestrateHandler(OrchestrateService *orchestrator.OrchestrateService, Logger *zap.SugaredLogger) *OrchestrateHandler {
+	return &OrchestrateHandler{
+		OrchestrateService: OrchestrateService,
+		Logger:             Logger,
 	}
 }
 
-func (h *UploadHandler) UploadFileHandler(c echo.Context) error {
+func (h *OrchestrateHandler) UploadFileHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	FacultyID := c.Get("faculty_id").(string)
@@ -55,7 +55,7 @@ func (h *UploadHandler) UploadFileHandler(c echo.Context) error {
 	}
 	defer src.Close()
 
-	path, err := h.UploadService.UploadFileService(
+	path, err := h.OrchestrateService.UploadFileService(
 		ctx,
 		file.Filename,
 		src,
@@ -74,5 +74,42 @@ func (h *UploadHandler) UploadFileHandler(c echo.Context) error {
 		Status:  "success",
 		Message: "file uploaded successfully",
 		Data:    map[string]string{"file_url": path},
+	})
+}
+
+func (h *OrchestrateHandler) GetRecentUploadedFilesHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	FacultyID := c.Get("faculty_id").(string)
+
+	if FacultyID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Not getting faculty id from the middleware",
+		})
+	}
+
+	files, err := h.OrchestrateService.GetRecentUploadedFilesByFacultyIDService(ctx, FacultyID)
+
+	if err != nil {
+		h.Logger.Errorf("Internal server Error |err=%v", err)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "Error",
+			Error:  "Internal Error while fetching recent files",
+		})
+	}
+
+	if len(files) == 0 {
+		return c.JSON(http.StatusOK, domain.SuccessResponse{
+			Status:  "success",
+			Message: "You are not sent any files",
+			Data:    []domain.File{},
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "successfully fetched the recent uploaded files files",
+		Data:    files,
 	})
 }

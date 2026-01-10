@@ -190,3 +190,27 @@ func (r *FilesRepo) GetRecentUploadedFilesByFacultyID(ctx context.Context, Facul
 
 	return files, nil
 }
+
+func (r *FilesRepo) FetchPrintJobs(ctx context.Context)([]domain.PrintJob,error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	opts := options.Find().SetSort(bson.M{"created_at":-1})
+	
+	cursor,err := r.PrintJobCollection.Find(ctx,bson.D{},opts)
+
+	if err != nil {
+		return nil,fmt.Errorf("db.Find Error:%w",err)
+	}
+	defer cursor.Close(ctx)
+
+	var printJobs []domain.PrintJob
+	if err = cursor.All(ctx,&printJobs);err!=nil{
+		return nil,fmt.Errorf("cursore decode error:%w",err)
+	}
+
+	if len(printJobs) == 0 {
+		return []domain.PrintJob{},nil
+	}
+	return printJobs,nil
+}

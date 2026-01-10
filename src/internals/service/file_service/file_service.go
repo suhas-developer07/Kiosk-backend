@@ -179,3 +179,21 @@ func (s *FileService) AccessFileService(
 
 	return signedURL, nil
 }
+
+func(s *FileService) FetchPrintJobsService(ctx context.Context)([]domain.PrintJob,error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	s.Logger.Info("Fetching printJOB details")
+
+	data,err := s.FileRepo.FetchPrintJobs(ctx)
+	if err != nil {
+		return nil,err
+	}
+
+	if len(data)==0 {
+		return []domain.PrintJob{},nil
+	}
+
+	return data,nil
+}

@@ -215,3 +215,23 @@ func (h *FileHandler) AccessFileHandler(c echo.Context) error {
 		},
 	})
 }
+
+func (h *FileHandler) FetchPrintJobsHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	Data,err := h.FileService.FetchPrintJobsService(ctx)
+
+	if err != nil {
+		h.Logger.Errorf("Internal error fetching printjob details |err=%v",err)
+		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+			Status: "Error",
+			Error: "Internal server error while fetching printjob Details",
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Data: Data,
+		Message: "Data fecthed successfully",
+	})
+}

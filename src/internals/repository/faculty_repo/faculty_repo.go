@@ -151,3 +151,29 @@ func (r *FacultyRepo) HasSubject(
 	return true, nil
 }
 
+func(r *FacultyRepo) GetFacultyByID(ctx context.Context, facultyId string)(domain.Faculty,error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	objID,err := primitive.ObjectIDFromHex(facultyId)
+	if err!= nil{
+		return domain.Faculty{},domain.ErrInvalidID
+	}
+
+	var faculty domain.Faculty
+
+	filter := bson.M{
+		"_id":objID,
+	}
+
+	err = r.FacultyCollection.FindOne(ctx,filter).Decode(&faculty)
+
+	if err!=nil{
+		if errors.Is(err,mongo.ErrNoDocuments){
+			return domain.Faculty{},fmt.Errorf("db:There is faculty found in this id")
+		}
+		return domain.Faculty{},err
+	}
+
+	return faculty,nil
+}

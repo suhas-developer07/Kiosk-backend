@@ -212,3 +212,19 @@ func (s *FacultyService) GetAvailableSubjects(
 	return subjects.AllSubjects(), nil
 }
 
+func(s *FacultyService)GetFacultyByID(ctx context.Context,facultyId string)(domain.Faculty,error){
+	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if facultyId == ""{
+		return domain.Faculty{},fmt.Errorf("service:Not getting faculty id from the handler")
+	}
+
+	Faculty,err := s.FacultyRepo.GetFacultyByID(ctx,facultyId)
+
+	if err!=nil{
+		return domain.Faculty{},fmt.Errorf("service:faculty is not found")
+	}
+
+	return Faculty,nil
+}

@@ -14,7 +14,6 @@ func SetupRouter(
 	orchestratorHandler *handler_orchestrator.OrchestrateHandler,
 	auth echo.MiddlewareFunc,
 ) {
-
 	//public routes
 	files := e.Group("/files")
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
@@ -27,7 +26,6 @@ func SetupRouter(
 	faculty.POST("/signin", facultyHandler.Signin)
 	faculty.GET("/subjects", facultyHandler.GetAvailableSubjectsHandler) //todo:need to change this place
 
-
 	fileAuth := files.Group("")
 	fileAuth.Use(auth)
 	facultyAuth := faculty.Group("")
@@ -39,4 +37,5 @@ func SetupRouter(
 
 	facultyAuth.PUT("/profileupdate", facultyHandler.UpdateProfile)
 	facultyAuth.GET("/ownedsubjects", facultyHandler.GetSubjectsByFacultyIDHandler)
+	facultyAuth.GET("/",facultyHandler.GetFacultyByIdHandler)
 }

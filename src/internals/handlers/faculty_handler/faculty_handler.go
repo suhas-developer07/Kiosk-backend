@@ -270,3 +270,29 @@ func (h *FacultyHandler) GetAvailableSubjectsHandler(c echo.Context) error {
 	})
 }
 
+func (h*FacultyHandler) GetFacultyByIdHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+	facultyID := c.Get("faculty_id").(string)
+
+	if facultyID == ""{
+		return  c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "Faculty ID is not get from the Token",
+		})
+	}
+
+	Faculty,err := h.FacultyService.GetFacultyByID(ctx,facultyID)
+
+	if err!=nil {
+		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+			Status: "error",
+			Error: "Faculty Not found",
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Faculty found",
+		Data: Faculty,
+	})
+}

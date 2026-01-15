@@ -37,5 +37,5 @@ func SetupRouter(
 
 	facultyAuth.PUT("/profileupdate", facultyHandler.UpdateProfile)
 	facultyAuth.GET("/ownedsubjects", facultyHandler.GetSubjectsByFacultyIDHandler)
-	facultyAuth.GET("/",facultyHandler.GetFacultyByIdHandler)
+	facultyAuth.GET("/me",facultyHandler.GetFacultyByIdHandler)
 }

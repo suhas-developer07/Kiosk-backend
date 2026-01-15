@@ -72,7 +72,7 @@ func (s *FacultyService) CreateAccountService(
 	return nil
 }
 
-func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPayload) (string, string, error) {
+func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPayload) (string,string,string,bool,error) {
 
     ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
     defer cancel()
@@ -82,27 +82,27 @@ func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPay
     faculty, err := s.FacultyRepo.GetFacultyByEmail(ctx, req.Email)
     if err != nil {
         if errors.Is(err, domain.ErrUserNotFound) {
-            return "", "", domain.ErrUserNotFound
+            return "", "","",false, domain.ErrUserNotFound
         }
-        return "", "", fmt.Errorf("service: db lookup failed: %w", err)
+        return "", "","",false, fmt.Errorf("service: db lookup failed: %w", err)
     }
 
     if !utils.CheckPassword(req.Password, faculty.Password) {
-        return "", "", domain.ErrInvalidPassword
+        return "", "","",false,domain.ErrInvalidPassword
     }
 
     accessToken, err := utils.GenerateAccessToken(faculty.ID.Hex())
     if err != nil {
-        return "", "", fmt.Errorf("service: failed generating access token: %w", err)
+        return "", "","",false,fmt.Errorf("service: failed generating access token: %w", err)
     }
 
     refreshToken, err := utils.GenerateRefreshToken(faculty.ID.Hex())
     if err != nil {
-        return "", "", fmt.Errorf("service: failed generating refresh token: %w", err)
+        return "", "","", false,fmt.Errorf("service: failed generating refresh token: %w", err)
     }
 
     s.Logger.Infof("Signin successful | email=%s", req.Email)
-    return accessToken, refreshToken, nil
+    return accessToken, refreshToken, faculty.Username, faculty.IsProfileCompleted,nil
 }
 
 func (s *FacultyService) UpdateProfileService(

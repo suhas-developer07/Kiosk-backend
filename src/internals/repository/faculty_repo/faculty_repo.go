@@ -177,3 +177,4 @@ func(r *FacultyRepo) GetFacultyByID(ctx context.Context, facultyId string)(domai
 
 	return faculty,nil
 }
+

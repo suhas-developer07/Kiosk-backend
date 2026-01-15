@@ -97,7 +97,7 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 		})
 	}
 
-	access, refresh, err := h.FacultyService.SigninService(ctx, payload)
+	access, refresh,username,profileCompleted,err := h.FacultyService.SigninService(ctx, payload)
 	if err != nil {
 
 		switch {
@@ -126,9 +126,11 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "Signin successful",
-		Data: map[string]string{
+		Data: map[string]interface{}{
 			"access_token":  access,
 			"refresh_token": refresh,
+			"username":username,
+			"IsProfileCompleted":profileCompleted,
 		},
 	})
 }

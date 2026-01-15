@@ -15,6 +15,7 @@ type File struct {
 	Subject      string             `bson:"subject" json:"subject"`
 	Category     string             `bson:"category" json:"category"`
 	FacultyID    primitive.ObjectID `bson:"faculty_id" json:"faculty_id"`
+	FacultyName  string             `bson:"faculty_name" json:"faculty_name"`
 	GroupAllowed string             `bson:"group_allowed" json:"group_allowed"`
 	ETag         string             `bson:"etag" json:"etag"`
 	FileType     string             `bson:"file_type" json:"file_type"`
@@ -54,7 +55,7 @@ type PrintJobPayload struct {
 	PrintingSide string             `json:"printing_side" validate:"required,oneof=single double"`
 	PrintingMode string             `json:"printing_mode" validate:"required,oneof=color bw"`
 	PageRange    string             `json:"page_range" validate:"omitempty"`
-	PageLayout   string             `json:"PageLayout" validate:"required,oneof=2-up 4-up 1-up"`//todo:change  P->p
+	PageLayout   string             `json:"PageLayout" validate:"required,oneof=2-up 4-up 1-up"` //todo:change  P->p
 	Price        int                `json:"price" validate:"required"`
 	TotalSheets  int                `json:"totalsheets" validate:"required"`
 }

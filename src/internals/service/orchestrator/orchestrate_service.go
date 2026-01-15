@@ -77,6 +77,12 @@ func (s *OrchestrateService) UploadFileService(
 		return "", err
 	}
 
+	faculty, err := s.FacultyRepo.GetFacultyByID(ctx, facultyID) //Todo:need to be test
+
+	if err!=nil{
+		return "",fmt.Errorf("service:internal error,not able to get faculty by his id")
+	}
+
 	fileData := domain.File{
 		Title:        req.Title,
 		FileKey:      fileKey,
@@ -84,6 +90,7 @@ func (s *OrchestrateService) UploadFileService(
 		Subject:      strings.ToLower(strings.TrimSpace(req.Subject)),
 		Description:  req.Description,
 		FacultyID:    objID,
+		FacultyName:  faculty.Username,
 		GroupAllowed: req.GroupAllowed,
 		ETag:         strings.Trim(etag, `"`),
 		FileType:     req.FileType,

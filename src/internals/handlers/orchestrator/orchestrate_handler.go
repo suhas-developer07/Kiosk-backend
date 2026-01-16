@@ -55,6 +55,14 @@ func (h *OrchestrateHandler) UploadFileHandler(c echo.Context) error {
 	}
 	defer src.Close()
 
+	allowedGrades := map[string]bool{"1PUC": true, "2PUC": true}
+	if !allowedGrades[req.Grade] {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid grade; allowed values: 1PUC, 2PUC",
+		})
+	}
+
 	path, err := h.OrchestrateService.UploadFileService(
 		ctx,
 		file.Filename,

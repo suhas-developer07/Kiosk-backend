@@ -214,3 +214,21 @@ func (r *FilesRepo) FetchPrintJobs(ctx context.Context)([]domain.PrintJob,error)
 	}
 	return printJobs,nil
 }
+
+func (r *FilesRepo) DeleteFileRecord(ctx context.Context,file_id string)(error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id":file_id}
+
+	_,err := r.FilesCollection.DeleteOne(ctx,filter)
+
+	if err != nil {
+		if errors.Is(err,mongo.ErrNoDocuments){
+			return fmt.Errorf("No documents find with this file_id")
+		}
+		return err
+	}
+
+	return nil
+}

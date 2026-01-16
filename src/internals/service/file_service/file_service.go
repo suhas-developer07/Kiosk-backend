@@ -221,6 +221,13 @@ func (s *FileService) DeleteFileService(ctx context.Context, fileID string) erro
 		return fmt.Errorf("service: failed delete file for this key=%s: %w", fileKey, err)
 	}
 
+	//this structure is not okay for production 
+	err = s.FileRepo.DeleteFileRecord(ctx,fileID)
+
+	if err!=nil {
+		return fmt.Errorf("Service:Error Deleting file from the db,Err:%v",err)
+	}
+
 	s.Logger.Infow("file deleted successfully", "file_id", fileID)
 
 	return nil

@@ -19,6 +19,7 @@ func SetupRouter(
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
 	files.POST("/printjob", fileHandler.PrintUploadHandler)
 	files.GET("/accessfile/:file_id", fileHandler.AccessFileHandler)
+	files.DELETE("/delete/:file_id",fileHandler.DeleteFileHandler)
 	files.GET("/printjobs",fileHandler.FetchPrintJobsHandler)
 
 	faculty := e.Group("/faculty")

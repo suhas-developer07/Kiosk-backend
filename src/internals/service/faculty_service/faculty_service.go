@@ -72,7 +72,7 @@ func (s *FacultyService) CreateAccountService(
 	return nil
 }
 
-func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPayload) (string,string,string,bool,error) {
+func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPayload) (string,string,bool,error) {
 
     ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
     defer cancel()
@@ -81,28 +81,28 @@ func (s *FacultyService) SigninService(ctx context.Context, req domain.SigninPay
 
     faculty, err := s.FacultyRepo.GetFacultyByEmail(ctx, req.Email)
     if err != nil {
-        if errors.Is(err, domain.ErrUserNotFound) {
-            return "", "","",false, domain.ErrUserNotFound
+        if errors.Is(err, domain.ErrFacultyNotFound) {
+            return "","",false, domain.ErrFacultyNotFound
         }
-        return "", "","",false, fmt.Errorf("service: db lookup failed: %w", err)
+        return "","",false, fmt.Errorf("service: db lookup failed: %w", err)
     }
 
     if !utils.CheckPassword(req.Password, faculty.Password) {
-        return "", "","",false,domain.ErrInvalidPassword
+        return "","",false,domain.ErrInvalidPassword
     }
 
     accessToken, err := utils.GenerateAccessToken(faculty.ID.Hex())
     if err != nil {
-        return "", "","",false,fmt.Errorf("service: failed generating access token: %w", err)
+        return "", "",false,fmt.Errorf("service: failed generating access token: %w", err)
     }
 
-    refreshToken, err := utils.GenerateRefreshToken(faculty.ID.Hex())
-    if err != nil {
-        return "", "","", false,fmt.Errorf("service: failed generating refresh token: %w", err)
-    }
+    // refreshToken, err := utils.GenerateRefreshToken(faculty.ID.Hex())
+    // if err != nil {
+    //     return "", "","", false,fmt.Errorf("service: failed generating refresh token: %w", err)
+    // }
 
     s.Logger.Infof("Signin successful | email=%s", req.Email)
-    return accessToken, refreshToken, faculty.Username, faculty.IsProfileCompleted,nil
+    return accessToken, faculty.Username, faculty.IsProfileCompleted,nil
 }
 
 func (s *FacultyService) UpdateProfileService(
@@ -135,8 +135,8 @@ func (s *FacultyService) UpdateProfileService(
 	if err != nil {
 
 		switch {
-		case errors.Is(err, domain.ErrUserNotFound):
-			return domain.ErrUserNotFound
+		case errors.Is(err, domain.ErrFacultyNotFound):
+			return domain.ErrFacultyNotFound
 
 		default:
 			return fmt.Errorf("service: update profile failed: %w", err)

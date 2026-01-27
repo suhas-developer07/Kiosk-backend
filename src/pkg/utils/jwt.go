@@ -18,12 +18,12 @@ func GenerateAccessToken(FacultyID string) (string, error) {
     return token.SignedString(jwtSecret)
 }
 
-func GenerateRefreshToken(FacultyID string) (string, error) {
-    claims := jwt.MapClaims{
-        "faculty_id": FacultyID,
-        "exp":     time.Now().Add(31* 24 * time.Hour).Unix(),
-    }
+// func GenerateRefreshToken(FacultyID string) (string, error) {
+//     claims := jwt.MapClaims{
+//         "faculty_id": FacultyID,
+//         "exp":     time.Now().Add(31* 24 * time.Hour).Unix(),
+//     }
 
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    return token.SignedString(jwtSecret)
-}
+//     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+//     return token.SignedString(jwtSecret)
+// }

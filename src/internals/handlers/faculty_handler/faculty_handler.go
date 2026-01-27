@@ -97,15 +97,15 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 		})
 	}
 
-	access, refresh,username,profileCompleted,err := h.FacultyService.SigninService(ctx, payload)
+	access,username,profileCompleted,err := h.FacultyService.SigninService(ctx, payload)
 	if err != nil {
 
 		switch {
 
-		case errors.Is(err, domain.ErrUserNotFound):
-			return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+		case errors.Is(err, domain.ErrFacultyNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
 				Status: "error",
-				Error:  "Invalid email or password",
+				Error:  "email is not registered", 
 			})
 
 		case errors.Is(err, domain.ErrInvalidPassword):
@@ -128,7 +128,6 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 		Message: "Signin successful",
 		Data: map[string]interface{}{
 			"access_token":  access,
-			"refresh_token": refresh,
 			"username":username,
 			"IsProfileCompleted":profileCompleted,
 		},
@@ -167,13 +166,13 @@ func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
 		case errors.Is(err, domain.ErrInvalidID):
 			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 				Status: "error",
-				Error:  "Invalid user ID",
+				Error:  "Invalid faculty ID",
 			})
 
-		case errors.Is(err, domain.ErrUserNotFound):
+		case errors.Is(err, domain.ErrFacultyNotFound):
 			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
 				Status: "error",
-				Error:  "User not found",
+				Error:  "faculty not found",
 			})
 
 		default:
@@ -272,7 +271,7 @@ func (h *FacultyHandler) GetAvailableSubjectsHandler(c echo.Context) error {
 	})
 }
 
-func (h*FacultyHandler) GetFacultyByIdHandler(c echo.Context)error{
+func (h *FacultyHandler) GetFacultyByIdHandler(c echo.Context)error{
 	ctx := c.Request().Context()
 	facultyID := c.Get("faculty_id").(string)
 

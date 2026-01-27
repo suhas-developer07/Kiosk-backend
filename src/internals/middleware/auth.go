@@ -63,7 +63,7 @@ func AuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 
 			FacultyID, ok := claims["faculty_id"].(string)
 			if !ok {
-				logger.Error("Missing user_id in token")
+				logger.Error("Missing faculty_id in token")
 				return c.JSON(http.StatusUnauthorized, map[string]string{
 					"status": "error",
 					"error":  "Invalid token payload",

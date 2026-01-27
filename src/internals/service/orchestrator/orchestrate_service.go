@@ -44,8 +44,6 @@ func (s *OrchestrateService) UploadFileService(
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	fmt.Print("debugging service layer")
-
 	facultyID = strings.TrimSpace(facultyID)
 	if facultyID == "" {
 		return "", domain.ErrInvalidID

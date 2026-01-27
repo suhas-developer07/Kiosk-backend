@@ -66,7 +66,7 @@ func (r *FacultyRepo) GetFacultyByEmail(ctx context.Context, email string) (*dom
 	err := r.FacultyCollection.FindOne(ctx, filter).Decode(&faculty)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, domain.ErrUserNotFound
+			return nil, domain.ErrFacultyNotFound
 		}
 		return nil, fmt.Errorf("db error while checking email: %w", err)
 	}
@@ -97,7 +97,7 @@ func (r *FacultyRepo) UpdateProfile(
 	}
 
 	if result.MatchedCount == 0 {
-		return domain.ErrUserNotFound
+		return domain.ErrFacultyNotFound
 	}
 
 	return nil
@@ -177,4 +177,3 @@ func(r *FacultyRepo) GetFacultyByID(ctx context.Context, facultyId string)(domai
 
 	return faculty,nil
 }
-

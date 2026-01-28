@@ -46,3 +46,12 @@ type UpdateProfilePayload struct {
 	Experience    int                `json:"experience" validate:"required,min=0,max=50"`
 	PhoneNumber   string             `json:"phone_number" validate:"required,e164"`
 }
+
+type UpdateFaculty struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Username string             `bson:"username" json:"username"`
+	Email    string             `bson:"email" json:"email"`
+	Password string             `bson:"password,omitempty" json:"password,omitempty"`
+	Subjects []subjects.Subject `bson:"subjects,omitempty" json:"subjects,omitempty"`
+	Gender   string             `bson:"gender,omitempty" json:"gender,omitempty"`
+}

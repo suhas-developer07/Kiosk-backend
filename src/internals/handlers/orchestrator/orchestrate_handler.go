@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/service/orchestrator"
 	"go.uber.org/zap"
 )
@@ -120,4 +121,35 @@ func (h *OrchestrateHandler) GetRecentUploadedFilesHandler(c echo.Context) error
 		Message: "successfully fetched the recent uploaded files files",
 		Data:    files,
 	})
+}
+
+
+func(h *OrchestrateHandler) AddFacultyHandler(c echo.Context)error{
+	 ctx := c.Request().Context()
+
+	 var req model.UpdateFaculty
+
+	 if err := c.Bind(&req);err != nil {
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "Invalid Body",
+		})
+	 }
+
+	 //todo:Needs to validate some fields here
+
+	 err := h.OrchestrateService.AddFacultyService(ctx,req)
+
+	 if err !=nil{
+		//todo:log the warnings
+		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+			Status: "error",
+			Error: "Internal server error",
+		})
+	 }
+
+	 return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Faculty successfully Added ",
+	 })
 }

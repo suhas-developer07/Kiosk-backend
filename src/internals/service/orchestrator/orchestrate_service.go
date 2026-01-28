@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	facultydb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
@@ -77,8 +78,8 @@ func (s *OrchestrateService) UploadFileService(
 
 	faculty, err := s.FacultyRepo.GetFacultyByID(ctx, facultyID) //Todo:need to be test
 
-	if err!=nil{
-		return "",fmt.Errorf("service:internal error,not able to get faculty by his id")
+	if err != nil {
+		return "", fmt.Errorf("service:internal error,not able to get faculty by his id")
 	}
 
 	fileData := domain.File{
@@ -125,4 +126,19 @@ func (s *OrchestrateService) GetRecentUploadedFilesByFacultyIDService(ctx contex
 	}
 
 	return files, nil
+}
+
+func (s *OrchestrateService) AddFacultyService(ctx context.Context, req model.UpdateFaculty) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	//todo: need to validate the req
+
+	err := s.FacultyRepo.AddFaculty(ctx, req)
+
+	if err!=nil{
+		return err
+	}
+
+	return nil
 }

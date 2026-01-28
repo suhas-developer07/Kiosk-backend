@@ -177,3 +177,7 @@ func(r *FacultyRepo) GetFacultyByID(ctx context.Context, facultyId string)(domai
 
 	return faculty,nil
 }
+
+func (r *FacultyRepo) AddFaculty(ctx context.Context,req domain.UpdateFaculty)error{
+	return nil
+}

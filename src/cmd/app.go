@@ -9,15 +9,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
+	handler_Admin "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/admin"
 	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
 	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
-	service_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/service/orchestrator"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/middleware"
+	service_Admin "github.com/suhas-developer07/Kiosk-backend/src/internals/service/admin"
+	adminRepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/admin"
 	facultyrepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
 	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
 	service_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/service/faculty_service"
 	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service/file_service"
+	service_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/service/orchestrator"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -86,9 +89,16 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 	facultyHandler := handler_Faculty.NewFacultyHandler(facultyService, sugar)
 
 	orchestratorService := service_orchestrator.NewOrchestrateService(filesRepo,facultyRepo,storage,sugar)
+
 	orchestratorHandler := handler_orchestrator.NewOrchestrateHandler(orchestratorService,sugar)
 
-	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,auth)
+	adminRepo := adminRepo.NewAdminRepo(db,mongoClient)
+
+	adminService := service_Admin.NewAdminService(adminRepo,facultyRepo)
+
+	adminHandler := handler_Admin.NewAdminHandler(adminService,sugar)
+
+	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,auth)
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{

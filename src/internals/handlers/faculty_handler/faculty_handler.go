@@ -97,7 +97,7 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 		})
 	}
 
-	access,username,profileCompleted,err := h.FacultyService.SigninService(ctx, payload)
+	access,username,err := h.FacultyService.SigninService(ctx, payload)
 	if err != nil {
 
 		switch {
@@ -129,66 +129,65 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 		Data: map[string]interface{}{
 			"access_token":  access,
 			"username":username,
-			"IsProfileCompleted":profileCompleted,
 		},
 	})
 }
 
-func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
-	ctx := c.Request().Context()
+// func (h *FacultyHandler) UpdateProfile(c echo.Context) error {
+// 	ctx := c.Request().Context()
 
-	FacultyID := c.Get("faculty_id").(string)
+// 	FacultyID := c.Get("faculty_id").(string)
 
-	var payload domain.UpdateProfilePayload
+// 	var payload domain.UpdateProfilePayload
 
-	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
-		h.Logger.Warnf("Invalid profile payload | error=%v", err)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  err.Error(),
-		})
-	}
+// 	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
+// 		h.Logger.Warnf("Invalid profile payload | error=%v", err)
+// 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+// 			Status: "error",
+// 			Error:  err.Error(),
+// 		})
+// 	}
 
-	if err := h.validate.Struct(&payload); err != nil {
-		msg := utils.FormatValidationError(err)
-		h.Logger.Warnf("Profile validation failed | error=%v", msg, err)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  msg,
-		})
-	}
+// 	if err := h.validate.Struct(&payload); err != nil {
+// 		msg := utils.FormatValidationError(err)
+// 		h.Logger.Warnf("Profile validation failed | error=%v", msg, err)
+// 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+// 			Status: "error",
+// 			Error:  msg,
+// 		})
+// 	}
 
-	err := h.FacultyService.UpdateProfileService(ctx, FacultyID, payload)
-	if err != nil {
+// 	err := h.FacultyService.UpdateProfileService(ctx, FacultyID, payload)
+// 	if err != nil {
 
-		switch {
+// 		switch {
 
-		case errors.Is(err, domain.ErrInvalidID):
-			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Invalid faculty ID",
-			})
+// 		case errors.Is(err, domain.ErrInvalidID):
+// 			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+// 				Status: "error",
+// 				Error:  "Invalid faculty ID",
+// 			})
 
-		case errors.Is(err, domain.ErrFacultyNotFound):
-			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
-				Status: "error",
-				Error:  "faculty not found",
-			})
+// 		case errors.Is(err, domain.ErrFacultyNotFound):
+// 			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+// 				Status: "error",
+// 				Error:  "faculty not found",
+// 			})
 
-		default:
-			h.Logger.Errorf("Profile update failed | error=%v", err)
-			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Internal server error",
-			})
-		}
-	}
+// 		default:
+// 			h.Logger.Errorf("Profile update failed | error=%v", err)
+// 			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+// 				Status: "error",
+// 				Error:  "Internal server error",
+// 			})
+// 		}
+// 	}
 
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Profile updated successfully",
-	})
-}
+// 	return c.JSON(http.StatusOK, domain.SuccessResponse{
+// 		Status:  "success",
+// 		Message: "Profile updated successfully",
+// 	})
+// }
 
 //This handler used when he is configuring the file details to upload 
 func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {

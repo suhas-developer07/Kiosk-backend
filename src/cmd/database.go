@@ -22,6 +22,7 @@ type Config struct {
 	MinPoolSize uint64
 	Timeout     time.Duration
 }
+
 func InitMongo(cfg Config) (*mongo.Client, error) {
 	var err error
 

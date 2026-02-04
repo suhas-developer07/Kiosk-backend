@@ -25,7 +25,7 @@ func SetupRouter(
 	files.GET("/printjobs",fileHandler.FetchPrintJobsHandler)
 
 	faculty := e.Group("/faculty")
-	faculty.POST("/createfaculty", orchestratorHandler.AddFacultyHandler)
+	faculty.POST("/createfaculty", adminHandler.AddFacultyHandler) //change this place
 	faculty.POST("/signin", facultyHandler.Signin)
 	faculty.GET("/subjects", facultyHandler.GetAvailableSubjectsHandler) //todo:need to change this place
 	//todo:need to change this all are admin routes

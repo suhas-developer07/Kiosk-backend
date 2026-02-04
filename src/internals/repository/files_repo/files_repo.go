@@ -191,28 +191,28 @@ func (r *FilesRepo) GetRecentUploadedFilesByFacultyID(ctx context.Context, Facul
 	return files, nil
 }
 
-func (r *FilesRepo) FetchPrintJobs(ctx context.Context)([]domain.PrintJob,error){
-	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+func (r *FilesRepo) FetchPrintJobs(ctx context.Context) ([]domain.PrintJob, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	opts := options.Find().SetSort(bson.M{"created_at":-1})
-	
-	cursor,err := r.PrintJobCollection.Find(ctx,bson.D{},opts)
+	opts := options.Find().SetSort(bson.M{"created_at": -1})
+
+	cursor, err := r.PrintJobCollection.Find(ctx, bson.D{}, opts)
 
 	if err != nil {
-		return nil,fmt.Errorf("db.Find Error:%w",err)
+		return nil, fmt.Errorf("db.Find Error:%w", err)
 	}
 	defer cursor.Close(ctx)
 
 	var printJobs []domain.PrintJob
-	if err = cursor.All(ctx,&printJobs);err!=nil{
-		return nil,fmt.Errorf("cursore decode error:%w",err)
+	if err = cursor.All(ctx, &printJobs); err != nil {
+		return nil, fmt.Errorf("cursore decode error:%w", err)
 	}
 
 	if len(printJobs) == 0 {
-		return []domain.PrintJob{},nil
+		return []domain.PrintJob{}, nil
 	}
-	return printJobs,nil
+	return printJobs, nil
 }
 
 func (r *FilesRepo) DeleteFileRecord(ctx context.Context, fileID string) error {
@@ -236,4 +236,22 @@ func (r *FilesRepo) DeleteFileRecord(ctx context.Context, fileID string) error {
 	}
 
 	return nil
+}
+
+func (r *FilesRepo) GetTotalFilesCount(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	count, err := r.FilesCollection.CountDocuments(ctx, bson.D{})
+
+	if err != nil {
+		return 0, fmt.Errorf("db.Find Error:%w", err)
+	}
+
+	if count == 0 {
+		return 0,nil
+	}
+	return count,err
+	
+
 }

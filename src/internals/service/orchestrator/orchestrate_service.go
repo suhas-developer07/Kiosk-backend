@@ -2,19 +2,15 @@ package orchestrator
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"time"
-
-	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	facultydb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
 	filedb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
-	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -128,51 +124,4 @@ func (s *OrchestrateService) GetRecentUploadedFilesByFacultyIDService(ctx contex
 	}
 
 	return files, nil
-}
-
-func (s *OrchestrateService) AddFacultyService(ctx context.Context, req model.FacultyPayload) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-
-	//validating the subjects
-	for _,sub := range req.Subjects{
-		if !subjects.IsValidSubject(string(sub)){
-			return fmt.Errorf("Invalid subject :%s",sub)
-		}
-	}
-
-	if req.Password != "" {
-		hashed, err := utils.HashPassword(req.Password)
-		if err != nil {
-			return fmt.Errorf("failed to hash password: %w", err)
-		}
-		req.Password = hashed
-	}
-
-	s.Logger.Infof("Adding Faculty| email=%s", req.Email)
-
-	faculty := model.Faculty{
-		ID:        primitive.NewObjectID(),
-		Username:  req.Username,
-		Email:     req.Email,
-		Password:  req.Password,
-		Subjects:  req.Subjects,
-		Stream:    req.Stream,
-		Gender:    req.Gender,
-		CreatedAt: time.Now(),
-	}
-
-	err := s.FacultyRepo.CreateAccount(ctx, faculty)
-	switch {
-	case errors.Is(err, model.ErrEmailAlreadyExists):
-		return model.ErrEmailAlreadyExists
-
-	case err != nil:
-		return fmt.Errorf("failed to add faculty: %w", err)
-	}
-	s.Logger.Infof("Failed to add faculty successfully | email=%s", req.Email)
-
-	return nil
 }

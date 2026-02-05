@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
@@ -249,9 +250,48 @@ func (r *FilesRepo) GetTotalFilesCount(ctx context.Context) (int64, error) {
 	}
 
 	if count == 0 {
-		return 0,nil
+		return 0, nil
 	}
-	return count,err
-	
+	return count, err
+}
 
+func (r *FilesRepo) DeleteFileRequest(ctx context.Context,fileID string,reason string) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	if strings.TrimSpace(reason) == "" {
+		return errors.New("delete reason is required")
+	}
+
+	objectID, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return errors.New("invalid file id")
+	}
+
+	filter := bson.M{
+		"_id": objectID,
+		"delete_request": bson.M{"$exists": false}, 
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"delete_request": bson.M{
+				"status": "pending",
+				"reason": reason,
+			},
+			"updated_at": time.Now(),
+		},
+	}
+
+	result, err := r.FilesCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("db update failed: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("file not found or delete already requested")
+	}
+
+	return nil
 }

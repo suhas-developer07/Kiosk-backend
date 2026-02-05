@@ -2,10 +2,12 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"time"
+
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	facultydb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
@@ -124,4 +126,17 @@ func (s *OrchestrateService) GetRecentUploadedFilesByFacultyIDService(ctx contex
 	}
 
 	return files, nil
+}
+
+func (s *OrchestrateService) FileDeleteRequestService(ctx context.Context,fileID string,reason string) error {
+
+
+	if fileID == "" {
+		return errors.New("fileId cannot be empty")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	return s.FileRepo.DeleteFileRequest(ctx, fileID,reason)
 }

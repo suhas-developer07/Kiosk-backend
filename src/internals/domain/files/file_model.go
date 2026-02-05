@@ -7,30 +7,36 @@ import (
 )
 
 type File struct {
-	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Title        string             `bson:"title" json:"title"`
-	Description  string             `bson:"description" json:"description"`
-	FileKey      string             `bson:"file_key" json:"-"`
-	Grade        string             `bson:"grade" json:"grade"`
-	Subject      string             `bson:"subject" json:"subject"`
-	Category     string             `bson:"category" json:"category"`
-	FacultyID    primitive.ObjectID `bson:"faculty_id" json:"faculty_id"`
-	FacultyName  string             `bson:"faculty_name" json:"faculty_name"`
-	GroupAllowed string             `bson:"group_allowed" json:"group_allowed"`
-	ETag         string             `bson:"etag" json:"etag"`
-	FileType     string             `bson:"file_type" json:"file_type"`
-	UploadedAt   primitive.DateTime `bson:"uploaded_at" json:"uploaded_at"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Title         string             `bson:"title" json:"title"`
+	Description   string             `bson:"description" json:"description"`
+	FileKey       string             `bson:"file_key" json:"-"`
+	Grade         string             `bson:"grade" json:"grade"`
+	Subject       string             `bson:"subject" json:"subject"`
+	Category      string             `bson:"category" json:"category"`
+	FacultyID     primitive.ObjectID `bson:"faculty_id" json:"faculty_id"`
+	FacultyName   string             `bson:"faculty_name" json:"faculty_name"`
+	GroupAllowed  string             `bson:"group_allowed" json:"group_allowed"`
+	DeleteRequest *DeleteRequest     `bson:"delete_request,omitempty" json:"delete_request,omitempty"`
+	ETag          string             `bson:"etag" json:"etag"`
+	FileType      string             `bson:"file_type" json:"file_type"`
+	UploadedAt    primitive.DateTime `bson:"uploaded_at" json:"uploaded_at"`
+}
+
+type DeleteRequest struct {
+	Status string `bson:"status" json:"status"` // "pending", "approved", "rejected"
+	Reason string `bson:"reason,omitempty" json:"reason,omitempty"`
 }
 
 type FileUploadRequest struct {
-	Title        string             `json:"file_name"`
-	Description  string             `json:"description"`
-	Grade        string             `json:"grade"`
-	Subject      string             `json:"subject"`
-	Category     string             `json:"category"`
-	FacultyID    primitive.ObjectID `json:"faculty_id"`
-	GroupAllowed string             `json:"group_allowed"`
-	FileType     string             `json:"file_type"`
+	Title         string             `json:"file_name"`
+	Description   string             `json:"description"`
+	Grade         string             `json:"grade"`
+	Subject       string             `json:"subject"`
+	Category      string             `json:"category"`
+	FacultyID     primitive.ObjectID `json:"faculty_id"`
+	GroupAllowed  string             `json:"group_allowed"`
+	FileType      string             `json:"file_type"`
 }
 
 type PrintJob struct {

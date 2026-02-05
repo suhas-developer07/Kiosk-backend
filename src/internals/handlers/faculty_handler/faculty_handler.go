@@ -296,3 +296,7 @@ func (h *FacultyHandler) GetFacultyByIdHandler(c echo.Context)error{
 		Data: Faculty,
 	})
 }
+
+
+
+

@@ -31,6 +31,7 @@ func SetupRouter(
 	//todo:need to change this all are admin routes
 	faculty.GET("/faculties",adminHandler.GetFacultiesHandler)
 	faculty.GET("/faculties/:stream",adminHandler.GetFacultiesByStreamHandler)
+	faculty.PUT("/delete/:file_id",orchestratorHandler.FileDeleteRequestHandler)//todo:its need to be an private route
 
 	fileAuth := files.Group("")
 	fileAuth.Use(auth)

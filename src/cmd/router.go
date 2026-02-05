@@ -25,13 +25,21 @@ func SetupRouter(
 	files.GET("/printjobs",fileHandler.FetchPrintJobsHandler)
 
 	faculty := e.Group("/faculty")
-	faculty.POST("/createfaculty", adminHandler.AddFacultyHandler) //change this place
+	
 	faculty.POST("/signin", facultyHandler.Signin)
 	faculty.GET("/subjects", facultyHandler.GetAvailableSubjectsHandler) //todo:need to change this place
 	//todo:need to change this all are admin routes
 	faculty.GET("/faculties",adminHandler.GetFacultiesHandler)
 	faculty.GET("/faculties/:stream",adminHandler.GetFacultiesByStreamHandler)
 	faculty.PUT("/delete/:file_id",orchestratorHandler.FileDeleteRequestHandler)//todo:its need to be an private route
+
+	admin := e.Group("/admin")
+
+	admin.POST("/createfaculty", adminHandler.AddFacultyHandler)
+	admin.GET("/getfaculties",adminHandler.GetFacultiesHandler)
+	admin.GET("/getaculties/:stream",adminHandler.GetFacultiesByStreamHandler)
+	admin.POST("/files/:file_id",adminHandler.FileDeleteDecisionHandler)
+
 
 	fileAuth := files.Group("")
 	fileAuth.Use(auth)

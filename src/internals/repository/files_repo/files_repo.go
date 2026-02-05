@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -99,7 +100,7 @@ func (r *FilesRepo) GetFileByID(ctx context.Context, id string) (bool, error) {
 
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return false, domain.ErrInvalidID
+		return false, apperrors.ErrInvalidID//change
 	}
 
 	filter := bson.M{"_id": objectID}
@@ -108,7 +109,7 @@ func (r *FilesRepo) GetFileByID(ctx context.Context, id string) (bool, error) {
 	err = r.FilesCollection.FindOne(ctx, filter).Decode(&result)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return false, domain.ErrFileNotFound
+			return false, apperrors.ErrFileNotFound
 		}
 		return false, fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
 	}
@@ -122,7 +123,7 @@ func (r *FilesRepo) CreatePrintJob(ctx context.Context, req domain.PrintJob) err
 
 	_, err := r.PrintJobCollection.InsertOne(ctx, req)
 	if err != nil {
-		return fmt.Errorf("%w: failed to insert print job: %v", domain.ErrDBFailure, err)
+		return fmt.Errorf("%w: failed to insert print job: %v", apperrors.ErrDBFailure, err)
 	}
 
 	return nil
@@ -140,7 +141,7 @@ func (r *FilesRepo) GetFileKeyfromtheFileID(ctx context.Context, req string) (st
 
 	objectID, err := primitive.ObjectIDFromHex(req)
 	if err != nil {
-		return "", domain.ErrInvalidID
+		return "", apperrors.ErrInvalidID
 	}
 
 	filter := bson.M{
@@ -151,11 +152,11 @@ func (r *FilesRepo) GetFileKeyfromtheFileID(ctx context.Context, req string) (st
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return "", domain.ErrFileNotFound
+			return "", apperrors.ErrFileNotFound
 		}
 
 		fmt.Printf("Error in database layer:error:%v", err)
-		return "", fmt.Errorf("%w: %v", domain.ErrDBFailure, err)
+		return "", fmt.Errorf("%w: %v", apperrors.ErrDBFailure, err)
 	}
 
 	fmt.Println("File_key:", res.File_key)
@@ -222,7 +223,7 @@ func (r *FilesRepo) DeleteFileRecord(ctx context.Context, fileID string) error {
 
 	objectID, err := primitive.ObjectIDFromHex(fileID)
 	if err != nil {
-		return domain.ErrInvalidID
+		return apperrors.ErrInvalidID
 	}
 
 	filter := bson.M{"_id": objectID}
@@ -233,7 +234,7 @@ func (r *FilesRepo) DeleteFileRecord(ctx context.Context, fileID string) error {
 	}
 
 	if result.DeletedCount == 0 {
-		return domain.ErrFileNotFound
+		return apperrors.ErrFileNotFound
 	}
 
 	return nil
@@ -291,6 +292,67 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context,fileID string,reason s
 
 	if result.MatchedCount == 0 {
 		return errors.New("file not found or delete already requested")
+	}
+
+	return nil
+}
+
+func (r *FilesRepo) DeleteFilePermanently(ctx context.Context,fileID string) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return apperrors.ErrInvalidInput
+	}
+
+	filter := bson.M{
+		"_id": objectID,
+		"delete_request.status": "pending",
+	}
+
+	result, err := r.FilesCollection.DeleteOne(ctx, filter)
+	if err != nil {
+		fmt.Println("DB Error:",err)
+		return apperrors.ErrInternal
+	}
+
+	if result.DeletedCount == 0 {
+		return apperrors.ErrNoPendingRequest
+	}
+
+	return nil
+}
+
+func (r *FilesRepo) RejectDeleteRequest(ctx context.Context,fileID string) error {
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	objectID, err := primitive.ObjectIDFromHex(fileID)
+	if err != nil {
+		return apperrors.ErrInvalidInput
+	}
+
+	filter := bson.M{
+		"_id": objectID,
+		"delete_request.status": "pending",
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"delete_request.status": "rejected",
+			"delete_request.reason": "",
+		},
+	}
+
+	result, err := r.FilesCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return apperrors.ErrNoPendingRequest
 	}
 
 	return nil

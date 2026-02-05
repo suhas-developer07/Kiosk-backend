@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
@@ -30,12 +31,7 @@ func NewFileService(repo *db.FilesRepo, storage filestore.FileStorage, Logger *z
 	}
 }
 
-func (s *FileService) GetFileByGradeAndSubjectService(
-	ctx context.Context,
-	grade string,
-	subject string,
-) ([]domain.File, error) {
-
+func (s *FileService) GetFileByGradeAndSubjectService(ctx context.Context, grade string, subject string) ([]domain.File, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -43,15 +39,15 @@ func (s *FileService) GetFileByGradeAndSubjectService(
 	subject = strings.TrimSpace(strings.ToLower(subject))
 
 	if grade != "1PUC" && grade != "2PUC" {
-		return nil, domain.ErrInvalidGrade
+		return nil, apperrors.ErrInvalidGrade
 	}
 
 	if subject == "" {
-		return nil, domain.ErrInvalidSubject
+		return nil, apperrors.ErrInvalidSubject
 	}
 
 	if !subjects.IsValidSubject(subject) {
-		return nil, domain.ErrInvalidSubject
+		return nil, apperrors.ErrInvalidSubject
 	}
 
 	s.Logger.Infof("fetching files: grade=%s subject=%s", grade, subject)
@@ -83,22 +79,22 @@ func (s *FileService) CreatePrintJobService(
 	)
 
 	if req.Copies < 1 || req.Copies > 100 {
-		return "", domain.ErrInvalidCopies
+		return "", apperrors.ErrInvalidCopies
 	}
 
 	exists, err := s.FileRepo.GetFileByID(ctx, req.FileID.Hex())
 	if err != nil {
-		if errors.Is(err, domain.ErrInvalidID) {
-			return "", domain.ErrInvalidID
+		if errors.Is(err, apperrors.ErrInvalidID) {
+			return "", apperrors.ErrInvalidID
 		}
-		if errors.Is(err, domain.ErrFileNotFound) {
-			return "", domain.ErrFileNotFound
+		if errors.Is(err, apperrors.ErrFileNotFound) {
+			return "", apperrors.ErrFileNotFound
 		}
 		return "", fmt.Errorf("service: db error while checking file: %w", err)
 	}
 
 	if !exists {
-		return "", domain.ErrFileNotFound
+		return "", apperrors.ErrFileNotFound
 	}
 
 	printJob := domain.PrintJob{
@@ -132,11 +128,11 @@ func (s *FileService) AccessFileService(
 
 	fileID = strings.TrimSpace(fileID)
 	if fileID == "" {
-		return "", domain.ErrInvalidID
+		return "", apperrors.ErrInvalidID
 	}
 
 	if _, err := primitive.ObjectIDFromHex(fileID); err != nil {
-		return "", domain.ErrInvalidID
+		return "", apperrors.ErrInvalidID
 	}
 
 	s.Logger.Infow(
@@ -146,8 +142,8 @@ func (s *FileService) AccessFileService(
 
 	fileKey, err := s.FileRepo.GetFileKeyfromtheFileID(ctx, fileID)
 	if err != nil {
-		if errors.Is(err, domain.ErrFileNotFound) {
-			return "", domain.ErrFileNotFound
+		if errors.Is(err, apperrors.ErrFileNotFound) {
+			return "", apperrors.ErrFileNotFound
 		}
 
 		return "", fmt.Errorf(
@@ -180,6 +176,7 @@ func (s *FileService) AccessFileService(
 	return signedURL, nil
 }
 
+//todo:delete this layer 
 func (s *FileService) DeleteFileService(ctx context.Context, fileID string) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -221,11 +218,11 @@ func (s *FileService) DeleteFileService(ctx context.Context, fileID string) erro
 		return fmt.Errorf("service: failed delete file for this key=%s: %w", fileKey, err)
 	}
 
-	//this structure is not okay for production 
-	err = s.FileRepo.DeleteFileRecord(ctx,fileID)
+	//this structure is not okay for production
+	err = s.FileRepo.DeleteFileRecord(ctx, fileID)
 
-	if err!=nil {
-		return fmt.Errorf("Service:Error Deleting file from the db,Err:%v",err)
+	if err != nil {
+		return fmt.Errorf("Service:Error Deleting file from the db,Err:%v", err)
 	}
 
 	s.Logger.Infow("file deleted successfully", "file_id", fileID)

@@ -7,11 +7,13 @@ import (
 	"strings"
 	"time"
 
+	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	facultymodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/admin"
 	facultydb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
 	filesdb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
+	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
@@ -20,15 +22,17 @@ import (
 type AdminService struct {
 	AdminRepo   *db.AdminRepo
 	FacultyRepo *facultydb.FacultyRepo
-	FilesRepo   *filesdb.FilesRepo
+	FileRepo    *filesdb.FilesRepo
+	Storage     filestore.FileStorage
 	Logger      *zap.SugaredLogger
 }
 
-func NewAdminService(AdminRepo *db.AdminRepo, FacultyRepo *facultydb.FacultyRepo, FilesRepo *filesdb.FilesRepo, sugar *zap.SugaredLogger) *AdminService {
+func NewAdminService(AdminRepo *db.AdminRepo, FacultyRepo *facultydb.FacultyRepo, FilesRepo *filesdb.FilesRepo,Storage filestore.FileStorage, sugar *zap.SugaredLogger) *AdminService {
 	return &AdminService{
 		AdminRepo:   AdminRepo,
 		FacultyRepo: FacultyRepo,
-		FilesRepo: FilesRepo,
+		FileRepo:    FilesRepo,
+		Storage:  Storage ,
 		Logger:      sugar,
 	}
 }
@@ -149,7 +153,7 @@ func (s *AdminService) GetTotalFilesCountService(ctx context.Context) (int64, er
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	count, err := s.FilesRepo.GetTotalFilesCount(ctx)
+	count, err := s.FileRepo.GetTotalFilesCount(ctx)
 
 	if err != nil {
 		return 0, err
@@ -159,4 +163,40 @@ func (s *AdminService) GetTotalFilesCountService(ctx context.Context) (int64, er
 		return 0, nil
 	}
 	return count, nil
+}
+
+func (s *AdminService) FileDeleteDecisionService(ctx context.Context,fileID string,action string) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	switch action {
+
+	case "accept":
+		fileKey, err := s.FileRepo.GetFileKeyfromtheFileID(ctx, fileID)
+		if err != nil {
+			if errors.Is(err, apperrors.ErrFileNotFound) {
+				return apperrors.ErrFileNotFound
+			}
+			s.Logger.Errorw("failed to fetch file key","file_id", fileID,"error", err)
+			return apperrors.ErrInternal
+		}
+
+		if strings.TrimSpace(fileKey) == "" {
+			s.Logger.Errorw("empty file key returned from repository","file_id", fileID)
+			return apperrors.ErrInternal
+		}
+
+		if err := s.Storage.Delete(ctx, fileKey); err != nil {
+				s.Logger.Errorw("failed to delete file from storage","file_key", fileKey,"error", err)
+				return apperrors.ErrInternal
+			}
+		return s.FileRepo.DeleteFilePermanently(ctx, fileID)
+
+	case "reject":
+		return s.FileRepo.RejectDeleteRequest(ctx, fileID)
+
+	default:
+		return apperrors.ErrInvalidInput
+	}
 }

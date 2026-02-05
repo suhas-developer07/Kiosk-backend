@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	facultymodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/response"
 	service "github.com/suhas-developer07/Kiosk-backend/src/internals/service/admin"
@@ -212,5 +213,78 @@ func (h *AdminHandler) GetTotalFilesCountHandler(c echo.Context) error {
 		Data: map[string]int64{
 			"faculties": count,
 		},
+	})
+}
+
+func (h *AdminHandler) FileDeleteDecisionHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	clientIP := c.RealIP()
+
+	fileID := strings.TrimSpace(c.Param("file_id"))
+	if fileID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "fileId is required",
+		})
+	}
+
+	type DeleteDecisionPayload struct {
+		Action string `json:"action"`
+	}
+
+	var req DeleteDecisionPayload
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid request body",
+		})
+	}
+
+	req.Action = strings.ToLower(strings.TrimSpace(req.Action))
+
+	if req.Action != "accept" && req.Action != "reject" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Invalid action (accept or reject)",
+		})
+	}
+
+	h.Logger.Infof("Delete decision received | fileID=%s | action=%s | IP=%s", fileID, req.Action, clientIP)
+
+	err := h.adminService.FileDeleteDecisionService(ctx, fileID, req.Action)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidInput):
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "invalid request",
+			})
+
+		case errors.Is(err, apperrors.ErrFileNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "file not found",
+			})
+
+		case errors.Is(err, apperrors.ErrNoPendingRequest):
+			return c.JSON(http.StatusConflict, domain.ErrorResponse{
+				Status: "error",
+				Error:  "no pending delete request for this file",
+			})
+
+		default:
+			h.Logger.Errorf("internal error | fileID=%s | err=%v", fileID, err)
+
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "something went wrong, please try again later",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Delete decision processed successfully",
 	})
 }

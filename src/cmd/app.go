@@ -94,7 +94,7 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	adminRepo := adminRepo.NewAdminRepo(db,mongoClient)
 
-	adminService := service_Admin.NewAdminService(adminRepo,facultyRepo,filesRepo,sugar)
+	adminService := service_Admin.NewAdminService(adminRepo,facultyRepo,filesRepo,storage,sugar)
 
 	adminHandler := handler_Admin.NewAdminHandler(adminService,sugar)
 

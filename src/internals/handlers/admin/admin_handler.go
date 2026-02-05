@@ -288,3 +288,53 @@ func (h *AdminHandler) FileDeleteDecisionHandler(c echo.Context) error {
 		Message: "Delete decision processed successfully",
 	})
 }
+
+func (h *AdminHandler) PendingDeleteRequestHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	h.Logger.Infow("pending delete request count requested")
+
+	count, err := h.adminService.PendingDeleteRequestService(ctx)
+	if err != nil {
+		h.Logger.Errorf("pending delete request count failed | err=%v", err)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "internal server error",
+		})
+	}
+
+	h.Logger.Infow("pending delete request count fetched successfully | count=%d", count)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Delete request count fetched successfully",
+		Data: map[string]int64{
+			"pending_requests": count,
+		},
+	})
+}
+
+func (h *AdminHandler) RecentlyUploadedFilesHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	h.Logger.Infow("recently uploaded files requested")
+
+	files, err := h.adminService.RecentlyUploadedFileService(ctx)
+	if err != nil {
+		h.Logger.Errorf("recently uploaded files fetch failed | err=%v", err)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "internal server error",
+		})
+	}
+
+	h.Logger.Infow("recently uploaded files fetched successfully | files_count=%d", len(files))
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Recent activity fetched successfully",
+		Data: files,
+	})
+}

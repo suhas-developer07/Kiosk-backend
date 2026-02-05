@@ -100,7 +100,7 @@ func (r *FilesRepo) GetFileByID(ctx context.Context, id string) (bool, error) {
 
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return false, apperrors.ErrInvalidID//change
+		return false, apperrors.ErrInvalidID //change
 	}
 
 	filter := bson.M{"_id": objectID}
@@ -256,7 +256,7 @@ func (r *FilesRepo) GetTotalFilesCount(ctx context.Context) (int64, error) {
 	return count, err
 }
 
-func (r *FilesRepo) DeleteFileRequest(ctx context.Context,fileID string,reason string) error {
+func (r *FilesRepo) DeleteFileRequest(ctx context.Context, fileID string, reason string) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -271,8 +271,8 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context,fileID string,reason s
 	}
 
 	filter := bson.M{
-		"_id": objectID,
-		"delete_request": bson.M{"$exists": false}, 
+		"_id":            objectID,
+		"delete_request": bson.M{"$exists": false},
 	}
 
 	update := bson.M{
@@ -297,7 +297,7 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context,fileID string,reason s
 	return nil
 }
 
-func (r *FilesRepo) DeleteFilePermanently(ctx context.Context,fileID string) error {
+func (r *FilesRepo) DeleteFilePermanently(ctx context.Context, fileID string) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -308,13 +308,13 @@ func (r *FilesRepo) DeleteFilePermanently(ctx context.Context,fileID string) err
 	}
 
 	filter := bson.M{
-		"_id": objectID,
+		"_id":                   objectID,
 		"delete_request.status": "pending",
 	}
 
 	result, err := r.FilesCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		fmt.Println("DB Error:",err)
+		fmt.Println("DB Error:", err)
 		return apperrors.ErrInternal
 	}
 
@@ -325,8 +325,8 @@ func (r *FilesRepo) DeleteFilePermanently(ctx context.Context,fileID string) err
 	return nil
 }
 
-func (r *FilesRepo) RejectDeleteRequest(ctx context.Context,fileID string) error {
-	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+func (r *FilesRepo) RejectDeleteRequest(ctx context.Context, fileID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	objectID, err := primitive.ObjectIDFromHex(fileID)
@@ -335,7 +335,7 @@ func (r *FilesRepo) RejectDeleteRequest(ctx context.Context,fileID string) error
 	}
 
 	filter := bson.M{
-		"_id": objectID,
+		"_id":                   objectID,
 		"delete_request.status": "pending",
 	}
 
@@ -356,4 +356,58 @@ func (r *FilesRepo) RejectDeleteRequest(ctx context.Context,fileID string) error
 	}
 
 	return nil
+}
+
+func (r *FilesRepo) PendingDeleteRequest(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"delete_request.status": "pending",
+	}
+
+	cursor, err := r.FilesCollection.Find(ctx, filter)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	var files []domain.File
+	if err = cursor.All(ctx, &files); err != nil {
+		return 0, fmt.Errorf("cursor decode error: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var count int64 = 0
+	for range files {
+		count++
+	}
+	return count, nil
+}
+
+func (r *FilesRepo) RecentlyUploadedFiles(ctx context.Context) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	opts := options.Find().SetSort(bson.M{"uploaded_at": -1}).SetLimit(5)
+
+	cursor, err := r.FilesCollection.Find(ctx, bson.M{}, opts)
+
+	var files []domain.File
+
+	if err = cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return files, nil
 }

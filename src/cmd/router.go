@@ -37,8 +37,11 @@ func SetupRouter(
 
 	admin.POST("/createfaculty", adminHandler.AddFacultyHandler)
 	admin.GET("/getfaculties",adminHandler.GetFacultiesHandler)
+	admin.GET("/facultiescount",adminHandler.GetTotalFacultiesCount)
 	admin.GET("/getaculties/:stream",adminHandler.GetFacultiesByStreamHandler)
 	admin.POST("/files/:file_id",adminHandler.FileDeleteDecisionHandler)
+	admin.GET("/pendingdeletrequest",adminHandler.PendingDeleteRequestHandler)
+	admin.GET("/recentactivity",adminHandler.RecentlyUploadedFilesHandler)
 
 
 	fileAuth := files.Group("")

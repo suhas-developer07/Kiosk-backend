@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	facultymodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
+	filemodel  "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/admin"
 	facultydb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
@@ -199,4 +200,28 @@ func (s *AdminService) FileDeleteDecisionService(ctx context.Context,fileID stri
 	default:
 		return apperrors.ErrInvalidInput
 	}
+}
+
+
+func (s *AdminService) PendingDeleteRequestService(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	count, err := s.FileRepo.PendingDeleteRequest(ctx)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if count == 0 {
+		return 0, nil
+	}
+	return count, nil
+}
+
+func(s *AdminService) RecentlyUploadedFileService(ctx context.Context)([]filemodel.File,error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	 return  s.FileRepo.RecentlyUploadedFiles(ctx)
 }

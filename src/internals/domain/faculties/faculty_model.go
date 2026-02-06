@@ -48,24 +48,26 @@ type UpdateProfilePayload struct {
 }
 
 type Faculty struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Username  string             `bson:"username" json:"username"`
-	Email     string             `bson:"email" json:"email"`
-	Password  string             `bson:"password" json:"password"`
-	Subjects  []subjects.Subject `bson:"subjects" json:"subjects"`
-	Stream    string             `bson:"stream" json:"stream"`
-	Gender    string             `bson:"gender" json:"gender"`
-	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Username      string             `bson:"username" json:"username"`
+	Email         string             `bson:"email" json:"email"`
+	Password      string             `bson:"password" json:"password"`
+	Subjects      []subjects.Subject `bson:"subjects" json:"subjects"`
+	Stream        string             `bson:"stream" json:"stream"`
+	ClassHandling string             `bson:"class_handling" json:"class_handling"`
+	PhoneNumber   string             `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
+	Gender        string             `bson:"gender" json:"gender"`
+	CreatedAt     time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt     time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 type FacultyPayload struct {
-	Username  string             `bson:"username" json:"username" validate:"required"`
-	Email     string             `bson:"email" json:"email" validate:"required"`
-	Password  string             `bson:"password" json:"password" validate:"required,min=6"`
-	Subjects  []subjects.Subject `bson:"subjects" json:"subjects" validate:"required"`
-	Stream    string             `bson:"stream" json:"stream" validate:"required,oneof=science commerce arts"`
-	Gender    string             `bson:"gender" json:"gender" validate:"required,oneof=male female other"`
-	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+	Username      string             `bson:"username" json:"username" validate:"required"`
+	Email         string             `bson:"email" json:"email" validate:"required"`
+	Password      string             `bson:"password" json:"password" validate:"required,min=6"`
+	Subjects      []subjects.Subject `bson:"subjects" json:"subjects" validate:"required"`
+	Stream        string             `bson:"stream" json:"stream" validate:"required,oneof=science commerce arts"`
+	ClassHandling string             `bson:"class_handling" json:"class_handling"`
+	PhoneNumber   string             `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
+	Gender        string             `bson:"gender" json:"gender" validate:"required,oneof=male female other"`
 }

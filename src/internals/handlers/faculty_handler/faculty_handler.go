@@ -26,56 +26,6 @@ func NewFacultyHandler(fs *service.FacultyService, Logger *zap.SugaredLogger) *F
 	}
 }
 
-func (h *FacultyHandler) CreateAccount(c echo.Context) error {
-	ctx := c.Request().Context()
-
-	var payload domain.AccoutCreationPayload
-
-	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
-		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v", c.RealIP(), err)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  err.Error(),
-		})
-	}
-
-	if err := h.validate.Struct(&payload); err != nil {
-		msg := utils.FormatValidationError(err)
-		h.Logger.Warnf("Account validation failed | payload=%v | error=%v", payload, msg)
-
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  msg,
-		})
-	}
-
-	err := h.FacultyService.CreateAccountService(ctx, payload)
-	if err != nil {
-
-		switch {
-
-		case errors.Is(err, domain.ErrEmailAlreadyExists):
-			h.Logger.Warnf("Email already exists | email=%s", payload.Email)
-			return c.JSON(http.StatusConflict, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Email already exists.",
-			})
-
-		default:
-			h.Logger.Errorf("Failed to create account | email=%s | error=%v", payload.Email, err)
-			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Internal server error",
-			})
-		}
-	}
-
-	return c.JSON(http.StatusCreated, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Account created successfully",
-	})
-}
-
 func (h *FacultyHandler) Signin(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -240,30 +190,6 @@ func (h *FacultyHandler) GetSubjectsByFacultyIDHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "subjects fetched successfully",
-		Data: map[string]interface{}{
-			"subjects": subjectsList,
-		},
-	})
-}
-
-func (h *FacultyHandler) GetAvailableSubjectsHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-
-	h.Logger.Infow("get available subjects request received")
-
-	subjectsList, err := h.FacultyService.GetAvailableSubjects(ctx)
-	if err != nil {
-		h.Logger.Errorw("failed to fetch available subjects", "error", err)
-
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "failed to fetch subjects",
-		})
-	}
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "available subjects fetched successfully",
 		Data: map[string]interface{}{
 			"subjects": subjectsList,
 		},

@@ -14,20 +14,20 @@ func SetupRouter(
 	facultyHandler *handler_Faculty.FacultyHandler,
 	orchestratorHandler *handler_orchestrator.OrchestrateHandler,
 	adminHandler   *handler_Admin.AdminHandler,
-	auth echo.MiddlewareFunc,
+	faculty_auth echo.MiddlewareFunc,
+	admin_auth  echo.MiddlewareFunc,
+
 ) {
 	//public routes
 	files := e.Group("/files")
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
 	files.POST("/printjob", fileHandler.PrintUploadHandler)
 	files.GET("/accessfile/:file_id", fileHandler.AccessFileHandler)
-	files.DELETE("/delete/:file_id",fileHandler.DeleteFileHandler)
 	files.GET("/printjobs",fileHandler.FetchPrintJobsHandler)
 
 	faculty := e.Group("/faculty")
 	
 	faculty.POST("/signin", facultyHandler.Signin)
-	faculty.GET("/subjects", facultyHandler.GetAvailableSubjectsHandler) //todo:need to change this place
 	//todo:need to change this all are admin routes
 	faculty.GET("/faculties",adminHandler.GetFacultiesHandler)
 	faculty.GET("/faculties/:stream",adminHandler.GetFacultiesByStreamHandler)
@@ -35,19 +35,28 @@ func SetupRouter(
 
 	admin := e.Group("/admin")
 
-	admin.POST("/createfaculty", adminHandler.AddFacultyHandler)
-	admin.GET("/getfaculties",adminHandler.GetFacultiesHandler)
-	admin.GET("/facultiescount",adminHandler.GetTotalFacultiesCount)
-	admin.GET("/getaculties/:stream",adminHandler.GetFacultiesByStreamHandler)
-	admin.POST("/files/:file_id",adminHandler.FileDeleteDecisionHandler)
-	admin.GET("/pendingdeletrequest",adminHandler.PendingDeleteRequestHandler)
-	admin.GET("/recentactivity",adminHandler.RecentlyUploadedFilesHandler)
+	adminAuth := admin.Group("")
+	adminAuth.Use(admin_auth)
 
+	adminAuth.POST("/create-faculty", adminHandler.AddFacultyHandler)
+	adminAuth.GET("/get-faculties",adminHandler.GetFacultiesHandler)
+	adminAuth.GET("/total-faculties-count",adminHandler.GetTotalFacultiesCount)
+	adminAuth.GET("/getaculties/:stream",adminHandler.GetFacultiesByStreamHandler)
+	adminAuth.POST("/files/:file_id",adminHandler.FileDeleteDecisionHandler)
+	adminAuth.GET("/pending-delete-request-count",adminHandler.PendingDeleteRequestCountHandler)
+	adminAuth.GET("/recent-activity",adminHandler.RecentlyUploadedFilesHandler)
+	adminAuth.GET("/total-files",adminHandler.GetTotalFilesHandler)
+	adminAuth.GET("/total-files-count",adminHandler.GetTotalFilesCountHandler)
+	adminAuth.GET("/pending-delete-request-files",adminHandler.GetPendingDeleteRequestFilesHandler)
+	adminAuth.DELETE("/files/delete/:file_id",adminHandler.DeleteFileHandler)
+	admin.GET("/subjects", adminHandler.GetAvailableSubjectsHandler)
+	admin.POST("/signup",adminHandler.CreateAccount)
+	admin.POST("/signin",adminHandler.Signin)
 
 	fileAuth := files.Group("")
-	fileAuth.Use(auth)
+	fileAuth.Use(faculty_auth)
 	facultyAuth := faculty.Group("")
-	facultyAuth.Use(auth)
+	facultyAuth.Use(faculty_auth)
 
 	//private routes
 	fileAuth.POST("/upload", orchestratorHandler.UploadFileHandler)

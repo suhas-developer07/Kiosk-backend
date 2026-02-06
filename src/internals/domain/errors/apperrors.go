@@ -20,6 +20,7 @@ var (
 var (
 	ErrFileNotFound     = errors.New("file not found")
 	ErrFacultyNotFound  = errors.New("faculty not found")
+	ErrAdminNotFound    = errors.New("Admin not found")
 )
 
 /*

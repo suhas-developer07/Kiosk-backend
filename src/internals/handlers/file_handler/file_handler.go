@@ -217,58 +217,6 @@ func (h *FileHandler) AccessFileHandler(c echo.Context) error {
 	})
 }
 
-func (h *FileHandler) DeleteFileHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-
-	fileID := strings.TrimSpace(c.Param("file_id"))
-
-	h.Logger.Infow(
-		"delete file request received",
-		"file_id", fileID,
-	)
-
-	if fileID == "" {
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "file_id is required",
-		})
-	}
-
-	err := h.FileService.DeleteFileService(ctx, fileID)
-	if err != nil {
-
-		switch {
-		case errors.Is(err, apperrors.ErrInvalidID):
-			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-				Status: "error",
-				Error:  "invalid file id",
-			})
-
-		case errors.Is(err, apperrors.ErrFileNotFound):
-			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
-				Status: "error",
-				Error:  "file not found",
-			})
-
-		default:
-			h.Logger.Errorw(
-				"failed to delete file",
-				"file_id", fileID,
-				"error", err,
-			)
-
-			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-				Status: "error",
-				Error:  "failed to delete file",
-			})
-		}
-	}
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "File deleted successfully",
-	})
-}
 
 func (h *FileHandler) FetchPrintJobsHandler(c echo.Context) error {
 	ctx := c.Request().Context()

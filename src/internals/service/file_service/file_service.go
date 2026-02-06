@@ -176,59 +176,6 @@ func (s *FileService) AccessFileService(
 	return signedURL, nil
 }
 
-//todo:delete this layer 
-func (s *FileService) DeleteFileService(ctx context.Context, fileID string) error {
-
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	fileID = strings.TrimSpace(fileID)
-	if fileID == "" {
-		return domain.ErrInvalidID
-	}
-
-	if _, err := primitive.ObjectIDFromHex(fileID); err != nil {
-		return domain.ErrInvalidID
-	}
-
-	s.Logger.Infow(
-		"deleting file",
-		"file_id", fileID,
-	)
-
-	fileKey, err := s.FileRepo.GetFileKeyfromtheFileID(ctx, fileID)
-	if err != nil {
-		if errors.Is(err, domain.ErrFileNotFound) {
-			return domain.ErrFileNotFound
-		}
-
-		return fmt.Errorf("service: failed to fetch file key for file_id=%s: %w", fileID, err)
-	}
-
-	if fileKey == "" {
-		s.Logger.Errorw(
-			"empty file key returned from repository",
-			"file_id", fileID,
-		)
-		return errors.New("internal error: empty file key")
-	}
-
-	err = s.Storage.Delete(ctx, fileKey)
-	if err != nil {
-		return fmt.Errorf("service: failed delete file for this key=%s: %w", fileKey, err)
-	}
-
-	//this structure is not okay for production
-	err = s.FileRepo.DeleteFileRecord(ctx, fileID)
-
-	if err != nil {
-		return fmt.Errorf("Service:Error Deleting file from the db,Err:%v", err)
-	}
-
-	s.Logger.Infow("file deleted successfully", "file_id", fileID)
-
-	return nil
-}
 
 func (s *FileService) FetchPrintJobsService(ctx context.Context) ([]domain.PrintJob, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)

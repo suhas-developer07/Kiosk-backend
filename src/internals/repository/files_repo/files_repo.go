@@ -297,6 +297,31 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context, fileID string, reason
 	return nil
 }
 
+func (r *FilesRepo) GetPendingDeleteRequestFiles(ctx context.Context)([]domain.File,error){
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"delete_request.status": "pending",
+	}
+
+	cursor,err := r.FilesCollection.Find(ctx,filter)
+	if err!=nil{
+		if errors.Is(err,mongo.ErrNoDocuments){
+			return nil,nil
+		}
+		return nil,fmt.Errorf("db.find error:%v",err)
+	}
+
+	var files []domain.File
+
+	if err := cursor.All(ctx,&files);err!=nil{
+		return nil,fmt.Errorf("cursor decode error:%v",err)
+	}
+	return files,nil
+}
+
 func (r *FilesRepo) DeleteFilePermanently(ctx context.Context, fileID string) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -358,7 +383,7 @@ func (r *FilesRepo) RejectDeleteRequest(ctx context.Context, fileID string) erro
 	return nil
 }
 
-func (r *FilesRepo) PendingDeleteRequest(ctx context.Context) (int64, error) {
+func (r *FilesRepo) PendingDeleteRequestCount(ctx context.Context) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -402,11 +427,31 @@ func (r *FilesRepo) RecentlyUploadedFiles(ctx context.Context) ([]domain.File, e
 	}
 	defer cursor.Close(ctx)
 
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, nil
-		}
-		return nil, err
+	if len(files)!=0 {
+		return nil, nil
+	}
+
+	return files, nil
+}
+
+
+func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	opts := options.Find().SetSort(bson.M{"uploaded_at": -1})
+
+	cursor, err := r.FilesCollection.Find(ctx, bson.M{}, opts)
+
+	var files []domain.File
+
+	if err = cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	if len(files) !=0 {
+		return nil, nil
 	}
 
 	return files, nil

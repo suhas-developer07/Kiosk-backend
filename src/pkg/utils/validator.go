@@ -7,7 +7,7 @@ import (
 
 	validator "github.com/go-playground/validator/v10"
 	
-	faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
+	admin "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/admin"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 )
 
@@ -69,7 +69,7 @@ func ValidatePrintJobPayload(p domain.PrintJobPayload) error {
 	return nil
 }
 
-func ValidateAccountPayload(req faculty.AccoutCreationPayload) error {
+func ValidateAccountPayload(req admin.AccoutCreationPayload) error {
 	if req.Email == "" {
 		return errors.New("email is required")
 	}

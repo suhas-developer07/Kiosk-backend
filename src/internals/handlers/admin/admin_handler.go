@@ -7,8 +7,10 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/admin"
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	facultymodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
+	filemodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/response"
 	service "github.com/suhas-developer07/Kiosk-backend/src/internals/service/admin"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
@@ -186,7 +188,7 @@ func (h *AdminHandler) GetTotalFacultiesCount(c echo.Context) error {
 func (h *AdminHandler) GetTotalFilesCountHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	h.Logger.Infow("get files couunt")
+	h.Logger.Infow("get files count")
 
 	count, err := h.adminService.GetTotalFilesCountService(ctx)
 
@@ -202,7 +204,7 @@ func (h *AdminHandler) GetTotalFilesCountHandler(c echo.Context) error {
 			Status:  "success",
 			Message: "files count fetched",
 			Data: map[string]int{
-				"faculties": 0,
+				"files": 0,
 			},
 		})
 	}
@@ -211,7 +213,7 @@ func (h *AdminHandler) GetTotalFilesCountHandler(c echo.Context) error {
 		Status:  "success",
 		Message: "files count fetched",
 		Data: map[string]int64{
-			"faculties": count,
+			"files": count,
 		},
 	})
 }
@@ -289,12 +291,12 @@ func (h *AdminHandler) FileDeleteDecisionHandler(c echo.Context) error {
 	})
 }
 
-func (h *AdminHandler) PendingDeleteRequestHandler(c echo.Context) error {
+func (h *AdminHandler) PendingDeleteRequestCountHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	h.Logger.Infow("pending delete request count requested")
 
-	count, err := h.adminService.PendingDeleteRequestService(ctx)
+	count, err := h.adminService.PendingDeleteRequestCountService(ctx)
 	if err != nil {
 		h.Logger.Errorf("pending delete request count failed | err=%v", err)
 
@@ -335,6 +337,245 @@ func (h *AdminHandler) RecentlyUploadedFilesHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "Recent activity fetched successfully",
+		Data:    files,
+	})
+}
+
+func (h *AdminHandler) GetPendingDeleteRequestFilesHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	h.Logger.Infow("recently uploaded files requested")
+
+	files, err := h.adminService.GetPendingDeleteRequestFilesService(ctx)
+
+	if err != nil {
+		h.Logger.Errorf("recently uploaded files fetch failed | err=%v", err)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "internal server error",
+		})
+	}
+
+	if len(files)!=0{
+		return c.JSON(http.StatusOK,domain.SuccessResponse{
+			Status: "success",
+			Message: "No Pending request files",
+			Data: []filemodel.File{},
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Pending request fetched successfully",
 		Data: files,
+	})
+}
+
+func (h *AdminHandler) GetTotalFilesHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	h.Logger.Infow("recently uploaded files requested")
+
+	files, err := h.adminService.GetTotalFilesService(ctx)
+	if err != nil {
+		h.Logger.Errorf("recently uploaded files fetch failed | err=%v", err)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "internal server error",
+		})
+	}
+
+	h.Logger.Infow("recently uploaded files fetched successfully | files_count=%d", len(files))
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Recent activity fetched successfully",
+		Data:    files,
+	})
+}
+
+func (h *AdminHandler) DeleteFileHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	fileID := strings.TrimSpace(c.Param("file_id"))
+
+	h.Logger.Infow(
+		"delete file request received",
+		"file_id", fileID,
+	)
+
+	if fileID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "file_id is required",
+		})
+	}
+
+	err := h.adminService.DeleteFileService(ctx, fileID)
+	if err != nil {
+
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidID):
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "invalid file id",
+			})
+
+		case errors.Is(err, apperrors.ErrFileNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "file not found",
+			})
+
+		default:
+			h.Logger.Errorw(
+				"failed to delete file",
+				"file_id", fileID,
+				"error", err,
+			)
+
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to delete file",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "File deleted successfully",
+	})
+}
+
+func (h *AdminHandler) Signin(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	var payload model.SigninPayload
+
+	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
+		h.Logger.Warnf("Invalid signin payload | Error=%v", err)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	if err := h.validate.Struct(&payload); err != nil {
+		msg := utils.FormatValidationError(err)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  msg,
+		})
+	}
+
+	access, username, err := h.adminService.SigninService(ctx, payload)
+	if err != nil {
+
+		switch {
+
+		case errors.Is(err, apperrors.ErrFacultyNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "email is not registered",
+			})
+
+		case errors.Is(err, apperrors.ErrInvalidPassword):
+			return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Invalid email or password",
+			})
+
+		default:
+			h.Logger.Errorf("Signin failed | error=%v", err)
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Internal server error",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Signin successful",
+		Data: map[string]interface{}{
+			"access_token": access,
+			"username":     username,
+		},
+	})
+}
+
+func (h *AdminHandler) CreateAccount(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	var payload model.AccoutCreationPayload
+
+	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
+		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v", c.RealIP(), err)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	if err := h.validate.Struct(&payload); err != nil {
+		msg := utils.FormatValidationError(err)
+		h.Logger.Warnf("Account validation failed | payload=%v | error=%v", payload, msg)
+
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  msg,
+		})
+	}
+
+	err := h.adminService.CreateAccountService(ctx, payload)
+	if err != nil {
+
+		switch {
+
+		case errors.Is(err, apperrors.ErrEmailAlreadyExists):
+			h.Logger.Warnf("Email already exists | email=%s", payload.Email)
+			return c.JSON(http.StatusConflict, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Email already exists.",
+			})
+
+		default:
+			h.Logger.Errorf("Failed to create account | email=%s | error=%v", payload.Email, err)
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Internal server error",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusCreated, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Account created successfully",
+	})
+}
+
+func (h *AdminHandler) GetAvailableSubjectsHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	h.Logger.Infow("get available subjects request received")
+
+	subjectsList, err := h.adminService.GetAvailableSubjects(ctx)
+	if err != nil {
+		h.Logger.Errorw("failed to fetch available subjects", "error", err)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "failed to fetch subjects",
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "available subjects fetched successfully",
+		Data: map[string]interface{}{
+			"subjects": subjectsList,
+		},
 	})
 }

@@ -74,7 +74,9 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	db := mongoClient.Database("kiosk_db")
 
-	auth := middleware.AuthMiddleware(sugar)
+	Faculty_auth := middleware.FacultyAuthMiddleware(sugar)
+
+	Admin_auth := middleware.AdminAuthMiddleware(sugar)
 
 	filesRepo := repository_Files.NewFilesRepo(db, mongoClient)
 
@@ -98,7 +100,7 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	adminHandler := handler_Admin.NewAdminHandler(adminService,sugar)
 
-	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,auth)
+	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,Faculty_auth,Admin_auth)
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{

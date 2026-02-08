@@ -2,6 +2,7 @@ package admin
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -357,41 +358,46 @@ func (h *AdminHandler) GetPendingDeleteRequestFilesHandler(c echo.Context) error
 		})
 	}
 
-	if len(files)!=0{
-		return c.JSON(http.StatusOK,domain.SuccessResponse{
-			Status: "success",
+	if len(files) == 0 {
+		return c.JSON(http.StatusOK, domain.SuccessResponse{
+			Status:  "success",
 			Message: "No Pending request files",
-			Data: []filemodel.File{},
+			Data:    []filemodel.File{},
 		})
 	}
 
-	return c.JSON(http.StatusOK,domain.SuccessResponse{
-		Status: "success",
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
 		Message: "Pending request fetched successfully",
-		Data: files,
+		Data:    files,
 	})
 }
 
 func (h *AdminHandler) GetTotalFilesHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	h.Logger.Infow("recently uploaded files requested")
+	//need to refract this request handler
+	h.Logger.Infow("total files request")
 
 	files, err := h.adminService.GetTotalFilesService(ctx)
 	if err != nil {
-		h.Logger.Errorf("recently uploaded files fetch failed | err=%v", err)
+		//h.Logger.Errorf("total files request failed | err=%v", err)
 
+		fmt.Println("error", err)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
 			Error:  "internal server error",
 		})
 	}
 
-	h.Logger.Infow("recently uploaded files fetched successfully | files_count=%d", len(files))
+	h.Logger.Infow(
+		"total files request fetched successfully",
+		"files_count", len(files),
+	)
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
-		Message: "Recent activity fetched successfully",
+		Message: "successfully fetched the files",
 		Data:    files,
 	})
 }
@@ -488,7 +494,7 @@ func (h *AdminHandler) Signin(c echo.Context) error {
 			})
 
 		default:
-			h.Logger.Errorf("Signin failed | error=%v", err)
+			fmt.Print(err)
 			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 				Status: "error",
 				Error:  "Internal server error",

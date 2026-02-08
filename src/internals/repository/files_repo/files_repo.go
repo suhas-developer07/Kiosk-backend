@@ -427,13 +427,8 @@ func (r *FilesRepo) RecentlyUploadedFiles(ctx context.Context) ([]domain.File, e
 	}
 	defer cursor.Close(ctx)
 
-	if len(files)!=0 {
-		return nil, nil
-	}
-
 	return files, nil
 }
-
 
 func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -442,6 +437,10 @@ func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
 	opts := options.Find().SetSort(bson.M{"uploaded_at": -1})
 
 	cursor, err := r.FilesCollection.Find(ctx, bson.M{}, opts)
+	if err!=nil{
+		fmt.Print("error",err)
+		return nil,err
+	}
 
 	var files []domain.File
 
@@ -449,10 +448,6 @@ func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
 		return nil, fmt.Errorf("cursor decode error: %w", err)
 	}
 	defer cursor.Close(ctx)
-
-	if len(files) !=0 {
-		return nil, nil
-	}
 
 	return files, nil
 }

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/admin"
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	facultymodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	filemodel "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
-	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/admin"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/admin"
 	facultydb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
@@ -39,7 +39,7 @@ func NewAdminService(AdminRepo *db.AdminRepo, FacultyRepo *facultydb.FacultyRepo
 	}
 }
 
-func (s *AdminService) GetFacultiesService(ctx context.Context,) ([]facultymodel.Faculty, error) {
+func (s *AdminService) GetFacultiesService(ctx context.Context) ([]facultymodel.Faculty, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -102,23 +102,28 @@ func (s *AdminService) AddFacultyService(ctx context.Context, req facultymodel.F
 		req.Password = hashed
 	}
 
+	if req.ClassHandling != "1PUC" && req.ClassHandling !="2PUC"{
+		return apperrors.ErrInvalidClassHandling
+	}
+
 	s.Logger.Infof("Adding Faculty| email=%s", req.Email)
 
 	faculty := facultymodel.Faculty{
-		ID:        primitive.NewObjectID(),
-		Username:  req.Username,
-		Email:     req.Email,
-		Password:  req.Password,
-		Subjects:  req.Subjects,
-		Stream:    req.Stream,
-		Gender:    req.Gender,
-		CreatedAt: time.Now(),
+		ID:            primitive.NewObjectID(),
+		Username:      req.Username,
+		Email:         req.Email,
+		Password:      req.Password,
+		Subjects:      req.Subjects,
+		Stream:        req.Stream,
+		ClassHandling: req.ClassHandling,
+		Gender:        req.Gender,
+		CreatedAt:     time.Now(),
 	}
 
 	err := s.FacultyRepo.CreateAccount(ctx, faculty)
 	switch {
-	case errors.Is(err, facultymodel.ErrEmailAlreadyExists):
-		return facultymodel.ErrEmailAlreadyExists
+	case errors.Is(err, apperrors.ErrEmailAlreadyExists):
+		return apperrors.ErrEmailAlreadyExists
 
 	case err != nil:
 		return fmt.Errorf("failed to add faculty: %w", err)
@@ -231,7 +236,6 @@ func (s *AdminService) GetPendingDeleteRequestFilesService(ctx context.Context) 
 	return s.FileRepo.GetPendingDeleteRequestFiles(ctx)
 }
 
-
 func (s *AdminService) GetTotalFilesService(ctx context.Context) ([]filemodel.File, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -291,36 +295,35 @@ func (s *AdminService) DeleteFileService(ctx context.Context, fileID string) err
 	return nil
 }
 
-func (s *AdminService) SigninService(ctx context.Context, req model.SigninPayload) (string,string,error) {
+func (s *AdminService) SigninService(ctx context.Context, req model.SigninPayload) (string, string, error) {
 
-    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-    s.Logger.Infof("Signin attempt | email=%s", req.Email)
+	s.Logger.Infof("Signin attempt | email=%s", req.Email)
 
-    admin, err := s.AdminRepo.GetAdminByEmail(ctx, req.Email)
-    if err != nil {
-        if errors.Is(err, apperrors.ErrAdminNotFound) {
-            return "","", apperrors.ErrAdminNotFound
-        }
-        return "","", fmt.Errorf("service: db lookup failed: %w", err)
-    }
+	admin, err := s.AdminRepo.GetAdminByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrAdminNotFound) {
+			return "", "", apperrors.ErrAdminNotFound
+		}
+		return "", "", fmt.Errorf("service: db lookup failed: %w", err)
+	}
 
-    if !utils.CheckPassword(req.Password, admin.Password) {
-        return "","",apperrors.ErrInvalidPassword
-    }
+	if !utils.CheckPassword(req.Password, admin.Password) {
+		return "", "", apperrors.ErrInvalidPassword
+	}
 
-    accessToken, err := utils.GenerateAccessTokenForAdmin(admin.ID.Hex())
-    if err != nil {
-        return "", "",fmt.Errorf("service: failed generating access token: %w", err)
-    }
+	accessToken, err := utils.GenerateAccessTokenForAdmin(admin.ID.Hex())
+	if err != nil {
+		return "", "", fmt.Errorf("service: failed generating access token: %w", err)
+	}
 
-    s.Logger.Infof("Signin successful | email=%s", req.Email)
-    return accessToken, admin.Username,nil
+	s.Logger.Infof("Signin successful | email=%s", req.Email)
+	return accessToken, admin.Username, nil
 }
 
-
-func (s *AdminService) CreateAccountService(ctx context.Context,req model.AccoutCreationPayload) error {
+func (s *AdminService) CreateAccountService(ctx context.Context, req model.AccoutCreationPayload) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -362,7 +365,7 @@ func (s *AdminService) CreateAccountService(ctx context.Context,req model.Accout
 	return nil
 }
 
-func (s *AdminService) GetAvailableSubjects(ctx context.Context,) ([]subjects.Subject, error) {
+func (s *AdminService) GetAvailableSubjects(ctx context.Context) ([]subjects.Subject, error) {
 
 	s.Logger.Infow("fetching available subjects")
 

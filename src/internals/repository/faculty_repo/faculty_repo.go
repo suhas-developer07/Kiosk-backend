@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
@@ -41,7 +42,7 @@ func (r *FacultyRepo) CreateAccount(ctx context.Context, req domain.Faculty) err
 
 	switch {
 	case err == nil:
-		return domain.ErrEmailAlreadyExists
+		return apperrors.ErrEmailAlreadyExists
 
 	case errors.Is(err, mongo.ErrNoDocuments):
 		// do nothing -> proced to insert

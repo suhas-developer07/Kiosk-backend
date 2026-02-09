@@ -3,28 +3,29 @@ package apperrors
 import "errors"
 
 /*
-	Input / Validation errors
+Input / Validation errors
 */
 var (
-	ErrInvalidInput     = errors.New("invalid input")
-	ErrInvalidID        = errors.New("invalid id")
-	ErrInvalidGrade     = errors.New("invalid grade")
-	ErrInvalidSubject   = errors.New("invalid subject")
-	ErrInvalidCopies    = errors.New("invalid copies")
-	ErrInvalidPassword  = errors.New("invalid password")
+	ErrInvalidInput         = errors.New("invalid input")
+	ErrInvalidID            = errors.New("invalid id")
+	ErrInvalidGrade         = errors.New("invalid grade")
+	ErrInvalidSubject       = errors.New("invalid subject")
+	ErrInvalidCopies        = errors.New("invalid copies")
+	ErrInvalidPassword      = errors.New("invalid password")
+	ErrInvalidClassHandling = errors.New("Invalid Class Handling Class must be (1PUC or 2PUC)")
 )
 
 /*
-	Resource / Not found errors
+Resource / Not found errors
 */
 var (
-	ErrFileNotFound     = errors.New("file not found")
-	ErrFacultyNotFound  = errors.New("faculty not found")
-	ErrAdminNotFound    = errors.New("Admin not found")
+	ErrFileNotFound    = errors.New("file not found")
+	ErrFacultyNotFound = errors.New("faculty not found")
+	ErrAdminNotFound   = errors.New("Admin not found")
 )
 
 /*
-	Conflict / State errors
+Conflict / State errors
 */
 var (
 	ErrEmailAlreadyExists = errors.New("email already exists")
@@ -33,7 +34,7 @@ var (
 )
 
 /*
-	Infrastructure / Internal errors
+Infrastructure / Internal errors
 */
 var (
 	ErrDBFailure = errors.New("database failure")

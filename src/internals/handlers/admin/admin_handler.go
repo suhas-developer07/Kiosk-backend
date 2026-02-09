@@ -132,11 +132,17 @@ func (h *AdminHandler) AddFacultyHandler(c echo.Context) error {
 
 	if err != nil {
 		switch {
-		case errors.Is(err, facultymodel.ErrEmailAlreadyExists):
+		case errors.Is(err, apperrors.ErrEmailAlreadyExists):
 			h.Logger.Warnf("Email already exists | email=%s", req.Email)
 			return c.JSON(http.StatusConflict, domain.ErrorResponse{
 				Status: "error",
 				Error:  "Email already exists.",
+			})
+		
+		case errors.Is(err,apperrors.ErrInvalidClassHandling):
+			return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+				Status: "error",
+				Error: err.Error(),
 			})
 
 		default:

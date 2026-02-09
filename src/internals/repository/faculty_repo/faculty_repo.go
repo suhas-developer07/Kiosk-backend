@@ -113,9 +113,6 @@ func (r *FacultyRepo) GetFacultyProfileByID(
 	err := r.FacultyCollection.FindOne(
 		ctx,
 		bson.M{"_id": id},
-		options.FindOne().SetProjection(bson.M{
-			"profile": 1,
-		}),
 	).Decode(&faculty)
 
 	if err != nil {

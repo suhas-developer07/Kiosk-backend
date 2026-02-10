@@ -6,6 +6,7 @@ import (
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
 	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
 	handler_Admin  "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/admin"
+	handler_RechargeMachine "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/recharge_machine"
 )
 
 func SetupRouter(
@@ -14,9 +15,10 @@ func SetupRouter(
 	facultyHandler *handler_Faculty.FacultyHandler,
 	orchestratorHandler *handler_orchestrator.OrchestrateHandler,
 	adminHandler   *handler_Admin.AdminHandler,
+	machineHandler *handler_RechargeMachine.RechargeMachineHandler,
 	faculty_auth echo.MiddlewareFunc,
 	admin_auth  echo.MiddlewareFunc,
-
+	warden_auth echo.MiddlewareFunc,
 ) {
 	//public routes
 	files := e.Group("/files")
@@ -65,4 +67,25 @@ func SetupRouter(
 //	facultyAuth.PUT("/profileupdate", facultyHandler.UpdateProfile)
 	facultyAuth.GET("/ownedsubjects", facultyHandler.GetSubjectsByFacultyIDHandler)
 	facultyAuth.GET("/me",facultyHandler.GetFacultyByIdHandler)
+
+	
+	//Recharge Machine Routes
+	machine := e.Group("/machine")
+	machine.POST("/super-admin/signup",machineHandler.CreateMainAdminHandler)
+	machine.POST("/create-machine", machineHandler.CreateMachineHandler)
+	machine.POST("/recharge", machineHandler.RechargeMachineHadler)
+	machine.GET("/fetch-machine-balance/:machine_id", machineHandler.GetMachineBalanceHandler)
+	machine.GET("/fetch-machine-recharge-history/:machine_id", machineHandler.GetRechargeMachineHistoryHandler)
+
+	// machineAuth := machine.Group("")
+	// machineAuth.Use(warden_auth)
+
+	machine.POST("/recharge/:machine_id/:user_id", machineHandler.RechargeRFIDHandler)
+	machine.GET("/recharge-history/:machine_id", machineHandler.GetRFIDRechargeHistoryHandler)
+
+	//warden routes
+    warden :=  e.Group("/warden")
+	warden.POST("/create-user", machineHandler.CreateUserHandler)
+	warden.POST("/login-user", machineHandler.LoginUserHandler)
+
 }

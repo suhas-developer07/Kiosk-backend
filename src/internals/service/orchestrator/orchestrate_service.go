@@ -55,9 +55,9 @@ func (s *OrchestrateService) UploadFileService(
 		return "", domain.ErrInvalidID
 	}
 
-	if !subjects.IsValidSubject(req.Subject) {
-		return "", fmt.Errorf("service:subject is not valid")
-	}
+	// if !subjects.IsValidSubject(req.Subject) {
+	// 	return "", fmt.Errorf("service:subject is not valid")
+	// }
 
 	checkSubject, err := s.FacultyRepo.HasSubject(ctx, objID, subjects.Subject(req.Subject))
 

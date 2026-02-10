@@ -13,6 +13,7 @@ var (
 	ErrInvalidCopies        = errors.New("invalid copies")
 	ErrInvalidPassword      = errors.New("invalid password")
 	ErrInvalidClassHandling = errors.New("Invalid Class Handling Class must be (1PUC or 2PUC)")
+	ErrInvalidCredentials   = errors.New("invalid credentials")
 )
 
 /*
@@ -31,6 +32,7 @@ var (
 	ErrEmailAlreadyExists = errors.New("email already exists")
 	ErrNoPendingRequest   = errors.New("no pending delete request")
 	ErrConflict           = errors.New("conflict")
+	ErrMachineAlreadyExists = errors.New("a machine with this number alredy exists")
 )
 
 /*

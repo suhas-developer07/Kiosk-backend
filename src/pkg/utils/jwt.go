@@ -18,7 +18,6 @@ func GenerateAccessTokenForFaculty(FacultyID string) (string, error) {
     return token.SignedString(jwtSecret)
 }
 
-
 func GenerateAccessTokenForAdmin(AdminID string) (string, error) {
     claims := jwt.MapClaims{
         "admin_id": AdminID,
@@ -28,6 +27,21 @@ func GenerateAccessTokenForAdmin(AdminID string) (string, error) {
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
     return token.SignedString(jwtSecret)
 }
+
+
+func GenerateAccessTokenForWarden(WardenID string) (string, error) {
+    claims := jwt.MapClaims{
+        "warden_id": WardenID,
+        "exp":     time.Now().Add(62*34 * time.Hour).Unix(),
+    }
+
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    return token.SignedString(jwtSecret)
+}
+
+
+
+
 
 
 

@@ -13,7 +13,9 @@ import (
 	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
 	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
+	handler_RechargeMachine "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/recharge_machine"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/middleware"
+	repository_machine "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/recharge_machine_repo"
 	service_Admin "github.com/suhas-developer07/Kiosk-backend/src/internals/service/admin"
 	adminRepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/admin"
 	facultyrepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
@@ -21,6 +23,8 @@ import (
 	service_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/service/faculty_service"
 	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service/file_service"
 	service_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/service/orchestrator"
+	service_machine "github.com/suhas-developer07/Kiosk-backend/src/internals/service/recharge_machine"
+
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/zap"
@@ -78,6 +82,8 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	Admin_auth := middleware.AdminAuthMiddleware(sugar)
 
+	Warden_auth := middleware.WardenAuthMiddleware(sugar)
+
 	filesRepo := repository_Files.NewFilesRepo(db, mongoClient)
 
 	fileService := service_File.NewFileService(filesRepo, storage, sugar)
@@ -100,7 +106,14 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	adminHandler := handler_Admin.NewAdminHandler(adminService,sugar)
 
-	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,Faculty_auth,Admin_auth)
+	machineRepo := repository_machine.NewMachineRechargeRepo(db,mongoClient)
+
+	machineService := service_machine.NewRechargeMachineService(machineRepo, sugar)
+
+	machineHandler := handler_RechargeMachine.NewRechargeMachineHandler(machineService, sugar)
+
+	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,machineHandler,Faculty_auth,Admin_auth,Warden_auth)
+	
 
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(200, map[string]string{

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/faculties"
@@ -133,8 +134,8 @@ func (r *FacultyRepo) HasSubject(
 ) (bool, error) {
 
 	filter := bson.M{
-		"_id":              facultyID,
-		"profile.subjects": subject,
+		"_id":      facultyID,
+		"subjects": subject,
 	}
 
 	err := r.FacultyCollection.FindOne(ctx, filter).Err()
@@ -210,53 +211,52 @@ func (r *FacultyRepo) GetFaculties(ctx context.Context) ([]domain.Faculty, error
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	var Faculty  []domain.Faculty
+	var Faculty []domain.Faculty
 
 	findOptions := options.Find()
 
-	cursor,err := r.FacultyCollection.Find(ctx,bson.M{},findOptions)
+	cursor, err := r.FacultyCollection.Find(ctx, bson.M{}, findOptions)
 
 	if err != nil {
-		return nil,fmt.Errorf("db.Find Error:%w",err)
+		return nil, fmt.Errorf("db.Find Error:%w", err)
 	}
 	defer cursor.Close(ctx)
 
-	if err = cursor.All(ctx,&Faculty);err!=nil{
-		return nil,fmt.Errorf("cursor decode error:%v",err)
+	if err = cursor.All(ctx, &Faculty); err != nil {
+		return nil, fmt.Errorf("cursor decode error:%v", err)
 	}
 
 	if len(Faculty) == 0 {
-		return []domain.Faculty{},nil
+		return []domain.Faculty{}, nil
 	}
-	return Faculty,nil
+	return Faculty, nil
 }
 
-
-func (r *FacultyRepo) GetFacultiesByStream(ctx context.Context,stream string) ([]domain.Faculty, error) {
+func (r *FacultyRepo) GetFacultiesByStream(ctx context.Context, stream string) ([]domain.Faculty, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	var Faculty  []domain.Faculty
+	var Faculty []domain.Faculty
 
-	fmt.Println("stream",stream)
+	fmt.Println("stream", stream)
 
 	filter := bson.M{
-		"stream":stream,
+		"stream": stream,
 	}
 
-	cursor,err := r.FacultyCollection.Find(ctx,filter)
+	cursor, err := r.FacultyCollection.Find(ctx, filter)
 
 	if err != nil {
-		return nil,fmt.Errorf("db.Find Error:%w",err)
+		return nil, fmt.Errorf("db.Find Error:%w", err)
 	}
 	defer cursor.Close(ctx)
 
-	if err = cursor.All(ctx,&Faculty);err!=nil{
-		return nil,fmt.Errorf("cursor decode error:%v",err)
+	if err = cursor.All(ctx, &Faculty); err != nil {
+		return nil, fmt.Errorf("cursor decode error:%v", err)
 	}
 
 	if len(Faculty) == 0 {
-		return []domain.Faculty{},nil
+		return []domain.Faculty{}, nil
 	}
-	return Faculty,nil
+	return Faculty, nil
 }

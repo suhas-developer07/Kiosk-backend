@@ -258,7 +258,7 @@ func (r *FilesRepo) GetTotalFilesCount(ctx context.Context) (int64, error) {
 
 func (r *FilesRepo) DeleteFileRequest(ctx context.Context, fileID string, reason string) error {
 
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	if strings.TrimSpace(reason) == "" {
@@ -272,7 +272,6 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context, fileID string, reason
 
 	filter := bson.M{
 		"_id":            objectID,
-		"delete_request": bson.M{"$exists": false},
 	}
 
 	update := bson.M{

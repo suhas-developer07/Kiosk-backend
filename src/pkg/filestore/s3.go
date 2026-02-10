@@ -49,6 +49,29 @@ func (s *S3Storage) Save(
 	return key, etag, nil
 }
 
+func (s *S3Storage) GeneratePresignedPutURL(
+	ctx context.Context,
+	key string,
+) (string, error) {
+
+	presigner := s3.NewPresignClient(s.Client)
+
+	resp, err := presigner.PresignPutObject(
+		ctx,
+		&s3.PutObjectInput{
+			Bucket: aws.String(s.BucketName),
+			Key:    aws.String(key),
+		},
+		s3.WithPresignExpires(15*time.Minute),
+	)
+
+	if err != nil {
+		return "", err
+	}
+
+	return resp.URL, nil
+}
+
 func (s *S3Storage) Delete(ctx context.Context, key string) error {
 	_, err := s.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(s.BucketName),

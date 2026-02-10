@@ -295,7 +295,31 @@ func (h *RechargeMachineHandler) GetRechargeMachineHistoryHandler(c echo.Context
 	})
 }
 
+func(h *RechargeMachineHandler) FetchConnectedMachinesHandler(c echo.Context) error {
+	machineNo := c.Param("machine_no")
 
+	if strings.TrimSpace(machineNo) == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid machine number to view its connected machines.",
+		})
+	}
+
+	machines,err := h.RechargeMachineService.FetchConnectedMachinesService(c.Request().Context(), machineNo)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "We could not fetch the connected machines: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Connected machines retrieved successfully.",
+		Data:    machines,
+	})
+}
 //Warden Routes
 
 func (h *RechargeMachineHandler) CreateUserHandler(c echo.Context) error {

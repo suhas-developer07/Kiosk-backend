@@ -244,6 +244,19 @@ func (r *RechargeMachineRepo) GetUserByEmail(ctx context.Context, email string) 
 	return &user, nil
 }
 
+func (r *RechargeMachineRepo) GetMachineDetailsByMachineNo(ctx context.Context, machineNo string) (model.Machine, error) {
+	var machine model.Machine
+
+	err := r.MachineCollection.FindOne(ctx, bson.M{"machine_no": machineNo}).Decode(&machine)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return model.Machine{}, errors.New("machine not found")
+		}
+		return model.Machine{}, errors.New("unable to fetch machine details at the moment")
+	}
+	return machine, nil
+}
+
 func (r *RechargeMachineRepo) GetMachineNameByID(ctx context.Context, machineID string) string {
 	var machine struct {
 	MachineName string `bson:"machine_name"`

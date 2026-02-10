@@ -5,7 +5,7 @@ Description: Kiosk Backend (Go + Echo + Mongo + S3)
 
 Globals:
   Function:
-    Timeout: 30
+    Timeout:  
     MemorySize: 1024
     Runtime: provided.al2
     Architectures:

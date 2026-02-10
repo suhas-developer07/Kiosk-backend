@@ -22,6 +22,8 @@ type FileStorage interface {
 		subject string,
 	) ([]string, error)
 
+	GeneratePresignedPutURL(ctx context.Context,key string) (string, error)
+
 	GenerateSignedURL(
 		ctx context.Context,
 		key string,

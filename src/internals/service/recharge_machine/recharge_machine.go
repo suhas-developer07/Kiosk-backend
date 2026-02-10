@@ -228,6 +228,16 @@ func (s *RechargeMachineService) GetRechargeMachineHistoryService(ctx context.Co
 	return history, nil
 }
 
+func (s *RechargeMachineService) FetchConnectedMachinesService(ctx context.Context, machineNo string) (model.Machine, error) {
+	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	machines, err := s.RechargeMachineRepo.GetMachineDetailsByMachineNo(ctx, machineNo)
+	if err != nil {
+		return model.Machine{}, errors.New("unable to fetch connected machines at the moment: " + err.Error())
+	}
+	return machines, nil
+}
 
 //wardens routes
 

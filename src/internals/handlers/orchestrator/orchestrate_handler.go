@@ -89,6 +89,81 @@ func (h *OrchestrateHandler) UploadFileHandler(c echo.Context) error {
 	})
 }
 
+func (h *OrchestrateHandler) InitiateUploadHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	facultyID := c.Get("faculty_id").(string)
+
+	var req domain.FileUploadRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid request body",
+		})
+	}
+
+	allowedGrades := map[string]bool{"1PUC": true, "2PUC": true}
+	if !allowedGrades[req.Grade] {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid grade; allowed values: 1PUC, 2PUC",
+		})
+	}
+
+	resp, err := h.OrchestrateService.InitiateUpload(
+		ctx,
+		req,
+		facultyID,
+	)
+	if err != nil {
+		return c.JSON(http.StatusForbidden, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "upload initialized",
+		Data:    resp,
+	})
+}
+
+func (h *OrchestrateHandler) CompleteUploadHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	facultyID := c.Get("faculty_id").(string)
+
+	var req struct {
+		FileKey string `json:"file_key"`
+		domain.FileUploadRequest
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid request",
+		})
+	}
+
+	err := h.OrchestrateService.CompleteUpload(
+		ctx,
+		req.FileKey,
+		req.FileUploadRequest,
+		facultyID,
+	)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "file uploaded successfully",
+	})
+}
+
+
 func (h *OrchestrateHandler) GetRecentUploadedFilesHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 

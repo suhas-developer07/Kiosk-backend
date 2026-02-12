@@ -31,7 +31,7 @@ func GenerateAccessTokenForAdmin(AdminID string) (string, error) {
 
 func GenerateAccessTokenForWarden(WardenID string) (string, error) {
     claims := jwt.MapClaims{
-        "warden_id": WardenID,
+        "user_id": WardenID,
         "exp":     time.Now().Add(62*34 * time.Hour).Unix(),
     }
 

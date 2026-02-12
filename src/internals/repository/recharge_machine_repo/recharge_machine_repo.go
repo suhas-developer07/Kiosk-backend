@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
@@ -348,6 +349,33 @@ func (r *RechargeMachineRepo) GetUserByEmail(ctx context.Context, email string) 
 	return &user, nil
 }
 
+func (r *RechargeMachineRepo) GetUserById(ctx context.Context,id string)(string,error){
+	ctx,cancel := context.WithTimeout(ctx,defaultQueryTimeout)
+	defer cancel()
+
+	opts  := options.FindOne().SetProjection(bson.M{
+		"user_name":1,
+		"_id":0,
+	})
+
+	var result struct{
+		Username string `bson:"user_name"`
+	}
+
+	filter := bson.M{
+		"user_id":id,
+	}
+
+	err := r.wardensCollection.FindOne(ctx,filter,opts).Decode(&result)
+
+	if err != nil {
+		if errors.Is(err,mongo.ErrNoDocuments){
+			return "",apperrors.ErrWardenNotFound
+		}
+		return "",fmt.Errorf("failed to get username by id: %w",err)
+	}
+	return result.Username,nil
+}
 // GetMachineDetailsByMachineNo retrieves machine details by machine number
 func (r *RechargeMachineRepo) GetMachineDetailsByMachineNo(ctx context.Context, machineNo string) (model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)

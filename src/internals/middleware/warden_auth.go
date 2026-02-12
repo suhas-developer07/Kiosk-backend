@@ -60,7 +60,7 @@ func WardenAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 				})
 			}
 
-			FacultyID, ok := claims["user_id"].(string)
+			UserID, ok := claims["user_id"].(string)
 			if !ok {
 				logger.Error("Missing user_id in token")
 				return c.JSON(http.StatusUnauthorized, map[string]string{
@@ -69,7 +69,7 @@ func WardenAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 				})
 			}
 
-			c.Set("user_id", FacultyID)
+			c.Set("user_id", UserID)
 
 			return next(c)
 		}

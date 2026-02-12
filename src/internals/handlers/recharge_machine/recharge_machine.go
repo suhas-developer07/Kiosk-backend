@@ -22,7 +22,6 @@ type RechargeMachineHandler struct {
 	validate *validator.Validate
 }
 
-// NewRechargeMachineHandler creates a new instance of RechargeMachineHandler
 func NewRechargeMachineHandler(
 	rechargeMachineService *service.RechargeMachineService,
 	logger *zap.SugaredLogger,
@@ -41,7 +40,6 @@ func (h *RechargeMachineHandler) CreateMainAdminHandler(c echo.Context) error {
 
 	var payload model.CreateMainAdminPayload
 
-	// Decode and validate JSON payload
 	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
 		h.logger.Warnw("Failed to decode admin creation payload",
 			"ip", requestIP,
@@ -53,7 +51,6 @@ func (h *RechargeMachineHandler) CreateMainAdminHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate struct fields
 	if err := h.validate.Struct(&payload); err != nil {
 		validationMsg := utils.FormatValidationError(err)
 		h.logger.Warnw("Admin creation validation failed",
@@ -66,7 +63,6 @@ func (h *RechargeMachineHandler) CreateMainAdminHandler(c echo.Context) error {
 		})
 	}
 
-	// Call service layer
 	if err := h.service.CreateAccountService(ctx, payload); err != nil {
 		return h.handleCreateAccountError(c, err, payload.Email)
 	}
@@ -89,7 +85,6 @@ func (h *RechargeMachineHandler) CreateMachineHandler(c echo.Context) error {
 
 	var payload model.MachineCreateRequest
 
-	// Decode and validate JSON payload
 	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
 		h.logger.Warnw("Failed to decode machine creation payload",
 			"ip", requestIP,
@@ -101,7 +96,6 @@ func (h *RechargeMachineHandler) CreateMachineHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate struct fields
 	if err := h.validate.Struct(&payload); err != nil {
 		validationMsg := utils.FormatValidationError(err)
 		h.logger.Warnw("Machine creation validation failed",
@@ -114,7 +108,6 @@ func (h *RechargeMachineHandler) CreateMachineHandler(c echo.Context) error {
 		})
 	}
 
-	// Call service layer
 	if err := h.service.CreateMachineService(ctx, payload); err != nil {
 		return h.handleCreateMachineError(c, err, payload.MachineNo)
 	}
@@ -138,7 +131,6 @@ func (h *RechargeMachineHandler) RechargeMachineHandler(c echo.Context) error {
 
 	var req model.MachineRechargeRequest
 
-	// Bind request payload
 	if err := c.Bind(&req); err != nil {
 		h.logger.Warnw("Failed to bind machine recharge request",
 			"ip", requestIP,
@@ -150,7 +142,6 @@ func (h *RechargeMachineHandler) RechargeMachineHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate request
 	if err := h.validate.Struct(req); err != nil {
 		validationMsg := utils.FormatValidationError(err)
 		h.logger.Warnw("Machine recharge validation failed",
@@ -163,7 +154,6 @@ func (h *RechargeMachineHandler) RechargeMachineHandler(c echo.Context) error {
 		})
 	}
 
-	// Call service layer
 	if err := h.service.RechargeMachine(ctx, req); err != nil {
 		h.logger.Errorw("Machine recharge failed",
 			"machine_id", req.MachineID,
@@ -193,11 +183,10 @@ func (h *RechargeMachineHandler) RechargeRFIDHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
-	// Extract path parameters
 	machineID := strings.TrimSpace(c.Param("machine_id"))
-	userID := strings.TrimSpace(c.Param("user_id"))
 
-	// Validate path parameters
+	userID := c.Get("user_id").(string)
+
 	if machineID == "" || userID == "" {
 		h.logger.Warnw("Missing required path parameters for RFID recharge",
 			"machine_id", machineID,
@@ -210,7 +199,6 @@ func (h *RechargeMachineHandler) RechargeRFIDHandler(c echo.Context) error {
 		})
 	}
 
-	// Bind request body
 	var body struct {
 		RechargeAmount string `json:"recharge_amount" validate:"required"`
 	}
@@ -245,7 +233,6 @@ func (h *RechargeMachineHandler) RechargeRFIDHandler(c echo.Context) error {
 		RechargeAmount: body.RechargeAmount,
 	}
 
-	// Validate request struct
 	if err := h.validate.Struct(req); err != nil {
 		validationMsg := utils.FormatValidationError(err)
 		h.logger.Warnw("RFID recharge validation failed",
@@ -259,7 +246,6 @@ func (h *RechargeMachineHandler) RechargeRFIDHandler(c echo.Context) error {
 		})
 	}
 
-	// Call service layer
 	if err := h.service.RechargeRFIDService(ctx, req); err != nil {
 		h.logger.Errorw("RFID recharge failed",
 			"machine_id", machineID,
@@ -291,7 +277,6 @@ func (h *RechargeMachineHandler) GetRFIDRechargeHistoryHandler(c echo.Context) e
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
 
-	// Validate machine ID
 	if machineID == "" {
 		h.logger.Warnw("Empty machine ID for RFID recharge history request",
 			"ip", c.RealIP(),
@@ -302,7 +287,6 @@ func (h *RechargeMachineHandler) GetRFIDRechargeHistoryHandler(c echo.Context) e
 		})
 	}
 
-	// Call service layer
 	history, err := h.service.GetRFIDRechargeHistoryService(ctx, machineID)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch RFID recharge history",
@@ -332,7 +316,6 @@ func (h *RechargeMachineHandler) GetMachineBalanceHandler(c echo.Context) error 
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
 
-	// Validate machine ID
 	if machineID == "" {
 		h.logger.Warnw("Empty machine ID for balance request",
 			"ip", c.RealIP(),
@@ -343,7 +326,6 @@ func (h *RechargeMachineHandler) GetMachineBalanceHandler(c echo.Context) error 
 		})
 	}
 
-	// Call service layer
 	balance, err := h.service.GetMachineBalanceService(ctx, machineID)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch machine balance",
@@ -373,7 +355,6 @@ func (h *RechargeMachineHandler) GetRechargeMachineHistoryHandler(c echo.Context
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
 
-	// Validate machine ID
 	if machineID == "" {
 		h.logger.Warnw("Empty machine ID for recharge history request",
 			"ip", c.RealIP(),
@@ -384,7 +365,6 @@ func (h *RechargeMachineHandler) GetRechargeMachineHistoryHandler(c echo.Context
 		})
 	}
 
-	// Call service layer
 	history, err := h.service.GetRechargeMachineHistoryService(ctx, machineID)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch machine recharge history",
@@ -414,7 +394,6 @@ func (h *RechargeMachineHandler) FetchConnectedMachinesHandler(c echo.Context) e
 	ctx := c.Request().Context()
 	machineNo := strings.TrimSpace(c.Param("machine_no"))
 
-	// Validate machine number
 	if machineNo == "" {
 		h.logger.Warnw("Empty machine number for connected machines request",
 			"ip", c.RealIP(),
@@ -425,7 +404,6 @@ func (h *RechargeMachineHandler) FetchConnectedMachinesHandler(c echo.Context) e
 		})
 	}
 
-	// Call service layer
 	machine, err := h.service.FetchConnectedMachinesService(ctx, machineNo)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch connected machines",
@@ -453,7 +431,6 @@ func (h *RechargeMachineHandler) FetchConnectedMachinesHandler(c echo.Context) e
 func (h *RechargeMachineHandler) GetAvailableMachinesHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	// Call service layer
 	machines, err := h.service.GetAvailableMachinesService(ctx)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch available machines",
@@ -700,7 +677,6 @@ func (h *RechargeMachineHandler) handleLoginError(c echo.Context, err error, ema
 // 		Data:    users,
 // 	})
 // }
-
 
 // func (h *RechargeMachineHandler) DeleteUser(c echo.Context) error {
 // 	userId := strings.TrimSpace(c.Param("user_id"))

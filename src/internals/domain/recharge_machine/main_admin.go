@@ -22,6 +22,7 @@ type Machine struct {
 
 type MachineRechargeHistory struct {
 	MachineID      string `json:"machine_id" bson:"machine_id"`
+	MachineName    string `json:"machine_name" bson:"machine_name"`
 	RechargeAmount string `json:"recharge_amount" bson:"recharge_amount"`
 	Date           string `json:"date" bson:"date"`
 	Time           string `json:"time" bson:"time"`
@@ -45,6 +46,7 @@ type RechargeRFIDRequest struct {
 
 type RechargerRFIDHistory struct {
 	MachineID      string `json:"machine_id" bson:"machine_id"`
+	MachineName    string `json:"machine_name" bson:"machine_name"`
 	UserID         string `json:"user_id" bson:"user_id"`
 	UserName       string `json:"user_name" bson:"user_name"`
 	RechargeAmount string `json:"recharge_amount" bson:"recharge_amount"`
@@ -72,13 +74,13 @@ type SigninMainAdminPayload struct {
 //warden models
 
 type User struct {
-	UserID    string `json:"user_id" bson:"user_id"`
-	MachineID string `json:"machine_id" bson:"machine_id"`
+	UserID      string `json:"user_id" bson:"user_id"`
+	MachineID   string `json:"machine_id" bson:"machine_id"`
 	MachineName string `json:"machine_name"`
-	UserName  string `json:"user_name" bson:"user_name" validate:"required"`
-	Password  string `json:"password" bson:"password" validate:"required"`
-	Email     string `json:"email" bson:"email" validate:"required,email"`
-	CreatedAt string `json:"created_at" bson:"created_at"`
+	UserName    string `json:"user_name" bson:"user_name" validate:"required"`
+	Password    string `json:"password" bson:"password" validate:"required"`
+	Email       string `json:"email" bson:"email" validate:"required,email"`
+	CreatedAt   string `json:"created_at" bson:"created_at"`
 }
 
 type UserAccessCreateRequest struct {

@@ -49,7 +49,6 @@ func (s *RechargeMachineService) CreateAccountService(ctx context.Context, req m
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 	req.Name = strings.TrimSpace(req.Name)
 
-	// Validate required fields
 	if req.Email == "" {
 		s.logger.Warnw("Empty email provided for account creation")
 		return apperrors.ErrInvalidInput
@@ -90,7 +89,6 @@ func (s *RechargeMachineService) CreateAccountService(ctx context.Context, req m
 		CreatedAt: time.Now().UTC(),
 	}
 
-	// Persist to database
 	if err := s.repo.CreateAccount(ctx, admin); err != nil {
 		if errors.Is(err, apperrors.ErrEmailAlreadyExists) {
 			s.logger.Warnw("Attempted to create account with existing email",
@@ -122,7 +120,6 @@ func (s *RechargeMachineService) CreateMachineService(ctx context.Context, req m
 	req.MachineNo = strings.TrimSpace(req.MachineNo)
 	req.MachineName = strings.TrimSpace(req.MachineName)
 
-	// Validate required fields
 	if req.MachineNo == "" || req.MachineName == "" {
 		s.logger.Warnw("Missing required fields for machine creation",
 			"machine_no", req.MachineNo,
@@ -147,7 +144,6 @@ func (s *RechargeMachineService) CreateMachineService(ctx context.Context, req m
 		Balance:     initialMachineBalance,
 	}
 
-	// Persist to database
 	if err := s.repo.CreateMachine(ctx, machine); err != nil {
 		if errors.Is(err, apperrors.ErrMachineAlreadyExists) {
 			s.logger.Warnw("Attempted to create machine with existing number",
@@ -228,7 +224,7 @@ func (s *RechargeMachineService) RechargeMachine(ctx context.Context, req model.
 	}
 
 	// Record transaction in history
-	if err := s.recordMachineRechargeHistory(ctx, req, currentBalance); err != nil {
+	if err := s.recordMachineRechargeHistory(ctx, req); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record recharge history, attempting rollback",
 			"machine_id", req.MachineID,
@@ -317,7 +313,7 @@ func (s *RechargeMachineService) RechargeRFIDService(ctx context.Context, req mo
 	}
 
 	// Record transaction in RFID history
-	if err := s.recordRFIDRechargeHistory(ctx, req, currentBalance); err != nil {
+	if err := s.recordRFIDRechargeHistory(ctx, req); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
 			"machine_id", req.MachineID,
@@ -538,7 +534,6 @@ func (s *RechargeMachineService) CreateUserService(
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
-	// Persist to database
 	if err := s.repo.CreateUser(ctx, user); err != nil {
 		s.logger.Errorw("Failed to create user in database",
 			"email", req.Email,
@@ -638,7 +633,6 @@ func (s *RechargeMachineService) validateRechargeAmount(amount string) error {
 func (s *RechargeMachineService) recordMachineRechargeHistory(
 	ctx context.Context,
 	req model.MachineRechargeRequest,
-	previousBalance string,
 ) error {
 	// Load timezone
 	loc, err := time.LoadLocation(timezoneLocation)
@@ -652,9 +646,20 @@ func (s *RechargeMachineService) recordMachineRechargeHistory(
 
 	now := time.Now().In(loc)
 
+	Machine, err := s.repo.GetMachineDetails(ctx, req.MachineID)
+
+	if err != nil {
+		s.logger.Errorw("Failed to get machine details of the id",
+			"machine_id", req.MachineID,
+			"error", err,
+		)
+		return err
+	}
+
 	// Build history record
 	history := model.MachineRechargeHistory{
 		MachineID:      req.MachineID,
+		MachineName:    Machine.MachineName,
 		RechargeAmount: req.RechargeAmount,
 		Date:           now.Format(dateFormat),
 		Time:           now.Format(timeFormat),
@@ -676,7 +681,6 @@ func (s *RechargeMachineService) recordMachineRechargeHistory(
 func (s *RechargeMachineService) recordRFIDRechargeHistory(
 	ctx context.Context,
 	req model.RechargeRFIDRequest,
-	previousBalance string,
 ) error {
 	// Load timezone
 	loc, err := time.LoadLocation(timezoneLocation)
@@ -690,10 +694,27 @@ func (s *RechargeMachineService) recordRFIDRechargeHistory(
 
 	now := time.Now().In(loc)
 
+	Machine, err := s.repo.GetMachineDetails(ctx, req.MachineID)
+	if err != nil {
+		s.logger.Errorw("Failed to get machine detailes of this id",
+			"machine_id", req.MachineID,
+			"err", err)
+		return err
+	}
+
+	UserName, err := s.repo.GetUserById(ctx, req.UserID)
+	if err != nil {
+		s.logger.Errorw("failed to get username for this user id",
+			"user_id", req.UserID)
+		return err
+	}
+
 	// Build history record
 	history := model.RechargerRFIDHistory{
 		MachineID:      req.MachineID,
+		MachineName:    Machine.MachineName,
 		UserID:         req.UserID,
+		UserName:       UserName,
 		RechargeAmount: req.RechargeAmount,
 		Date:           now.Format(dateFormat),
 		Time:           now.Format(timeFormat),

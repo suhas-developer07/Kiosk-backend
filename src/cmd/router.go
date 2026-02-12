@@ -78,11 +78,11 @@ func SetupRouter(
 	machine.GET("/fetch-machine-balance/:machine_id", machineHandler.GetMachineBalanceHandler)
 	machine.GET("/fetch-machine-recharge-history/:machine_id", machineHandler.GetRechargeMachineHistoryHandler)
 
-	// machineAuth := machine.Group("")
-	// machineAuth.Use(warden_auth)
+	machineAuth := machine.Group("")
+	machineAuth.Use(warden_auth)
 
 	machine.GET("/fetch-available-machines", machineHandler.GetAvailableMachinesHandler)
-	machine.POST("/recharge/:machine_id/:user_id", machineHandler.RechargeRFIDHandler)
+	machineAuth.POST("/recharge/:machine_id", machineHandler.RechargeRFIDHandler)
 	machine.GET("/recharge-history/:machine_id", machineHandler.GetRFIDRechargeHistoryHandler)
 	machine.GET("/FetchConnectedMachines/:machine_no", machineHandler.FetchConnectedMachinesHandler)
 

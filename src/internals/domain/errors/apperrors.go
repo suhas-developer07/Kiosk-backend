@@ -22,24 +22,25 @@ var (
 Resource / Not found errors
 */
 var (
-	ErrFileNotFound     = errors.New("file not found")
-	ErrFacultyNotFound  = errors.New("faculty not found")
-	ErrAdminNotFound    = errors.New("admin not found")
-	ErrMachineNotFound  = errors.New("machine not found")
-	ErrUserNotFound     = errors.New("user not found")
-	ErrHistoryNotFound  = errors.New("history not found")
+	ErrFileNotFound    = errors.New("file not found")
+	ErrFacultyNotFound = errors.New("faculty not found")
+	ErrAdminNotFound   = errors.New("admin not found")
+	ErrMachineNotFound = errors.New("machine not found")
+	ErrUserNotFound    = errors.New("user not found")
+	ErrHistoryNotFound = errors.New("history not found")
+	ErrWardenNotFound  = errors.New("warden not found")
 )
 
 /*
 Conflict / State errors
 */
 var (
-	ErrEmailAlreadyExists     = errors.New("email already exists")
-	ErrNoPendingRequest       = errors.New("no pending delete request")
-	ErrConflict               = errors.New("conflict")
-	ErrMachineAlreadyExists   = errors.New("a machine with this number already exists")
-	ErrInsufficientBalance    = errors.New("insufficient balance")
-	ErrDuplicateTransaction   = errors.New("duplicate transaction detected")
+	ErrEmailAlreadyExists   = errors.New("email already exists")
+	ErrNoPendingRequest     = errors.New("no pending delete request")
+	ErrConflict             = errors.New("conflict")
+	ErrMachineAlreadyExists = errors.New("a machine with this number already exists")
+	ErrInsufficientBalance  = errors.New("insufficient balance")
+	ErrDuplicateTransaction = errors.New("duplicate transaction detected")
 )
 
 /*

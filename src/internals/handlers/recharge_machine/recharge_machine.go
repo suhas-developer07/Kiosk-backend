@@ -78,6 +78,59 @@ func (h *RechargeMachineHandler) CreateMainAdminHandler(c echo.Context) error {
 	})
 }
 
+func (h *RechargeMachineHandler) LoginMainAdminHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	var req model.SigninMainAdminPayload
+
+	// Bind request payload
+	if err := c.Bind(&req); err != nil {
+		h.logger.Warnw("Failed to bind login request",
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Invalid request format. Please check your email and password.",
+		})
+	}
+
+	// Validate request
+	if err := h.validate.Struct(req); err != nil {
+		validationMsg := utils.FormatValidationError(err)
+		h.logger.Warnw("Login validation failed",
+			"email", req.Email,
+			"validation_error", validationMsg,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  validationMsg,
+		})
+	}
+
+	// Call service layer
+	token, email, username, err := h.service.LoginMainAdminService(ctx, req)
+	if err != nil {
+		return h.handleLoginError(c, err, req.Email)
+	}
+
+	h.logger.Infow("Main admin logged in successfully",
+		"email", req.Email,
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Login successful.",
+		Data: map[string]string{
+			"token": token,
+			"email": email,
+			"username": username,
+		},
+	})
+}
+
 // CreateMachineHandler handles the creation of new machines
 func (h *RechargeMachineHandler) CreateMachineHandler(c echo.Context) error {
 	ctx := c.Request().Context()

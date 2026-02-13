@@ -73,6 +73,7 @@ func SetupRouter(
 	//Recharge Machine Routes
 	machine := e.Group("/machine")
 	machine.POST("/super-admin/signup", machineHandler.CreateMainAdminHandler)
+	machine.POST("/super-admin/login", machineHandler.LoginMainAdminHandler)
 	machine.POST("/create-machine", machineHandler.CreateMachineHandler)
 	machine.POST("/recharge", machineHandler.RechargeMachineHandler)
 	machine.GET("/fetch-machine-balance/:machine_id", machineHandler.GetMachineBalanceHandler)
@@ -90,5 +91,4 @@ func SetupRouter(
 	warden := e.Group("/warden")
 	warden.POST("/create-user", machineHandler.CreateUserHandler)
 	warden.POST("/login-user", machineHandler.LoginUserHandler)
-
 }

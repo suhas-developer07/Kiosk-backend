@@ -82,11 +82,11 @@ func (s *RechargeMachineService) CreateAccountService(ctx context.Context, req m
 
 	// Build admin entity
 	admin := model.MainAdmin{
-		ID:        adminID,
-		Username:  req.Name,
-		Email:     req.Email,
-		Password:  req.Password,
-		CreatedAt: time.Now().UTC(),
+		MainAdminID: adminID,
+		Username:    req.Name,
+		Email:       req.Email,
+		Password:    req.Password,
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	if err := s.repo.CreateAccount(ctx, admin); err != nil {
@@ -109,6 +109,63 @@ func (s *RechargeMachineService) CreateAccountService(ctx context.Context, req m
 	)
 
 	return nil
+}
+
+func (s *RechargeMachineService) LoginMainAdminService(
+	ctx context.Context,
+	req model.SigninMainAdminPayload,
+) (string,string,string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	// Sanitize email
+	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
+
+	s.logger.Infow("Main admin login attempt",
+		"email", req.Email,
+	)
+
+	// Retrieve user by email
+	super_admin, err := s.repo.GetSuperAdminByEmail(ctx, req.Email)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrSuperAdminNotFound) {
+			s.logger.Warnw("Login attempt for non-existent user",
+				"email", req.Email,
+			)
+			return "", "", "", apperrors.ErrSuperAdminNotFound
+		}
+		s.logger.Errorw("Database error during user lookup",
+			"email", req.Email,
+			"error", err,
+		)
+		return "", "", "", fmt.Errorf("Super admin lookup failed: %w", err)
+	}
+
+	// Verify password
+	if !utils.CheckPassword(req.Password, super_admin.Password) {
+		s.logger.Warnw("Invalid password attempt",
+			"email", req.Email,
+		)
+		return "", "", "", apperrors.ErrInvalidPassword
+	}
+
+	// Generate access token
+	accessToken, err := utils.GenerateAccessTokenForMainAdmin(super_admin.MainAdminID)
+	if err != nil {
+		s.logger.Errorw("Failed to generate access token",
+			"main_admin_id", super_admin.MainAdminID,
+			"email", req.Email,
+			"error", err,
+		)
+		return "", "", "", fmt.Errorf("token generation failed: %w", err)
+	}
+
+	s.logger.Infow("Main admin logged in successfully",
+		"main_admin_id", super_admin.MainAdminID,
+		"email", req.Email,
+	)
+
+	return accessToken,super_admin.Email,super_admin.Username, nil
 }
 
 // CreateMachineService creates a new machine

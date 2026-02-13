@@ -24,6 +24,7 @@ Resource / Not found errors
 var (
 	ErrFileNotFound    = errors.New("file not found")
 	ErrFacultyNotFound = errors.New("faculty not found")
+	ErrSuperAdminNotFound = errors.New("super admin not found")
 	ErrAdminNotFound   = errors.New("admin not found")
 	ErrMachineNotFound = errors.New("machine not found")
 	ErrUserNotFound    = errors.New("user not found")

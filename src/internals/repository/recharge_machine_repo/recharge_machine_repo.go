@@ -81,6 +81,26 @@ func (r *RechargeMachineRepo) CreateAccount(ctx context.Context, admin model.Mai
 	}
 }
 
+func (r *RechargeMachineRepo) GetSuperAdminByEmail(ctx context.Context, email string) (*model.MainAdmin, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	var superAdmin model.MainAdmin
+
+	filter := bson.M{"email": email}
+	err := r.mainAdminCollection.FindOne(ctx, filter).Decode(&superAdmin)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, apperrors.ErrSuperAdminNotFound
+		}
+		return nil, fmt.Errorf("failed to query main admin by email: %w", err)
+	}
+
+	return &superAdmin, nil
+}
+
+
 // CreateMachine creates a new machine in the database
 func (r *RechargeMachineRepo) CreateMachine(ctx context.Context, machine model.Machine) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)

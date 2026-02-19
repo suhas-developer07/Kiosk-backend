@@ -84,7 +84,7 @@ func SetupRouter(
 	machineAuth.GET("/fetch-machine-recharge-history/:machine_id", machineHandler.GetRechargeMachineHistoryHandler)
 
 	machineAuth.GET("/fetch-available-machines", machineHandler.GetAvailableMachinesHandler)
-	machine.GET("/recharge-history/:machine_id", machineHandler.GetRFIDRechargeHistoryHandler)
+	machineAuth.GET("/recharge-history/:machine_id", machineHandler.GetRFIDRechargeHistoryHandler)
 
 	//warden routes
 	warden := e.Group("/warden")
@@ -94,5 +94,7 @@ func SetupRouter(
 	WardenAuth := warden.Group("")
 	WardenAuth.Use(warden_auth)
 	WardenAuth.POST("/recharge/:machine_id", machineHandler.RechargeRFIDHandler) //changed this route
-	WardenAuth.GET("/FetchConnectedMachines/:machine_no", machineHandler.FetchConnectedMachinesHandler)
+	WardenAuth.GET("/fetchConnectedMachines/:machine_no", machineHandler.FetchConnectedMachinesHandler)
+	WardenAuth.GET("/fetchMachineBalance/:machine_id", machineHandler.GetMachineBalanceHandler)
+	WardenAuth.GET("/recharge-history/:machine_id",machineHandler.GetRFIDRechargeHistoryHandler)
 }

@@ -84,6 +84,8 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	Warden_auth := middleware.WardenAuthMiddleware(sugar)
 
+	Main_Admin_auth := middleware.SuperAdminAuthMiddleware(sugar)
+
 	filesRepo := repository_Files.NewFilesRepo(db, mongoClient)
 
 	fileService := service_File.NewFileService(filesRepo, storage, sugar)
@@ -112,7 +114,7 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	machineHandler := handler_RechargeMachine.NewRechargeMachineHandler(machineService, sugar)
 
-	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,machineHandler,Faculty_auth,Admin_auth,Warden_auth)
+	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,machineHandler,Faculty_auth,Admin_auth,Warden_auth,Main_Admin_auth)
 	
 
 	e.GET("/health", func(c echo.Context) error {

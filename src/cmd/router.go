@@ -19,6 +19,7 @@ func SetupRouter(
 	faculty_auth echo.MiddlewareFunc,
 	admin_auth echo.MiddlewareFunc,
 	warden_auth echo.MiddlewareFunc,
+	main_admin_auth echo.MiddlewareFunc,
 ) {
 	//public routes
 	files := e.Group("/files")
@@ -72,23 +73,26 @@ func SetupRouter(
 
 	//Recharge Machine Routes
 	machine := e.Group("/machine")
+	machineAuth := machine.Group("")
+	machineAuth.Use(main_admin_auth)
+
 	machine.POST("/super-admin/signup", machineHandler.CreateMainAdminHandler)
 	machine.POST("/super-admin/login", machineHandler.LoginMainAdminHandler)
-	machine.POST("/create-machine", machineHandler.CreateMachineHandler)
-	machine.POST("/recharge", machineHandler.RechargeMachineHandler)
-	machine.GET("/fetch-machine-balance/:machine_id", machineHandler.GetMachineBalanceHandler)
-	machine.GET("/fetch-machine-recharge-history/:machine_id", machineHandler.GetRechargeMachineHistoryHandler)
+	machineAuth.POST("/create-machine", machineHandler.CreateMachineHandler)
+	machineAuth.POST("/recharge", machineHandler.RechargeMachineHandler)
+	machineAuth.GET("/fetch-machine-balance/:machine_id", machineHandler.GetMachineBalanceHandler)
+	machineAuth.GET("/fetch-machine-recharge-history/:machine_id", machineHandler.GetRechargeMachineHistoryHandler)
 
-	machineAuth := machine.Group("")
-	machineAuth.Use(warden_auth)
-
-	machine.GET("/fetch-available-machines", machineHandler.GetAvailableMachinesHandler)
-	machineAuth.POST("/recharge/:machine_id", machineHandler.RechargeRFIDHandler)
+	machineAuth.GET("/fetch-available-machines", machineHandler.GetAvailableMachinesHandler)
 	machine.GET("/recharge-history/:machine_id", machineHandler.GetRFIDRechargeHistoryHandler)
-	machine.GET("/FetchConnectedMachines/:machine_no", machineHandler.FetchConnectedMachinesHandler)
 
 	//warden routes
 	warden := e.Group("/warden")
 	warden.POST("/create-user", machineHandler.CreateUserHandler)
 	warden.POST("/login-user", machineHandler.LoginUserHandler)
+
+	WardenAuth := warden.Group("")
+	WardenAuth.Use(warden_auth)
+	WardenAuth.POST("/recharge/:machine_id", machineHandler.RechargeRFIDHandler) //changed this route
+	WardenAuth.GET("/FetchConnectedMachines/:machine_no", machineHandler.FetchConnectedMachinesHandler)
 }

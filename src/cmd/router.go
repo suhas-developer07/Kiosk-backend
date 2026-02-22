@@ -6,7 +6,7 @@ import (
 	handler_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/faculty_handler"
 	handler_File "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/file_handler"
 	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
-	handler_RechargeMachine "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/recharge_machine"
+	payment_handler "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/payment_system"
 )
 
 func SetupRouter(
@@ -15,29 +15,48 @@ func SetupRouter(
 	facultyHandler *handler_Faculty.FacultyHandler,
 	orchestratorHandler *handler_orchestrator.OrchestrateHandler,
 	adminHandler *handler_Admin.AdminHandler,
-	machineHandler *handler_RechargeMachine.RechargeMachineHandler,
+	mainAdminHandler *payment_handler.MainAdminHandler,
+	superAdminHandler *payment_handler.SuperAdminHandler,
 	faculty_auth echo.MiddlewareFunc,
 	admin_auth echo.MiddlewareFunc,
-	warden_auth echo.MiddlewareFunc,
+	machine_user_auth echo.MiddlewareFunc,
 	main_admin_auth echo.MiddlewareFunc,
 ) {
-	//public routes
+	/* Files Handler routes */
 	files := e.Group("/files")
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
 	files.POST("/printjob", fileHandler.PrintUploadHandler)
 	files.GET("/accessfile/:file_id", fileHandler.AccessFileHandler)
 	files.GET("/printjobs", fileHandler.FetchPrintJobsHandler)
 
+	/*Faculty Handler routes*/
 	faculty := e.Group("/faculty")
-
 	faculty.POST("/signin", facultyHandler.Signin)
-	//todo:need to change this all are admin routes
-	faculty.GET("/faculties", adminHandler.GetFacultiesHandler)
+	faculty.GET("/faculties", adminHandler.GetFacultiesHandler) //todo:need to change this all are admin routes
 	faculty.GET("/faculties/:stream", adminHandler.GetFacultiesByStreamHandler)
 	faculty.PUT("/delete/:file_id", orchestratorHandler.FileDeleteRequestHandler) //todo:its need to be an private route
 
+	/* Private routes with faculty auth middleware */
+	fileAuth := files.Group("")
+	fileAuth.Use(faculty_auth)
+	facultyAuth := faculty.Group("")
+	facultyAuth.Use(faculty_auth)
+
+	fileAuth.POST("/upload", orchestratorHandler.UploadFileHandler)
+	fileAuth.POST("/upload/initiate", orchestratorHandler.InitiateUploadHandler)
+	fileAuth.POST("/upload/complete", orchestratorHandler.CompleteUploadHandler)
+	fileAuth.GET("/recentfiles", orchestratorHandler.GetRecentUploadedFilesHandler)
+	facultyAuth.GET("/ownedsubjects", facultyHandler.GetSubjectsByFacultyIDHandler)
+	facultyAuth.GET("/me", facultyHandler.GetFacultyByIdHandler)
+
+	/* Admin Handler routes */
 	admin := e.Group("/admin")
 
+	admin.POST("/signup", adminHandler.CreateAccount)
+	admin.POST("/signin", adminHandler.Signin)
+	admin.GET("/subjects", adminHandler.GetAvailableSubjectsHandler)
+
+	/* Admin private routes with admin auth middleware */
 	adminAuth := admin.Group("")
 	adminAuth.Use(admin_auth)
 
@@ -52,49 +71,34 @@ func SetupRouter(
 	adminAuth.GET("/total-files-count", adminHandler.GetTotalFilesCountHandler)
 	adminAuth.GET("/pending-delete-request-files", adminHandler.GetPendingDeleteRequestFilesHandler)
 	adminAuth.DELETE("/files/delete/:file_id", adminHandler.DeleteFileHandler)
-	admin.GET("/subjects", adminHandler.GetAvailableSubjectsHandler)
-	admin.POST("/signup", adminHandler.CreateAccount)
-	admin.POST("/signin", adminHandler.Signin)
 
-	fileAuth := files.Group("")
-	fileAuth.Use(faculty_auth)
-	facultyAuth := faculty.Group("")
-	facultyAuth.Use(faculty_auth)
+	
+	/*
+	 Paymemt system routes
+	*/
 
-	//private routes
-	fileAuth.POST("/upload", orchestratorHandler.UploadFileHandler)
-	fileAuth.POST("/upload/initiate", orchestratorHandler.InitiateUploadHandler)
-	fileAuth.POST("/upload/complete", orchestratorHandler.CompleteUploadHandler)
+	mainAdmin := e.Group("/main-admin")
+	mainAdminAuth := mainAdmin.Group("")
+	mainAdminAuth.Use(main_admin_auth)
 
-	fileAuth.GET("/recentfiles", orchestratorHandler.GetRecentUploadedFilesHandler)
+	mainAdmin.POST("/signup", mainAdminHandler.CreateMainAdminHandler)
+	mainAdmin.POST("/signin", mainAdminHandler.LoginMainAdminHandler)
+	mainAdminAuth.POST("/create-machine", mainAdminHandler.CreateMachineHandler)
+	mainAdminAuth.POST("/recharge-machine", mainAdminHandler.RechargeMachineHandler)
+	mainAdminAuth.GET("/fetch-machine-balance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
+	mainAdminAuth.GET("/fetch-machine-recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
+	mainAdminAuth.GET("/fetch-available-machines", mainAdminHandler.GetAvailableMachinesHandler)
+	mainAdminAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
 
-	facultyAuth.GET("/ownedsubjects", facultyHandler.GetSubjectsByFacultyIDHandler)
-	facultyAuth.GET("/me", facultyHandler.GetFacultyByIdHandler)
+	/*machine user routes*/
+	machineUser := e.Group("/machine-user")
+	machineUser.POST("/create-user", mainAdminHandler.CreateUserHandler)
+	machineUser.POST("/login-user", mainAdminHandler.LoginUserHandler)
 
-	//Recharge Machine Routes
-	machine := e.Group("/machine")
-	machineAuth := machine.Group("")
-	machineAuth.Use(main_admin_auth)
-
-	machine.POST("/super-admin/signup", machineHandler.CreateMainAdminHandler)
-	machine.POST("/super-admin/login", machineHandler.LoginMainAdminHandler)
-	machineAuth.POST("/create-machine", machineHandler.CreateMachineHandler)
-	machineAuth.POST("/recharge", machineHandler.RechargeMachineHandler)
-	machineAuth.GET("/fetch-machine-balance/:machine_id", machineHandler.GetMachineBalanceHandler)
-	machineAuth.GET("/fetch-machine-recharge-history/:machine_id", machineHandler.GetRechargeMachineHistoryHandler)
-
-	machineAuth.GET("/fetch-available-machines", machineHandler.GetAvailableMachinesHandler)
-	machineAuth.GET("/recharge-history/:machine_id", machineHandler.GetRFIDRechargeHistoryHandler)
-
-	//warden routes
-	warden := e.Group("/warden")
-	warden.POST("/create-user", machineHandler.CreateUserHandler)
-	warden.POST("/login-user", machineHandler.LoginUserHandler)
-
-	WardenAuth := warden.Group("")
-	WardenAuth.Use(warden_auth)
-	WardenAuth.POST("/recharge/:machine_id", machineHandler.RechargeRFIDHandler) //changed this route
-	WardenAuth.GET("/fetchConnectedMachines/:machine_no", machineHandler.FetchConnectedMachinesHandler)
-	WardenAuth.GET("/fetchMachineBalance/:machine_id", machineHandler.GetMachineBalanceHandler)
-	WardenAuth.GET("/recharge-history/:machine_id",machineHandler.GetRFIDRechargeHistoryHandler)
+	machineUserAuth := machineUser.Group("")
+	machineUserAuth.Use(machine_user_auth)
+	machineUserAuth.POST("/recharge-rfid/:machine_id", mainAdminHandler.RechargeRFIDHandler) //need to inform frontend team
+	machineUserAuth.GET("/fetchConnectedMachines/:machine_no", mainAdminHandler.FetchConnectedMachinesHandler)
+	machineUserAuth.GET("/fetchMachineBalance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
+	machineUserAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
 }

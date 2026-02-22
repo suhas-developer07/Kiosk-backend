@@ -1,4 +1,4 @@
-package rechargemachinerepo
+package paymentsystem
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
-	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/recharge_machine"
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -17,39 +17,42 @@ import (
 
 const (
 	defaultQueryTimeout = 5 * time.Second
-	
+
 	// Collection names
-	collectionMachines              = "machine_collection"
-	collectionRechargeHistory       = "Recharge_History_Collection"
-	collectionRechargeRFIDHistory   = "Recharge_RFID_History_Collection"
-	collectionWardens               = "Wardens_Collection"
-	collectionMainAdmin             = "Main_Admin_Collection"
+	collectionMachines            = "recharge_machines"
+	collectionRechargeHistory     = "recharge_machine_history"
+	collectionRechargeRFIDHistory = "rfid_recharge_history"
+	users                         = "recharge_machine_users"
+	collectionMainAdmin           = "main_admins"
+	collectionCollege             = "colleges"
 )
 
-// RechargeMachineRepo handles database operations for recharge machine domain
-type RechargeMachineRepo struct {
-	client                        *mongo.Client
-	machineCollection             *mongo.Collection
-	rechargeHistoryCollection     *mongo.Collection
-	rechargeRFIDHistoryCollection *mongo.Collection
-	wardensCollection             *mongo.Collection
-	mainAdminCollection           *mongo.Collection
+// MainAdminRepo handles database operations for main admin domain
+type MainAdminRepo struct {
+	client                               *mongo.Client
+	MachineCollection                    *mongo.Collection
+	RechargeMachineHistoryCollection     *mongo.Collection
+	RFIDRechargeMachineHistoryCollection *mongo.Collection
+	UsersCollection                      *mongo.Collection
+	MainAdminCollection                  *mongo.Collection
+	CollegeCollection                    *mongo.Collection
 }
 
-// NewMachineRechargeRepo creates a new instance of RechargeMachineRepo
-func NewMachineRechargeRepo(db *mongo.Database, client *mongo.Client) *RechargeMachineRepo {
-	return &RechargeMachineRepo{
-		client:                        client,
-		machineCollection:             db.Collection(collectionMachines),
-		rechargeHistoryCollection:     db.Collection(collectionRechargeHistory),
-		rechargeRFIDHistoryCollection: db.Collection(collectionRechargeRFIDHistory),
-		wardensCollection:             db.Collection(collectionWardens),
-		mainAdminCollection:           db.Collection(collectionMainAdmin),
+// NewMainAdminRepo creates a new instance of MainAdminRepo
+func NewMainAdminRepo(db *mongo.Database, client *mongo.Client) *MainAdminRepo {
+	return &MainAdminRepo{
+		client:                               client,
+		MachineCollection:                    db.Collection(collectionMachines),
+		RechargeMachineHistoryCollection:     db.Collection(collectionRechargeHistory),
+		RFIDRechargeMachineHistoryCollection: db.Collection(collectionRechargeRFIDHistory),
+		UsersCollection:                      db.Collection(users),
+		MainAdminCollection:                  db.Collection(collectionMainAdmin),
+		CollegeCollection:                    db.Collection(collectionCollege),
 	}
 }
 
 // CreateAccount creates a new main admin account in the database
-func (r *RechargeMachineRepo) CreateAccount(ctx context.Context, admin model.MainAdmin) error {
+func (r *MainAdminRepo) CreateAccount(ctx context.Context, admin model.MainAdmin) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -60,12 +63,12 @@ func (r *RechargeMachineRepo) CreateAccount(ctx context.Context, admin model.Mai
 		ID primitive.ObjectID `bson:"_id"`
 	}
 
-	err := r.mainAdminCollection.FindOne(ctx, filter).Decode(&existingAdmin)
+	err := r.MainAdminCollection.FindOne(ctx, filter).Decode(&existingAdmin)
 
 	switch {
 	case errors.Is(err, mongo.ErrNoDocuments):
 		// Email doesn't exist, proceed with insertion
-		_, insertErr := r.mainAdminCollection.InsertOne(ctx, admin)
+		_, insertErr := r.MainAdminCollection.InsertOne(ctx, admin)
 		if insertErr != nil {
 			return fmt.Errorf("failed to insert admin account: %w", insertErr)
 		}
@@ -81,14 +84,14 @@ func (r *RechargeMachineRepo) CreateAccount(ctx context.Context, admin model.Mai
 	}
 }
 
-func (r *RechargeMachineRepo) GetSuperAdminByEmail(ctx context.Context, email string) (*model.MainAdmin, error) {
+func (r *MainAdminRepo) GetSuperAdminByEmail(ctx context.Context, email string) (*model.MainAdmin, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var superAdmin model.MainAdmin
 
 	filter := bson.M{"email": email}
-	err := r.mainAdminCollection.FindOne(ctx, filter).Decode(&superAdmin)
+	err := r.MainAdminCollection.FindOne(ctx, filter).Decode(&superAdmin)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -100,17 +103,19 @@ func (r *RechargeMachineRepo) GetSuperAdminByEmail(ctx context.Context, email st
 	return &superAdmin, nil
 }
 
-
 // CreateMachine creates a new machine in the database
-func (r *RechargeMachineRepo) CreateMachine(ctx context.Context, machine model.Machine) error {
+func (r *MainAdminRepo) CreateMachine(ctx context.Context, machine model.Machine) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	// Check if machine with same number already exists
-	filter := bson.M{"machine_no": machine.MachineNo}
+	filter := bson.M{
+		"machine_no": machine.MachineNo,
+		"college_id": machine.CollegeId,
+	}
 
 	var existingMachine model.Machine
-	err := r.machineCollection.FindOne(ctx, filter).Decode(&existingMachine)
+	err := r.MachineCollection.FindOne(ctx, filter).Decode(&existingMachine)
 
 	if err == nil {
 		// Machine already exists
@@ -122,11 +127,8 @@ func (r *RechargeMachineRepo) CreateMachine(ctx context.Context, machine model.M
 		return fmt.Errorf("failed to check existing machine: %w", err)
 	}
 
-	// Set initial balance
-	machine.Balance = "0"
-
 	// Insert new machine
-	_, insertErr := r.machineCollection.InsertOne(ctx, machine)
+	_, insertErr := r.MachineCollection.InsertOne(ctx, machine)
 	if insertErr != nil {
 		return fmt.Errorf("failed to insert machine: %w", insertErr)
 	}
@@ -135,7 +137,7 @@ func (r *RechargeMachineRepo) CreateMachine(ctx context.Context, machine model.M
 }
 
 // GetMachineBalance retrieves the current balance of a machine
-func (r *RechargeMachineRepo) GetMachineBalance(ctx context.Context, machineID string) (string, error) {
+func (r *MainAdminRepo) GetMachineBalance(ctx context.Context, machineID string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -144,7 +146,7 @@ func (r *RechargeMachineRepo) GetMachineBalance(ctx context.Context, machineID s
 	}
 
 	filter := bson.M{"machine_id": machineID}
-	err := r.machineCollection.FindOne(ctx, filter).Decode(&result)
+	err := r.MachineCollection.FindOne(ctx, filter).Decode(&result)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -162,14 +164,14 @@ func (r *RechargeMachineRepo) GetMachineBalance(ctx context.Context, machineID s
 }
 
 // GetMachineDetails retrieves detailed information about a machine
-func (r *RechargeMachineRepo) GetMachineDetails(ctx context.Context, machineID string) (*model.Machine, error) {
+func (r *MainAdminRepo) GetMachineDetails(ctx context.Context, machineID string) (*model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var machine model.Machine
 
 	filter := bson.M{"machine_id": machineID}
-	err := r.machineCollection.FindOne(ctx, filter).Decode(&machine)
+	err := r.MachineCollection.FindOne(ctx, filter).Decode(&machine)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -182,7 +184,7 @@ func (r *RechargeMachineRepo) GetMachineDetails(ctx context.Context, machineID s
 }
 
 // UpdateMachineBalance updates the balance of a machine
-func (r *RechargeMachineRepo) UpdateMachineBalance(ctx context.Context, machineID string, newBalance string) error {
+func (r *MainAdminRepo) UpdateMachineBalance(ctx context.Context, machineID string, newBalance string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -194,7 +196,7 @@ func (r *RechargeMachineRepo) UpdateMachineBalance(ctx context.Context, machineI
 	filter := bson.M{"machine_id": machineID}
 	update := bson.M{"$set": bson.M{"balance": newBalance}}
 
-	result, err := r.machineCollection.UpdateOne(ctx, filter, update)
+	result, err := r.MachineCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return fmt.Errorf("failed to update machine balance: %w", err)
 	}
@@ -207,11 +209,11 @@ func (r *RechargeMachineRepo) UpdateMachineBalance(ctx context.Context, machineI
 }
 
 // InsertRechargeHistory records a machine recharge transaction
-func (r *RechargeMachineRepo) InsertRechargeHistory(ctx context.Context, history model.MachineRechargeHistory) error {
+func (r *MainAdminRepo) InsertRechargeHistory(ctx context.Context, history model.MachineRechargeHistory) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	_, err := r.rechargeHistoryCollection.InsertOne(ctx, history)
+	_, err := r.RechargeMachineHistoryCollection.InsertOne(ctx, history)
 	if err != nil {
 		return fmt.Errorf("failed to insert recharge history: %w", err)
 	}
@@ -220,7 +222,7 @@ func (r *RechargeMachineRepo) InsertRechargeHistory(ctx context.Context, history
 }
 
 // InsertRechargeRFIDHistory records an RFID recharge transaction
-func (r *RechargeMachineRepo) InsertRechargeRFIDHistory(ctx context.Context, history model.RechargerRFIDHistory) error {
+func (r *MainAdminRepo) InsertRechargeRFIDHistory(ctx context.Context, history model.RechargerRFIDHistory) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -230,7 +232,7 @@ func (r *RechargeMachineRepo) InsertRechargeRFIDHistory(ctx context.Context, his
 	}
 
 	userFilter := bson.M{"user_id": history.UserID}
-	userErr := r.wardensCollection.FindOne(ctx, userFilter).Decode(&user)
+	userErr := r.UsersCollection.FindOne(ctx, userFilter).Decode(&user)
 
 	if userErr != nil {
 		if errors.Is(userErr, mongo.ErrNoDocuments) {
@@ -246,7 +248,7 @@ func (r *RechargeMachineRepo) InsertRechargeRFIDHistory(ctx context.Context, his
 	}
 
 	// Insert RFID recharge history
-	_, insertErr := r.rechargeRFIDHistoryCollection.InsertOne(ctx, history)
+	_, insertErr := r.RFIDRechargeMachineHistoryCollection.InsertOne(ctx, history)
 	if insertErr != nil {
 		return fmt.Errorf("failed to insert RFID recharge history: %w", insertErr)
 	}
@@ -255,14 +257,14 @@ func (r *RechargeMachineRepo) InsertRechargeRFIDHistory(ctx context.Context, his
 }
 
 // GetRFIDRechargeHistory retrieves all RFID recharge transactions for a machine
-func (r *RechargeMachineRepo) GetRFIDRechargeHistory(ctx context.Context, machineID string) ([]model.RechargerRFIDHistory, error) {
+func (r *MainAdminRepo) GetRFIDRechargeHistory(ctx context.Context, machineID string) ([]model.RechargerRFIDHistory, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var history []model.RechargerRFIDHistory
 
 	filter := bson.M{"machine_id": machineID}
-	cursor, err := r.rechargeRFIDHistoryCollection.Find(ctx, filter)
+	cursor, err := r.RFIDRechargeMachineHistoryCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query RFID recharge history: %w", err)
 	}
@@ -286,14 +288,14 @@ func (r *RechargeMachineRepo) GetRFIDRechargeHistory(ctx context.Context, machin
 }
 
 // GetRechargeMachineHistory retrieves all recharge transactions for a machine
-func (r *RechargeMachineRepo) GetRechargeMachineHistory(ctx context.Context, machineID string) ([]model.MachineRechargeHistory, error) {
+func (r *MainAdminRepo) GetRechargeMachineHistory(ctx context.Context, machineID string) ([]model.MachineRechargeHistory, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var history []model.MachineRechargeHistory
 
 	filter := bson.M{"machine_id": machineID}
-	cursor, err := r.rechargeHistoryCollection.Find(ctx, filter)
+	cursor, err := r.RechargeMachineHistoryCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query machine recharge history: %w", err)
 	}
@@ -317,14 +319,14 @@ func (r *RechargeMachineRepo) GetRechargeMachineHistory(ctx context.Context, mac
 }
 
 // GetWardenByEmail retrieves a warden user by email address
-func (r *RechargeMachineRepo) GetWardenByEmail(ctx context.Context, email string) (*model.User, error) {
+func (r *MainAdminRepo) GetWardenByEmail(ctx context.Context, email string) (*model.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var warden model.User
 
 	filter := bson.M{"email": email}
-	err := r.wardensCollection.FindOne(ctx, filter).Decode(&warden)
+	err := r.UsersCollection.FindOne(ctx, filter).Decode(&warden)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -337,11 +339,11 @@ func (r *RechargeMachineRepo) GetWardenByEmail(ctx context.Context, email string
 }
 
 // CreateUser creates a new warden user in the database
-func (r *RechargeMachineRepo) CreateUser(ctx context.Context, user *model.User) error {
+func (r *MainAdminRepo) CreateUser(ctx context.Context, user *model.User) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	_, err := r.wardensCollection.InsertOne(ctx, user)
+	_, err := r.UsersCollection.InsertOne(ctx, user)
 	if err != nil {
 		return fmt.Errorf("failed to insert user: %w", err)
 	}
@@ -350,14 +352,14 @@ func (r *RechargeMachineRepo) CreateUser(ctx context.Context, user *model.User) 
 }
 
 // GetUserByEmail retrieves a user by email address
-func (r *RechargeMachineRepo) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+func (r *MainAdminRepo) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var user model.User
 
 	filter := bson.M{"email": email}
-	err := r.wardensCollection.FindOne(ctx, filter).Decode(&user)
+	err := r.UsersCollection.FindOne(ctx, filter).Decode(&user)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -369,42 +371,43 @@ func (r *RechargeMachineRepo) GetUserByEmail(ctx context.Context, email string) 
 	return &user, nil
 }
 
-func (r *RechargeMachineRepo) GetUserById(ctx context.Context,id string)(string,error){
-	ctx,cancel := context.WithTimeout(ctx,defaultQueryTimeout)
+func (r *MainAdminRepo) GetUserById(ctx context.Context, id string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	opts  := options.FindOne().SetProjection(bson.M{
-		"user_name":1,
-		"_id":0,
+	opts := options.FindOne().SetProjection(bson.M{
+		"user_name": 1,
+		"_id":       0,
 	})
 
-	var result struct{
+	var result struct {
 		Username string `bson:"user_name"`
 	}
 
 	filter := bson.M{
-		"user_id":id,
+		"user_id": id,
 	}
 
-	err := r.wardensCollection.FindOne(ctx,filter,opts).Decode(&result)
+	err := r.UsersCollection.FindOne(ctx, filter, opts).Decode(&result)
 
 	if err != nil {
-		if errors.Is(err,mongo.ErrNoDocuments){
-			return "",apperrors.ErrWardenNotFound
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", apperrors.ErrWardenNotFound
 		}
-		return "",fmt.Errorf("failed to get username by id: %w",err)
+		return "", fmt.Errorf("failed to get username by id: %w", err)
 	}
-	return result.Username,nil
+	return result.Username, nil
 }
+
 // GetMachineDetailsByMachineNo retrieves machine details by machine number
-func (r *RechargeMachineRepo) GetMachineDetailsByMachineNo(ctx context.Context, machineNo string) (model.Machine, error) {
+func (r *MainAdminRepo) GetMachineDetailsByMachineNo(ctx context.Context, machineNo string) (model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var machine model.Machine
 
 	filter := bson.M{"machine_no": machineNo}
-	err := r.machineCollection.FindOne(ctx, filter).Decode(&machine)
+	err := r.MachineCollection.FindOne(ctx, filter).Decode(&machine)
 
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -417,7 +420,7 @@ func (r *RechargeMachineRepo) GetMachineDetailsByMachineNo(ctx context.Context, 
 }
 
 // GetMachineNameByID retrieves the machine name for a given machine ID
-func (r *RechargeMachineRepo) GetMachineNameByID(ctx context.Context, machineID string) string {
+func (r *MainAdminRepo) GetMachineNameByID(ctx context.Context, machineID string) string {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -426,7 +429,7 @@ func (r *RechargeMachineRepo) GetMachineNameByID(ctx context.Context, machineID 
 	}
 
 	filter := bson.M{"machine_id": machineID}
-	err := r.machineCollection.FindOne(ctx, filter).Decode(&result)
+	err := r.MachineCollection.FindOne(ctx, filter).Decode(&result)
 
 	if err != nil {
 		// Return empty string if machine not found or error occurs
@@ -437,13 +440,13 @@ func (r *RechargeMachineRepo) GetMachineNameByID(ctx context.Context, machineID 
 }
 
 // GetAvailableMachines retrieves all machines from the database
-func (r *RechargeMachineRepo) GetAvailableMachines(ctx context.Context) ([]model.Machine, error) {
+func (r *MainAdminRepo) GetAvailableMachines(ctx context.Context) ([]model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var machines []model.Machine
 
-	cursor, err := r.machineCollection.Find(ctx, bson.M{})
+	cursor, err := r.MachineCollection.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to query available machines: %w", err)
 	}
@@ -464,4 +467,39 @@ func (r *RechargeMachineRepo) GetAvailableMachines(ctx context.Context) ([]model
 	}
 
 	return machines, nil
+}
+
+
+func (r *MainAdminRepo) GetCollegeBalance(ctx context.Context, collegeID string) (string, error) {
+	var college struct {
+		Balance string `bson:"balance"`
+	}
+	err := r.CollegeCollection.FindOne(ctx, bson.M{"college_id": collegeID}).Decode(&college)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", errors.New("college not found")
+		}
+		return "", errors.New("unable to fetch college balance at the moment")
+	}
+	if _, err := strconv.ParseFloat(college.Balance, 64); err != nil {
+		return "", errors.New("stored college balance is in an invalid format")
+	}
+	return college.Balance, nil
+}
+
+func (r *MainAdminRepo) UpdateCollegeBalance(ctx context.Context, collegeID string, newBalance string) error {
+	if _, err := strconv.ParseFloat(newBalance, 64); err != nil {
+		return errors.New("invalid balance value provided")
+	}
+	res, err := r.CollegeCollection.UpdateOne(ctx,
+		bson.M{"college_id": collegeID},
+		bson.M{"$set": bson.M{"balance": newBalance}},
+	)
+	if err != nil {
+		return errors.New("failed to update college balance due to a database error")
+	}
+	if res.MatchedCount == 0 {
+		return errors.New("college not found")
+	}
+	return nil
 }

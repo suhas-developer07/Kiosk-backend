@@ -1,4 +1,4 @@
-package rechargemachine
+package paymentsystem
 
 import (
 	"context"
@@ -9,12 +9,12 @@ import (
 	"time"
 
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
-	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/recharge_machine"
-	repo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/recharge_machine_repo"
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
+	repository "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/payment_system"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.uber.org/zap"
 )
-
+    
 const (
 	defaultOperationTimeout = 5 * time.Second
 	timezoneLocation        = "Asia/Kolkata"
@@ -23,25 +23,25 @@ const (
 	timeFormat              = "15:04:05"
 )
 
-// RechargeMachineService handles business logic for recharge machine operations
-type RechargeMachineService struct {
-	repo   *repo.RechargeMachineRepo
+// MainAdminService handles business logic for main admin operations
+type MainAdminService struct {
+	repo   *repository.MainAdminRepo
 	logger *zap.SugaredLogger
 }
 
-// NewRechargeMachineService creates a new instance of RechargeMachineService
-func NewRechargeMachineService(
-	rechargeMachineRepo *repo.RechargeMachineRepo,
+// NewMainAdminService creates a new instance of MainAdminService
+func NewMainAdminService(
+	MainAdminRepo *repository.MainAdminRepo,
 	logger *zap.SugaredLogger,
-) *RechargeMachineService {
-	return &RechargeMachineService{
-		repo:   rechargeMachineRepo,
+) *MainAdminService {
+	return &MainAdminService{
+		repo: MainAdminRepo ,
 		logger: logger,
 	}
 }
 
 // CreateAccountService creates a new main admin account
-func (s *RechargeMachineService) CreateAccountService(ctx context.Context, req model.CreateMainAdminPayload) error {
+func (s *MainAdminService) CreateAccountService(ctx context.Context, req model.CreateMainAdminPayload) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -111,10 +111,10 @@ func (s *RechargeMachineService) CreateAccountService(ctx context.Context, req m
 	return nil
 }
 
-func (s *RechargeMachineService) LoginMainAdminService(
+func (s *MainAdminService) LoginMainAdminService(
 	ctx context.Context,
 	req model.SigninMainAdminPayload,
-) (string,string,string, error) {
+) (string, string, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -165,11 +165,11 @@ func (s *RechargeMachineService) LoginMainAdminService(
 		"email", req.Email,
 	)
 
-	return accessToken,super_admin.Email,super_admin.Username, nil
+	return accessToken, super_admin.Email, super_admin.Username, nil
 }
 
 // CreateMachineService creates a new machine
-func (s *RechargeMachineService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest) error {
+func (s *MainAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -198,6 +198,8 @@ func (s *RechargeMachineService) CreateMachineService(ctx context.Context, req m
 		MachineID:   machineID,
 		MachineNo:   req.MachineNo,
 		MachineName: req.MachineName,
+		CollegeId: req.CollegeId,
+		SuperAdminId: req.SuperAdminId,
 		Balance:     initialMachineBalance,
 	}
 
@@ -224,7 +226,7 @@ func (s *RechargeMachineService) CreateMachineService(ctx context.Context, req m
 }
 
 // RechargeMachine handles adding balance to a machine
-func (s *RechargeMachineService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest) error {
+func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -238,7 +240,26 @@ func (s *RechargeMachineService) RechargeMachine(ctx context.Context, req model.
 		return err
 	}
 
-	rechargeAmt, _ := strconv.Atoi(req.RechargeAmount)
+	rechargeAmt, err := strconv.Atoi(req.RechargeAmount)
+
+	if err != nil || rechargeAmt <= 0 {
+		s.logger.Warnw("Recharge amount must be a positive whole number", "recharge_amount", req.RechargeAmount)
+		return errors.New("recharge amount must be a positive whole number")
+	}
+
+	collegeBalStr, err := s.repo.GetCollegeBalance(ctx, req.CollegeID)
+	if err != nil {
+		return errors.New("college account not found")
+	}
+
+	collegeBal, err := strconv.Atoi(collegeBalStr)
+	if err != nil {
+		return errors.New("college balance is not in a valid format. Please contact support")
+	}
+
+	if collegeBal < rechargeAmt {
+		return errors.New("your college balance is too low for this recharge amount")
+	}
 
 	s.logger.Infow("Processing machine recharge",
 		"machine_id", req.MachineID,
@@ -267,8 +288,19 @@ func (s *RechargeMachineService) RechargeMachine(ctx context.Context, req model.
 	}
 
 	// Calculate new balance
+	newCollegeBalance := collegeBal - rechargeAmt
+	newCollegeBalanceStr := strconv.Itoa(newCollegeBalance)
 	newBalance := currentBalanceInt + rechargeAmt
 	newBalanceStr := strconv.Itoa(newBalance)
+
+	if err := s.repo.UpdateCollegeBalance(ctx, req.CollegeID, newCollegeBalanceStr); err != nil {
+		s.logger.Errorw("Failed to update college balance",
+			"college_id", req.CollegeID,
+			"new_balance", newCollegeBalance,
+			"error", err,
+		)
+		return errors.New("failed to update college balance. Please try again")
+	}
 
 	// Update machine balance
 	if err := s.repo.UpdateMachineBalance(ctx, req.MachineID, newBalanceStr); err != nil {
@@ -277,6 +309,7 @@ func (s *RechargeMachineService) RechargeMachine(ctx context.Context, req model.
 			"new_balance", newBalance,
 			"error", err,
 		)
+		_ = s.repo.UpdateCollegeBalance(ctx, req.CollegeID, collegeBalStr)
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
@@ -301,7 +334,7 @@ func (s *RechargeMachineService) RechargeMachine(ctx context.Context, req model.
 }
 
 // RechargeRFIDService handles RFID-based recharge operations
-func (s *RechargeMachineService) RechargeRFIDService(ctx context.Context, req model.RechargeRFIDRequest) error {
+func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.RechargeRFIDRequest) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -392,7 +425,7 @@ func (s *RechargeMachineService) RechargeRFIDService(ctx context.Context, req mo
 }
 
 // GetRFIDRechargeHistoryService retrieves RFID recharge history for a machine
-func (s *RechargeMachineService) GetRFIDRechargeHistoryService(
+func (s *MainAdminService) GetRFIDRechargeHistoryService(
 	ctx context.Context,
 	machineID string,
 ) ([]model.RechargerRFIDHistory, error) {
@@ -421,7 +454,7 @@ func (s *RechargeMachineService) GetRFIDRechargeHistoryService(
 }
 
 // GetMachineBalanceService retrieves the current balance of a machine
-func (s *RechargeMachineService) GetMachineBalanceService(
+func (s *MainAdminService) GetMachineBalanceService(
 	ctx context.Context,
 	machineID string,
 ) (model.MachineBalanceResponse, error) {
@@ -453,7 +486,8 @@ func (s *RechargeMachineService) GetMachineBalanceService(
 }
 
 // GetRechargeMachineHistoryService retrieves machine recharge history
-func (s *RechargeMachineService) GetRechargeMachineHistoryService(
+//accessed by main admin to view machine recharge history for a specific machine
+func (s *MainAdminService) GetRechargeMachineHistoryService(
 	ctx context.Context,
 	machineID string,
 ) ([]model.MachineRechargeHistory, error) {
@@ -482,7 +516,7 @@ func (s *RechargeMachineService) GetRechargeMachineHistoryService(
 }
 
 // FetchConnectedMachinesService retrieves machine details by machine number
-func (s *RechargeMachineService) FetchConnectedMachinesService(
+func (s *MainAdminService) FetchConnectedMachinesService(
 	ctx context.Context,
 	machineNo string,
 ) (model.Machine, error) {
@@ -511,7 +545,7 @@ func (s *RechargeMachineService) FetchConnectedMachinesService(
 }
 
 // GetAvailableMachinesService retrieves all available machines
-func (s *RechargeMachineService) GetAvailableMachinesService(ctx context.Context) ([]model.Machine, error) {
+func (s *MainAdminService) GetAvailableMachinesService(ctx context.Context) ([]model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -533,7 +567,7 @@ func (s *RechargeMachineService) GetAvailableMachinesService(ctx context.Context
 }
 
 // CreateUserService creates a new warden user
-func (s *RechargeMachineService) CreateUserService(
+func (s *MainAdminService) CreateUserService(
 	ctx context.Context,
 	req model.UserAccessCreateRequest,
 ) (*model.User, error) {
@@ -609,7 +643,7 @@ func (s *RechargeMachineService) CreateUserService(
 }
 
 // LoginUserService handles warden user authentication
-func (s *RechargeMachineService) LoginUserService(
+func (s *MainAdminService) LoginUserService(
 	ctx context.Context,
 	req model.UserAccessLoginRequest,
 ) (string, error) {
@@ -667,7 +701,7 @@ func (s *RechargeMachineService) LoginUserService(
 }
 
 // validateRechargeAmount validates that the recharge amount is a positive whole number
-func (s *RechargeMachineService) validateRechargeAmount(amount string) error {
+func (s *MainAdminService) validateRechargeAmount(amount string) error {
 	// Check for decimal point
 	if strings.Contains(amount, ".") {
 		return errors.New("recharge amount must be a whole number")
@@ -687,10 +721,11 @@ func (s *RechargeMachineService) validateRechargeAmount(amount string) error {
 }
 
 // recordMachineRechargeHistory records a machine recharge transaction in history
-func (s *RechargeMachineService) recordMachineRechargeHistory(
+func (s *MainAdminService) recordMachineRechargeHistory(
 	ctx context.Context,
 	req model.MachineRechargeRequest,
 ) error {
+
 	// Load timezone
 	loc, err := time.LoadLocation(timezoneLocation)
 	if err != nil {
@@ -715,6 +750,8 @@ func (s *RechargeMachineService) recordMachineRechargeHistory(
 
 	// Build history record
 	history := model.MachineRechargeHistory{
+		SuperAdminID:   Machine.SuperAdminId,
+		CollegeID:      req.CollegeID,
 		MachineID:      req.MachineID,
 		MachineName:    Machine.MachineName,
 		RechargeAmount: req.RechargeAmount,
@@ -735,7 +772,7 @@ func (s *RechargeMachineService) recordMachineRechargeHistory(
 }
 
 // recordRFIDRechargeHistory records an RFID recharge transaction in history
-func (s *RechargeMachineService) recordRFIDRechargeHistory(
+func (s *MainAdminService) recordRFIDRechargeHistory(
 	ctx context.Context,
 	req model.RechargeRFIDRequest,
 ) error {

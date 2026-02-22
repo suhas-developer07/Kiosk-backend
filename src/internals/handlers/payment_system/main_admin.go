@@ -1,4 +1,4 @@
-package rechargemachine
+package paymentsystem
 
 import (
 	"errors"
@@ -8,33 +8,33 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
-	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/recharge_machine"
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/response"
-	service "github.com/suhas-developer07/Kiosk-backend/src/internals/service/recharge_machine"
+	service "github.com/suhas-developer07/Kiosk-backend/src/internals/service/payment_system"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.uber.org/zap"
 )
 
-// RechargeMachineHandler handles HTTP requests for recharge machine operations
-type RechargeMachineHandler struct {
-	service  *service.RechargeMachineService
+// MainAdminHandler handles HTTP requests for recharge machine operations
+type MainAdminHandler struct {
+	service  *service.MainAdminService
 	logger   *zap.SugaredLogger
 	validate *validator.Validate
 }
 
-func NewRechargeMachineHandler(
-	rechargeMachineService *service.RechargeMachineService,
+func NewMainAdminHandler(
+	mainAdminService *service.MainAdminService,
 	logger *zap.SugaredLogger,
-) *RechargeMachineHandler {
-	return &RechargeMachineHandler{
-		service:  rechargeMachineService,
+) *MainAdminHandler {
+	return &MainAdminHandler{
+		service:  mainAdminService,
 		logger:   logger,
 		validate: validator.New(),
 	}
 }
 
 // CreateMainAdminHandler handles the creation of main admin accounts
-func (h *RechargeMachineHandler) CreateMainAdminHandler(c echo.Context) error {
+func (h *MainAdminHandler) CreateMainAdminHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -78,7 +78,7 @@ func (h *RechargeMachineHandler) CreateMainAdminHandler(c echo.Context) error {
 	})
 }
 
-func (h *RechargeMachineHandler) LoginMainAdminHandler(c echo.Context) error {
+func (h *MainAdminHandler) LoginMainAdminHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -131,8 +131,9 @@ func (h *RechargeMachineHandler) LoginMainAdminHandler(c echo.Context) error {
 	})
 }
 
-// CreateMachineHandler handles the creation of new machines
-func (h *RechargeMachineHandler) CreateMachineHandler(c echo.Context) error {
+// CreateMachineHandler handles the creation of new machines  
+// handles super admin
+func (h *MainAdminHandler) CreateMachineHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -177,8 +178,9 @@ func (h *RechargeMachineHandler) CreateMachineHandler(c echo.Context) error {
 	})
 }
 
-// RechargeMachineHandler handles machine balance recharge requests
-func (h *RechargeMachineHandler) RechargeMachineHandler(c echo.Context) error {
+// RechargeMachineHandler handles machine balance recharge requests~
+//handles main admin 
+func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -232,7 +234,8 @@ func (h *RechargeMachineHandler) RechargeMachineHandler(c echo.Context) error {
 }
 
 // RechargeRFIDHandler handles RFID-based recharge requests
-func (h *RechargeMachineHandler) RechargeRFIDHandler(c echo.Context) error {
+//handles warden user
+func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -326,7 +329,8 @@ func (h *RechargeMachineHandler) RechargeRFIDHandler(c echo.Context) error {
 }
 
 // GetRFIDRechargeHistoryHandler retrieves RFID recharge history for a machine
-func (h *RechargeMachineHandler) GetRFIDRechargeHistoryHandler(c echo.Context) error {
+//handler both warden user and main admin
+func (h *MainAdminHandler) GetRFIDRechargeHistoryHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
 
@@ -365,7 +369,8 @@ func (h *RechargeMachineHandler) GetRFIDRechargeHistoryHandler(c echo.Context) e
 }
 
 // GetMachineBalanceHandler retrieves the current balance of a machine
-func (h *RechargeMachineHandler) GetMachineBalanceHandler(c echo.Context) error {
+//handles both warden user and main admin
+func (h *MainAdminHandler) GetMachineBalanceHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
 
@@ -404,7 +409,8 @@ func (h *RechargeMachineHandler) GetMachineBalanceHandler(c echo.Context) error 
 }
 
 // GetRechargeMachineHistoryHandler retrieves machine recharge history
-func (h *RechargeMachineHandler) GetRechargeMachineHistoryHandler(c echo.Context) error {
+//handles main admin 
+func (h *MainAdminHandler) GetRechargeMachineHistoryHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
 
@@ -443,7 +449,8 @@ func (h *RechargeMachineHandler) GetRechargeMachineHistoryHandler(c echo.Context
 }
 
 // FetchConnectedMachinesHandler retrieves machine details by machine number
-func (h *RechargeMachineHandler) FetchConnectedMachinesHandler(c echo.Context) error {
+//handles warden
+func (h *MainAdminHandler) FetchConnectedMachinesHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	machineNo := strings.TrimSpace(c.Param("machine_no"))
 
@@ -481,7 +488,8 @@ func (h *RechargeMachineHandler) FetchConnectedMachinesHandler(c echo.Context) e
 }
 
 // GetAvailableMachinesHandler retrieves all available machines
-func (h *RechargeMachineHandler) GetAvailableMachinesHandler(c echo.Context) error {
+//handles main admin
+func (h *MainAdminHandler) GetAvailableMachinesHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	machines, err := h.service.GetAvailableMachinesService(ctx)
@@ -507,7 +515,7 @@ func (h *RechargeMachineHandler) GetAvailableMachinesHandler(c echo.Context) err
 }
 
 // CreateUserHandler handles warden user creation
-func (h *RechargeMachineHandler) CreateUserHandler(c echo.Context) error {
+func (h *MainAdminHandler) CreateUserHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -567,7 +575,7 @@ func (h *RechargeMachineHandler) CreateUserHandler(c echo.Context) error {
 }
 
 // LoginUserHandler handles warden user login
-func (h *RechargeMachineHandler) LoginUserHandler(c echo.Context) error {
+func (h *MainAdminHandler) LoginUserHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -617,9 +625,8 @@ func (h *RechargeMachineHandler) LoginUserHandler(c echo.Context) error {
 		},
 	})
 }
-
 // handleCreateAccountError handles errors from account creation service
-func (h *RechargeMachineHandler) handleCreateAccountError(c echo.Context, err error, email string) error {
+func (h *MainAdminHandler) handleCreateAccountError(c echo.Context, err error, email string) error {
 	switch {
 	case errors.Is(err, apperrors.ErrEmailAlreadyExists):
 		h.logger.Warnw("Email already exists during account creation",
@@ -652,7 +659,7 @@ func (h *RechargeMachineHandler) handleCreateAccountError(c echo.Context, err er
 }
 
 // handleCreateMachineError handles errors from machine creation service
-func (h *RechargeMachineHandler) handleCreateMachineError(c echo.Context, err error, machineNo string) error {
+func (h *MainAdminHandler) handleCreateMachineError(c echo.Context, err error, machineNo string) error {
 	switch {
 	case errors.Is(err, apperrors.ErrMachineAlreadyExists):
 		h.logger.Warnw("Machine already exists during creation",
@@ -676,7 +683,7 @@ func (h *RechargeMachineHandler) handleCreateMachineError(c echo.Context, err er
 }
 
 // handleLoginError handles errors from login service
-func (h *RechargeMachineHandler) handleLoginError(c echo.Context, err error, email string) error {
+func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email string) error {
 	switch {
 	case errors.Is(err, apperrors.ErrFacultyNotFound):
 		h.logger.Warnw("User not found during login",
@@ -708,7 +715,8 @@ func (h *RechargeMachineHandler) handleLoginError(c echo.Context, err error, ema
 	}
 }
 
-// func (h *RechargeMachineHandler) GetAllUsers(c echo.Context) error {
+
+// func (h *MainAdminHandler) GetAllUsers(c echo.Context) error {
 // 	collegeId := strings.TrimSpace(c.Param("college_id"))
 // 	if collegeId == "" {
 // 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
@@ -731,7 +739,7 @@ func (h *RechargeMachineHandler) handleLoginError(c echo.Context, err error, ema
 // 	})
 // }
 
-// func (h *RechargeMachineHandler) DeleteUser(c echo.Context) error {
+// func (h *MainAdminHandler) DeleteUser(c echo.Context) error {
 // 	userId := strings.TrimSpace(c.Param("user_id"))
 // 	if userId == "" {
 // 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{

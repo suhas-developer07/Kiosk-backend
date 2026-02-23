@@ -112,5 +112,4 @@ type MachineCreateRequest struct {
 	MachineNo    string `json:"machine_no" bson:"machine_no" validate:"required"`
 	MachineName  string `json:"machine_name" bson:"machine_name" validate:"required"`
 	CollegeId    string `json:"college_id" bson:"college_id" validate:"required"`
-	SuperAdminId string `json:"super_admin_id" bson:"super_admin_id" validate:"required"`
 }

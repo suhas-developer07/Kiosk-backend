@@ -122,7 +122,7 @@ func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
 		})
 	}
 
-	adminID := strings.TrimSpace(c.Param("super_admin_id"))
+	adminID := c.Get("super_admin_id").(string)
 	if adminID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -148,7 +148,7 @@ func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
 		Data:    res,
 	})
 }
-
+//TODO: NEED TO REMOVE THIS HANDLER FROM HERE
 func (h *SuperAdminHandler) CollegeLogin(c echo.Context) error {
 	var req model.CollegeLoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -181,7 +181,7 @@ func (h *SuperAdminHandler) CollegeLogin(c echo.Context) error {
 
 func (h *SuperAdminHandler) GetCollegesBySuperAdmin(c echo.Context) error {
 	//TODO:NEED TO RECIEVE SUPER ADMIN ID FROM JWT CLAIMS INSTEAD OF PARAMS
-	adminID := strings.TrimSpace(c.Param("super_admin_id"))
+	adminID := c.Get("super_admin_id").(string)
 	if adminID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -209,7 +209,7 @@ func (h *SuperAdminHandler) GetCollegesBySuperAdmin(c echo.Context) error {
 }
 
 func (h *SuperAdminHandler) GetCollegeDetails(c echo.Context) error {
-	collegeID := strings.TrimSpace(c.Param("college_id")) //TODO:NEED TO RECIEVE COLLEGE ID FROM JWT CLAIMS INSTEAD OF PARAMS
+	collegeID := c.Get("super_admin_id").(string)
 	if collegeID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -286,7 +286,7 @@ func (h *SuperAdminHandler) RechargeCollege(c echo.Context) error {
 		})
 	}
 
-	superadminID := strings.TrimSpace(c.Param("super_admin_id"))
+	superadminID := c.Get("super_admin_id").(string)
 	if superadminID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -344,7 +344,7 @@ func (h *SuperAdminHandler) GetCollegeRechargeHistory(c echo.Context) error {
 
 func (h *SuperAdminHandler) GetSuperAdminBalance(c echo.Context) error {
 	ctx := c.Request().Context()
-	superAdminID := c.Param("super_admin_id")
+	superAdminID := c.Get("super_admin_id").(string)
 	if superAdminID == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{
 			"error": "super admin ID is required",
@@ -375,6 +375,8 @@ func (h *SuperAdminHandler) CreateMachineHandler(c echo.Context) error {
 
 	var payload model.MachineCreateRequest
 
+	superadminId := c.Get("super_admin_id").(string)
+
 	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
 		h.logger.Warnw("Failed to decode machine creation payload",
 			"ip", requestIP,
@@ -398,7 +400,7 @@ func (h *SuperAdminHandler) CreateMachineHandler(c echo.Context) error {
 		})
 	}
 
-	if err := h.service.CreateMachineService(ctx, payload); err != nil {
+	if err := h.service.CreateMachineService(ctx, payload,superadminId); err != nil {
 		return h.handleCreateMachineError(c, err, payload.MachineNo)
 	}
 

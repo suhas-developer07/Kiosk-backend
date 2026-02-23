@@ -15,11 +15,11 @@ import (
 	handler_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/orchestrator"
 	payment_handler "github.com/suhas-developer07/Kiosk-backend/src/internals/handlers/payment_system"
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/middleware"
-	payment_repository "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/payment_system"
-	service_Admin "github.com/suhas-developer07/Kiosk-backend/src/internals/service/admin"
 	adminRepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/admin"
 	facultyrepo "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/faculty_repo"
 	repository_Files "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
+	payment_repository "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/payment_system"
+	service_Admin "github.com/suhas-developer07/Kiosk-backend/src/internals/service/admin"
 	service_Faculty "github.com/suhas-developer07/Kiosk-backend/src/internals/service/faculty_service"
 	service_File "github.com/suhas-developer07/Kiosk-backend/src/internals/service/file_service"
 	service_orchestrator "github.com/suhas-developer07/Kiosk-backend/src/internals/service/orchestrator"
@@ -82,9 +82,11 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	Admin_auth := middleware.AdminAuthMiddleware(sugar)
 
-	Warden_auth := middleware.WardenAuthMiddleware(sugar)
+	Machine_User_Auth := middleware.MachineUserAuth(sugar)
 
-	Main_Admin_auth := middleware.SuperAdminAuthMiddleware(sugar)
+	Super_Admin_Auth := middleware.SuperAdminAuthMiddleware(sugar)
+
+	College_Auth := middleware.CollegeAuth(sugar)
 
 	filesRepo := repository_Files.NewFilesRepo(db, mongoClient)
 
@@ -120,7 +122,7 @@ func Start(mongoClient *mongo.Client) *echo.Echo {
 
 	SuperAdminHandler := payment_handler.NewSuperAdminHandler(SuperAdminService, sugar)
 
-	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,MainAdminHandler,SuperAdminHandler,Faculty_auth,Admin_auth,Warden_auth,Main_Admin_auth)
+	SetupRouter(e, fileHandler, facultyHandler,orchestratorHandler,adminHandler,MainAdminHandler,SuperAdminHandler,Faculty_auth,Admin_auth,Machine_User_Auth,College_Auth,Super_Admin_Auth)
 	
 
 	e.GET("/health", func(c echo.Context) error {

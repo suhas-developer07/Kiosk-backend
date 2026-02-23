@@ -1,36 +1,5 @@
 package paymentsystem
 
-import (
-	"time"
-)
-/*
-MAIN ADMIN AUTH MODELS
-*/
-type MainAdmin struct {
-	MainAdminID string    `bson:"main_admin_id,omitempty" json:"main_admin_id,omitempty"`
-	Username    string    `bson:"username" json:"username"`
-	Email       string    `bson:"email" json:"email"`
-	Password    string    `bson:"password" json:"password"`
-	CreatedAt   time.Time `bson:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `bson:"updated_at" json:"updated_at"`
-}
-
-type MainAdminLogin struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-}
-
-type CreateMainAdminPayload struct {
-	Name     string `json:"username" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-}
-
-type SigninMainAdminPayload struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-}
-
 /*
 RECHARGE MACHINE AND RFID MODELS
 */

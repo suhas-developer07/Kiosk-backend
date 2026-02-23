@@ -287,7 +287,7 @@ func (s *SuperAdminService) GetSuperAdminBalance(ctx context.Context, superAdmin
 
 /* Machine management services */
 
-func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest) error {
+func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest,superadminId string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -314,7 +314,7 @@ func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.
 		MachineNo:   req.MachineNo,
 		MachineName: req.MachineName,
 		CollegeId: req.CollegeId,
-		SuperAdminId: req.SuperAdminId,
+		SuperAdminId: superadminId,
 		Balance:     initialMachineBalance,
 	}
 

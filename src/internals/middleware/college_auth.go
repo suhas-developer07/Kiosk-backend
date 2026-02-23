@@ -9,8 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-
-func WardenAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
+func CollegeAuth(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 
@@ -59,19 +58,39 @@ func WardenAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 					"error":  "Invalid token",
 				})
 			}
-
-			UserID, ok := claims["user_id"].(string)
+			collegeID, ok := claims["college_id"].(string)
 			if !ok {
-				logger.Error("Missing user_id in token")
-				return c.JSON(http.StatusUnauthorized, map[string]string{
-					"status": "error",
-					"error":  "Invalid token payload",
-				})
+				return unauthorized(c, "Invalid college_id in token")
 			}
 
-			c.Set("user_id", UserID)
+			superAdminID, ok := claims["super_admin_id"].(string)
+			if !ok {
+				return unauthorized(c, "Invalid super_admin_id in token")
+			}
+
+			collegeName, ok := claims["college_name"].(string)
+			if !ok {
+				return unauthorized(c, "Invalid college_name in token")
+			}
+
+			collegeEmail, ok := claims["college_email"].(string)
+			if !ok {
+				return unauthorized(c, "Invalid college_email in token")
+			}
+
+			c.Set("college_id", collegeID)
+			c.Set("super_admin_id", superAdminID)
+			c.Set("college_name", collegeName)
+			c.Set("college_email", collegeEmail)
 
 			return next(c)
 		}
 	}
+}
+
+func unauthorized(c echo.Context, msg string) error {
+    return c.JSON(http.StatusUnauthorized, map[string]string{
+        "status": "error",
+        "error":  msg,
+    })
 }

@@ -20,7 +20,8 @@ func SetupRouter(
 	faculty_auth echo.MiddlewareFunc,
 	admin_auth echo.MiddlewareFunc,
 	machine_user_auth echo.MiddlewareFunc,
-	main_admin_auth echo.MiddlewareFunc,
+	college_auth echo.MiddlewareFunc,
+	super_admin_auth echo.MiddlewareFunc,
 ) {
 	/* Files Handler routes */
 	files := e.Group("/files")
@@ -75,7 +76,7 @@ func SetupRouter(
 
 	mainAdmin := e.Group("/main-admin")
 	mainAdminAuth := mainAdmin.Group("")
-	mainAdminAuth.Use(main_admin_auth)
+	mainAdminAuth.Use(college_auth)
 
 	mainAdmin.POST("/college/signin",mainAdminHandler.CollegeLoginRequestHandler)
 	mainAdminAuth.POST("/machine/recharge", mainAdminHandler.RechargeMachineHandler)
@@ -98,7 +99,7 @@ func SetupRouter(
 
 	superAdmin := e.Group("/super-admin")
 	superAdminAuth := superAdmin.Group("")
-	superAdminAuth.Use(main_admin_auth)
+	superAdminAuth.Use(super_admin_auth)
 
 	superAdmin.POST("/signup",superAdminHandler.CreateSuperAdmin)
 	superAdmin.POST("/signin",superAdminHandler.LoginSuperAdminHandler)

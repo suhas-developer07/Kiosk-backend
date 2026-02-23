@@ -9,7 +9,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func SuperAdminAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
+
+func MachineUserAuth(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 
@@ -22,6 +23,7 @@ func SuperAdminAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 				})
 			}
 
+			// Expect "Bearer <token>"
 			parts := strings.Split(authHeader, " ")
 			if len(parts) != 2 || parts[0] != "Bearer" {
 				logger.Warn("Invalid Authorization header format")
@@ -58,16 +60,16 @@ func SuperAdminAuthMiddleware(logger *zap.SugaredLogger) echo.MiddlewareFunc {
 				})
 			}
 
-			SuperAdminId, ok := claims["super_admin_id"].(string)
+			UserID, ok := claims["user_id"].(string)
 			if !ok {
-				logger.Error("Missing super_admin_id in token")
+				logger.Error("Missing user_id in token")
 				return c.JSON(http.StatusUnauthorized, map[string]string{
 					"status": "error",
 					"error":  "Invalid token payload",
 				})
 			}
 
-			c.Set("super_admin_id", SuperAdminId)
+			c.Set("user_id", UserID)
 
 			return next(c)
 		}

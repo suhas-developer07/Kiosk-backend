@@ -3,9 +3,10 @@ package paymentsystem
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
-	"strings"
 
+	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,13 +16,15 @@ const (
 	SUPER_ADMIN_COLLECTION              = "super_admins"
 	COLLEGE_COLLECTION                  = "colleges"
 	RECHARGE_COLLEGE_HISTORY_COLLECTION = "college_recharge_history"
+	MACHINE_COLLECTION                  = "recharge_machines"
 )
 
 type SuperAdminRepository struct {
 	client                           *mongo.Client
 	SuperAdminCollection             *mongo.Collection
 	CollegeCollection                *mongo.Collection
-	RechargeCollegeHistoryCollection *mongo.Collection
+	CollegeRechargeHistoryCollection *mongo.Collection
+	MachineCollection                *mongo.Collection
 }
 
 func NewSuperAdminRepo(db *mongo.Database, client *mongo.Client) *SuperAdminRepository {
@@ -29,13 +32,15 @@ func NewSuperAdminRepo(db *mongo.Database, client *mongo.Client) *SuperAdminRepo
 		client:                           client,
 		SuperAdminCollection:             db.Collection(SUPER_ADMIN_COLLECTION),
 		CollegeCollection:                db.Collection(COLLEGE_COLLECTION),
-		RechargeCollegeHistoryCollection: db.Collection(RECHARGE_COLLEGE_HISTORY_COLLECTION),
+		CollegeRechargeHistoryCollection: db.Collection(RECHARGE_COLLEGE_HISTORY_COLLECTION),
+		MachineCollection:                db.Collection(MACHINE_COLLECTION),
 	}
 }
 
 /*
 Not implemented yet
-func (repo *SuperAdminRepository) CreateSuperAdmin(ctx context.Context, superadmin domain.SuperAdminCreateRequest) error {
+*/
+func (repo *SuperAdminRepository) CreateSuperAdmin(ctx context.Context, superadmin model.SuperAdmin) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 	_, err := repo.SuperAdminCollection.InsertOne(ctx, superadmin)
@@ -53,7 +58,23 @@ func (repo *SuperAdminRepository) CheckSuperAdminEmailExists(ctx context.Context
 	}
 	return count > 0, nil
 }
-*/
+
+func (repo *SuperAdminRepository) GetSuperAdminByEmail(ctx context.Context, email string) (*model.SuperAdmin, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	filter := bson.M{"super_admin_email": email}
+	var superAdmin model.SuperAdmin
+
+	err := repo.SuperAdminCollection.FindOne(ctx, filter).Decode(&superAdmin)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, errors.New("super admin not found")
+		}
+		return nil, errors.New("unable to retrieve super admin details")
+	}
+
+	return &superAdmin, nil
+}
 
 func (repo *SuperAdminRepository) GetSuperAdminBalance(ctx context.Context, superAdminID string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
@@ -155,7 +176,7 @@ func (repo *SuperAdminRepository) UpdateCollegeBalance(ctx context.Context, coll
 		return errors.New("college not found")
 	}
 	return nil
-}
+} 
 
 func (repo *SuperAdminRepository) GetCollegesBySuperAdminID(ctx context.Context, adminID string) ([]model.SuperAdminCollege, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
@@ -215,92 +236,33 @@ func (repo *SuperAdminRepository) DeleteCollege(ctx context.Context, collegeID s
 	return nil
 }
 
-func (repo *SuperAdminRepository) RechargeCollege(ctx context.Context, recharge model.CollegeRecharge, superAdminID string) error {
-	// 1. Fetch superadmin
-	superAdminFilter := bson.M{"super_admin_id": superAdminID}
-	var superAdmin model.SuperAdmin
-	err := repo.SuperAdminCollection.FindOne(ctx, superAdminFilter).Decode(&superAdmin)
+func (r *SuperAdminRepository) InsertCollegeRechargeHistory(ctx context.Context, history model.CollegeRechargeHistory) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	_, err := r.CollegeRechargeHistoryCollection.InsertOne(ctx, history)
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return errors.New("superadmin not found")
-		}
-		return errors.New("unable to fetch superadmin balance")
-	}
-
-	// 2. Validate recharge amount (must be integer, not negative or float)
-	if strings.Contains(recharge.RechargeAmount, ".") {
-		return errors.New("recharge amount must be a whole number")
-	}
-
-	rechargeAmountInt, err := strconv.Atoi(recharge.RechargeAmount)
-	if err != nil || rechargeAmountInt <= 0 {
-		return errors.New("invalid recharge amount, must be positive integer")
-	}
-
-	// 3. Check superadmin balance
-	superBalanceInt, err := strconv.Atoi(superAdmin.Balance)
-	if err != nil {
-		return errors.New("invalid superadmin balance format in database")
-	}
-	if rechargeAmountInt > superBalanceInt {
-		return errors.New("insufficient superadmin balance for recharge")
-	}
-
-	// 4. Fetch college
-	var college model.SuperAdminCollege
-	collegeFilter := bson.M{"college_id": recharge.CollegeID}
-	err = repo.CollegeCollection.FindOne(ctx, collegeFilter).Decode(&college)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return errors.New("college not found")
-		}
-		return errors.New("unable to retrieve college details")
-	}
-
-	// 5. Calculate new balances
-	oldCollegeBalanceInt, err := strconv.Atoi(college.Balance)
-	if err != nil {
-		return errors.New("invalid college balance format in database")
-	}
-
-	newCollegeBalance := strconv.Itoa(oldCollegeBalanceInt + rechargeAmountInt)
-	newSuperBalance := strconv.Itoa(superBalanceInt - rechargeAmountInt)
-
-	// 6. Update both balances in DB
-	_, err = repo.CollegeCollection.UpdateOne(ctx, collegeFilter, bson.M{"$set": bson.M{"balance": newCollegeBalance}})
-	if err != nil {
-		return errors.New("failed to update college balance")
-	}
-
-	_, err = repo.CollegeCollection.Database().Collection("super_admin").UpdateOne(ctx, superAdminFilter, bson.M{"$set": bson.M{"balance": newSuperBalance}})
-	if err != nil {
-		return errors.New("failed to update superadmin balance")
-	}
-
-	// 7. Record recharge transaction
-	_, err = repo.RechargeCollegeHistoryCollection.InsertOne(ctx, recharge)
-	if err != nil {
-		return errors.New("failed to record recharge transaction")
+		return fmt.Errorf("failed to insert recharge history: %w", err)
 	}
 
 	return nil
 }
 
-func (repo *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Context, collegeID string) ([]model.CollegeRecharge, error) {
+func (repo *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Context, collegeID string) ([]model.CollegeRechargeHistory, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	filter := bson.M{"college_id": collegeID}
 
-	cursor, err := repo.RechargeCollegeHistoryCollection.Find(ctx, filter)
+	cursor, err := repo.CollegeRechargeHistoryCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, errors.New("failed to retrieve recharge history")
 	}
 	defer cursor.Close(ctx)
 
-	var recharges []model.CollegeRecharge
+	var recharges []model.CollegeRechargeHistory
 	for cursor.Next(ctx) {
-		var recharge model.CollegeRecharge
+		var recharge model.CollegeRechargeHistory
 		if err := cursor.Decode(&recharge); err != nil {
 			return nil, errors.New("error reading recharge history data")
 		}
@@ -313,3 +275,61 @@ func (repo *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Cont
 
 	return recharges, nil
 }
+
+/* Machine management repository methods*/
+
+func (repo *SuperAdminRepository) CreateMachine(ctx context.Context, machine model.Machine) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{
+		"machine_no": machine.MachineNo,
+		"college_id": machine.CollegeId,
+	}
+
+	var existingMachine model.Machine
+	err := repo.MachineCollection.FindOne(ctx, filter).Decode(&existingMachine)
+
+	if err == nil {
+		return apperrors.ErrMachineAlreadyExists
+	}
+
+	if !errors.Is(err, mongo.ErrNoDocuments) {
+		return fmt.Errorf("failed to check existing machine: %w", err)
+	}
+
+	_, insertErr := repo.MachineCollection.InsertOne(ctx, machine)
+	if insertErr != nil {
+		return fmt.Errorf("failed to insert machine: %w", insertErr)
+	}
+
+	return nil
+}
+
+func (repo *SuperAdminRepository) GetMachinesByCollegeID(ctx context.Context, collegeID string) ([]model.Machine, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{"college_id": collegeID}
+	cursor, err := repo.MachineCollection.Find(ctx, filter)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, apperrors.ErrCollegeNotFound
+		}
+		return nil, errors.New("failed to fetch machines")
+	}
+	defer cursor.Close(ctx)
+
+	var machines []model.Machine
+	for cursor.Next(ctx) {
+		var machine model.Machine
+		if err := cursor.Decode(&machine); err != nil {
+			return nil, errors.New("error reading machine data")
+		}
+		machines = append(machines, machine)
+	}
+
+	return machines, nil
+}
+
+

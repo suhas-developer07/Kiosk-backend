@@ -61,6 +61,16 @@ func GenerateAccessTokenForCollegeLogin(collegeEmail, collegeName, collegeId, su
 	return token.SignedString(jwtSecret)
 }
 
+func GenerateAccessTokenForSuperAdmin(superAdminId string) (string, error) {
+	claims := jwt.MapClaims{
+		"super_admin_id": superAdminId,
+		"exp":            time.Now().Add(time.Hour * 24 * 7).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(jwtSecret)
+}
+
 // func GenerateRefreshToken(FacultyID string) (string, error) {
 //     claims := jwt.MapClaims{
 //         "faculty_id": FacultyID,

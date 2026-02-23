@@ -35,15 +35,6 @@ type SigninMainAdminPayload struct {
 RECHARGE MACHINE AND RFID MODELS
 */
 
-type Machine struct {
-	MachineID    string `bson:"machine_id,omitempty" json:"machine_id,omitempty"`
-	MachineNo    string `json:"machine_no" bson:"machine_no" validate:"required"`
-	MachineName  string `json:"machine_name" bson:"machine_name" validate:"required"`
-	CollegeId    string `json:"college_id" bson:"college_id"`
-	SuperAdminId string `json:"super_admin_id" bson:"super_admin_id"`
-	Balance      string `json:"balance" bson:"balance"`
-}
-
 type MachineRechargeHistory struct {
 	SuperAdminID   string `json:"super_admin_id" bson:"super_admin_id"`
 	CollegeID      string `json:"college_id" bson:"college_id"`
@@ -52,13 +43,6 @@ type MachineRechargeHistory struct {
 	RechargeAmount string `json:"recharge_amount" bson:"recharge_amount"`
 	Date           string `json:"date" bson:"date"`
 	Time           string `json:"time" bson:"time"`
-}
-
-type MachineCreateRequest struct {
-	MachineNo    string `json:"machine_no" bson:"machine_no" validate:"required"`
-	MachineName  string `json:"machine_name" bson:"machine_name" validate:"required"`
-	CollegeId    string `json:"college_id" bson:"college_id" validate:"required"`
-	SuperAdminId string `json:"super_admin_id" bson:"super_admin_id" validate:"required"`
 }
 
 type MachineRechargeRequest struct {

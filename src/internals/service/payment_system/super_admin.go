@@ -3,6 +3,7 @@ package paymentsystem
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,89 @@ func NewSuperAdminService(repo *repository.SuperAdminRepository, logger *zap.Sug
 /*
 super admin auth services still not implemented
 */
+
+func (s *SuperAdminService) CreateSuperAdmin(ctx context.Context, req model.SuperAdminCreateRequest) (error) {
+	
+	email := strings.ToLower(strings.TrimSpace(req.SuperAdminEmail))
+	exists, err := s.Repo.CheckSuperAdminEmailExists(ctx, email)
+	if err != nil {
+		return  errors.New("unable to verify super admin email at the moment, please try again later")
+	}
+	if exists {
+		return  errors.New("this email is already registered with another super admin")
+	}
+
+	hashedPassword, err := utils.HashPassword(req.SuperAdminPassword)
+	if err != nil {
+		return  errors.New("unable to process password, please try again")
+	}
+
+	superadminID := utils.GenerateUUID()
+	superadmin := model.SuperAdmin{
+		SuperAdminId:    superadminID,
+		SuperAdminName:  req.SuperAdminName,
+		SuperAdminEmail: email,
+		SuperAdminPassword: hashedPassword,
+		CreatedAt:       time.Now().Format(time.RFC3339),
+	}
+
+	if err := s.Repo.CreateSuperAdmin(ctx, superadmin); err != nil {
+		return  errors.New("failed to create super admin, please try again")
+	}
+
+	return nil
+}
+
+func (s *SuperAdminService) LoginSuperAdminService(ctx context.Context,req model.SuperAdminLoginRequest) (string, string, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	req.SuperAdminEmail = strings.TrimSpace(strings.ToLower(req.SuperAdminEmail))
+
+	s.logger.Infow("Super admin login attempt",
+		"email", req.SuperAdminEmail,
+	)
+
+	super_admin, err := s.Repo.GetSuperAdminByEmail(ctx, req.SuperAdminEmail)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrSuperAdminNotFound) {
+			s.logger.Warnw("Login attempt for non-existent user",
+				"email", req.SuperAdminEmail,
+			)
+			return "", "", "", apperrors.ErrSuperAdminNotFound
+		}
+		s.logger.Errorw("Database error during user lookup",
+			"email", req.SuperAdminEmail,
+			"error", err,
+		)
+		return "", "", "", fmt.Errorf("Super admin lookup failed: %w", err)
+	}
+
+	if !utils.CheckPassword(req.SuperAdminPassword, super_admin.SuperAdminPassword) {
+		s.logger.Warnw("Invalid password attempt",
+			"email", req.SuperAdminEmail,
+		)
+		return "", "", "", apperrors.ErrInvalidPassword
+	}
+
+	accessToken, err := utils.GenerateAccessTokenForSuperAdmin(super_admin.SuperAdminId)
+	if err != nil {
+		s.logger.Errorw("Failed to generate access token",
+			"super_admin_id", super_admin.SuperAdminId,
+			"email", req.SuperAdminEmail,
+			"error", err,
+		)
+		return "", "", "", fmt.Errorf("token generation failed: %w", err)
+	}
+
+	s.logger.Infow("Super admin logged in successfully",
+		"super_admin_id", super_admin.SuperAdminId,
+		"email", req.SuperAdminEmail,
+	)
+
+	return accessToken, super_admin.SuperAdminEmail, super_admin.SuperAdminName, nil
+}
+
 
 func (s *SuperAdminService) CreateCollege(ctx context.Context, req model.CollegeCreateRequest, SuperadminID string) (*model.CollegeResponse, error) {
 
@@ -134,58 +218,47 @@ func (s *SuperAdminService) DeleteCollege(ctx context.Context, collegeID string)
 	return nil
 }
 
-func (s *SuperAdminService) RechargeCollege(ctx context.Context, req model.CollegeRechargeRequest) error {
-	amtInt, err := strconv.Atoi(req.RechargeAmount)
-	if err != nil || amtInt <= 0 {
+func (s *SuperAdminService) RechargeToCollege(ctx context.Context,req model.CollegeRechargeRequest) error {
+	ctx,cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	//if err := s.valid
+	rechargeAmt,err := strconv.Atoi(req.RechargeAmount)
+	if err != nil || rechargeAmt <= 0 {
+		s.logger.Warnw("Recharge amount must be an Positive whole number","recharge_amount",req.RechargeAmount)
 		return errors.New("recharge amount must be greater than zero")
 	}
 
-	superBalanceStr, err := s.Repo.GetSuperAdminBalance(ctx, req.SuperAdminId)
+	collegeBalStr, err := s.Repo.GetCollegeBalance(ctx, req.CollegeID)
 	if err != nil {
-		return errors.New("unable to retrieve super admin balance")
+		return errors.New("unable to retrieve college balance")
 	}
-	superBalance, err := strconv.Atoi(superBalanceStr)
-	if err != nil {
-		return errors.New("super admin balance data is invalid")
-	}
-	if superBalance < amtInt {
-		return errors.New("insufficient super admin balance for recharge")
-	}
-
-	currStr, err := s.Repo.GetCollegeBalance(ctx, req.CollegeID)
-	if err != nil {
-		return errors.New("unable to retrieve current college balance")
-	}
-	currInt, err := strconv.Atoi(currStr)
+	collegeBal, err := strconv.Atoi(collegeBalStr)
 	if err != nil {
 		return errors.New("college balance data is invalid")
 	}
-	newBalance := strconv.Itoa(currInt + amtInt)
-
-	recharge := model.CollegeRecharge{
-		RechargeID:     utils.GenerateUUID(),
-		CollegeID:      req.CollegeID,
-		SuperAdminId:   req.SuperAdminId,
-		RechargeAmount: req.RechargeAmount,
-		RechargedAt:    time.Now().Format(time.RFC3339),
-	}
-	if err := s.Repo.RechargeCollege(ctx, recharge, req.SuperAdminId); err != nil {
-		return errors.New("failed to process recharge")
+	
+	newCollegeBalance := strconv.Itoa(collegeBal + rechargeAmt)
+	
+	if err := s.Repo.UpdateCollegeBalance(ctx, req.CollegeID, newCollegeBalance); err != nil {
+		return errors.New("failed to update college balance. Please try again")
 	}
 
-	if err := s.Repo.UpdateCollegeBalance(ctx, req.CollegeID, newBalance); err != nil {
-		return errors.New("failed to update college balance")
-	}
-
-	newSuperBalance := strconv.Itoa(superBalance - amtInt)
-	if err := s.Repo.UpdateSuperAdminBalance(ctx, req.SuperAdminId, newSuperBalance); err != nil {
-		return errors.New("failed to update super admin balance")
+	if err := s.recordCollegeRechargeHistory(ctx, req); err != nil {
+		s.logger.Errorw("Failed to record college recharge history",
+			"college_id", req.CollegeID,
+			"recharge_amount", req.RechargeAmount,
+			"error", err,
+		)
+		//Rollback balance update on history insertion failure
+		_ = s.Repo.UpdateCollegeBalance(ctx, req.CollegeID, collegeBalStr)
+		return errors.New("failed to record recharge history. Please try again")
 	}
 
 	return nil
 }
 
-func (s *SuperAdminService) GetRechargeHistory(ctx context.Context, collegeID string) ([]model.CollegeRecharge, error) {
+func (s *SuperAdminService) GetRechargeHistory(ctx context.Context, collegeID string) ([]model.CollegeRechargeHistory, error) {
 	if collegeID == "" {
 		return nil, errors.New("college ID is required")
 	}
@@ -209,4 +282,122 @@ func (s *SuperAdminService) GetSuperAdminBalance(ctx context.Context, superAdmin
 	}
 
 	return balance, nil
+}
+
+
+/* Machine management services */
+
+func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	req.MachineNo = strings.TrimSpace(req.MachineNo)
+	req.MachineName = strings.TrimSpace(req.MachineName)
+
+	if req.MachineNo == "" || req.MachineName == "" {
+		s.logger.Warnw("Missing required fields for machine creation",
+			"machine_no", req.MachineNo,
+			"machine_name", req.MachineName,
+		)
+		return apperrors.ErrInvalidInput
+	}
+
+	s.logger.Infow("Creating new machine",
+		"machine_no", req.MachineNo,
+		"machine_name", req.MachineName,
+	)
+
+	machineID := utils.GenerateUUID()
+
+	machine := model.Machine{
+		MachineID:   machineID,
+		MachineNo:   req.MachineNo,
+		MachineName: req.MachineName,
+		CollegeId: req.CollegeId,
+		SuperAdminId: req.SuperAdminId,
+		Balance:     initialMachineBalance,
+	}
+
+	if err := s.Repo.CreateMachine(ctx, machine); err != nil {
+		if errors.Is(err, apperrors.ErrMachineAlreadyExists) {
+			s.logger.Warnw("Attempted to create machine with existing number",
+				"machine_no", req.MachineNo,
+			)
+			return apperrors.ErrMachineAlreadyExists
+		}
+		s.logger.Errorw("Failed to create machine in database",
+			"machine_no", req.MachineNo,
+			"error", err,
+		)
+		return fmt.Errorf("machine creation failed: %w", err)
+	}
+
+	s.logger.Infow("Machine created successfully",
+		"machine_id", machineID,
+		"machine_no", req.MachineNo,
+	)
+
+	return nil
+}
+
+func (s *SuperAdminService) GetMachinesByCollegeID(ctx context.Context, collegeID string) ([]model.Machine, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	if collegeID == "" {
+		s.logger.Warn("College ID is required to fetch machines")
+		return nil, errors.New("college ID is required")
+	}
+
+	machines, err := s.Repo.GetMachinesByCollegeID(ctx, collegeID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			s.logger.Warnw("College not found while fetching machines",
+				"college_id", collegeID,
+			)
+			return nil, apperrors.ErrCollegeNotFound
+		}
+		s.logger.Errorw("Failed to fetch machines for college",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return nil, err
+	}
+
+	return machines, nil
+}
+
+func (s *SuperAdminService) recordCollegeRechargeHistory(ctx context.Context,req model.CollegeRechargeRequest) error {
+
+	loc, err := time.LoadLocation(timezoneLocation)
+	if err != nil {
+		s.logger.Errorw("Failed to load timezone for recharge history",
+			"timezone", timezoneLocation,
+			"error", err,
+		)
+		return errors.New("timezone configuration error")
+	}
+
+	now := time.Now().In(loc)
+
+	// Build history record
+	history := model.CollegeRechargeHistory{
+		RechargeID: utils.GenerateUUID(),
+		CollegeID:      req.CollegeID,
+		SuperAdminId: req.SuperAdminId,
+		RechargeAmount: req.RechargeAmount,
+		Date:           now.Format(dateFormat),
+		Time:           now.Format(timeFormat),
+	}
+
+	// Insert into database
+	if err := s.Repo.InsertCollegeRechargeHistory(ctx, history); err != nil {
+		s.logger.Errorw("Failed to insert college recharge history",
+			"college_id", req.CollegeID,
+			"error", err,
+		)
+		return err
+	}
+
+	return nil
 }

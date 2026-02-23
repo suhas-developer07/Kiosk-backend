@@ -30,6 +30,7 @@ var (
 	ErrUserNotFound    = errors.New("user not found")
 	ErrHistoryNotFound = errors.New("history not found")
 	ErrWardenNotFound  = errors.New("warden not found")
+	ErrCollegeNotFound = errors.New("college not found")
 )
 
 /*

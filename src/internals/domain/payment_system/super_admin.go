@@ -9,7 +9,7 @@ type SuperAdmin struct {
 	SuperAdminEmail    string `json:"super_admin_email" bson:"super_admin_email" validate:"required,email"`
 	SuperAdminPassword string `json:"super_admin_password" bson:"super_admin_password" validate:"required,min=8,strongpassword"`
 	Balance            string `json:"balance" bson:"balance"`
-	MainAdminId        string `json:"main_admin_id" bson:"main_admin_id" validate:"required"`
+	CreatedAt          string `json:"created_at" bson:"created_at"`
 }
 
 type SuperAdminCreateRequest struct {
@@ -17,7 +17,6 @@ type SuperAdminCreateRequest struct {
 	SuperAdminName     string `json:"super_admin_name" bson:"super_admin_name" validate:"required"`
 	SuperAdminEmail    string `json:"super_admin_email" bson:"super_admin_email" validate:"required,email"`
 	SuperAdminPassword string `json:"super_admin_password" bson:"super_admin_password" validate:"required,min=8,strongpassword"`
-	MainAdminId        string `json:"main_admin_id" bson:"main_admin_id" validate:"required"`
 	Balance            string `json:"balance" bson:"balance"`
 }
 
@@ -52,12 +51,13 @@ type SuperAdminCollege struct {
 	CreatedAt       string `json:"created_at" bson:"created_at"`
 }
 
-type CollegeRecharge struct {
+type CollegeRechargeHistory struct {
 	RechargeID     string `json:"recharge_id" bson:"recharge_id"`
 	CollegeID      string `json:"college_id" bson:"college_id"`
 	SuperAdminId   string `json:"super_admin_id" bson:"super_admin_id"`
 	RechargeAmount string `json:"recharge_amount" bson:"recharge_amount"`
-	RechargedAt    string `json:"recharged_at" bson:"recharged_at"`
+	Date           string `json:"date" bson:"date"`
+	Time           string `json:"time" bson:"time"`
 }
 
 type CollegeCreateRequest struct {
@@ -67,7 +67,6 @@ type CollegeCreateRequest struct {
 	CollegePassword string `json:"college_password" bson:"college_password" validate:"required,min=8"`
 	CollegeAddress  string `json:"college_address" bson:"college_address" validate:"required"`
 }
-
 
 type CollegeResponse struct {
 	SuperAdminId string `json:"super_admin_id"`
@@ -95,5 +94,23 @@ type CollegeRechargeRequest struct {
 type CollegeRechargeHistoryResponse struct {
 	Status  string            `json:"status"`
 	Message string            `json:"message"`
-	Data    []CollegeRecharge `json:"data"`
+	Data    []CollegeRechargeHistory `json:"data"`
+}
+
+/* Machine management models */
+
+type Machine struct {
+	MachineID    string `bson:"machine_id,omitempty" json:"machine_id,omitempty"`
+	MachineNo    string `json:"machine_no" bson:"machine_no" validate:"required"`
+	MachineName  string `json:"machine_name" bson:"machine_name" validate:"required"`
+	CollegeId    string `json:"college_id" bson:"college_id"`
+	SuperAdminId string `json:"super_admin_id" bson:"super_admin_id"`
+	Balance      string `json:"balance" bson:"balance"`
+}
+
+type MachineCreateRequest struct {
+	MachineNo    string `json:"machine_no" bson:"machine_no" validate:"required"`
+	MachineName  string `json:"machine_name" bson:"machine_name" validate:"required"`
+	CollegeId    string `json:"college_id" bson:"college_id" validate:"required"`
+	SuperAdminId string `json:"super_admin_id" bson:"super_admin_id" validate:"required"`
 }

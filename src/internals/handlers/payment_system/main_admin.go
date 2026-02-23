@@ -33,153 +33,44 @@ func NewMainAdminHandler(
 	}
 }
 
-// CreateMainAdminHandler handles the creation of main admin accounts
-func (h *MainAdminHandler) CreateMainAdminHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-	requestIP := c.RealIP()
-
-	var payload model.CreateMainAdminPayload
-
-	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
-		h.logger.Warnw("Failed to decode admin creation payload",
-			"ip", requestIP,
-			"error", err,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid request payload. Please check your input.",
-		})
-	}
-
-	if err := h.validate.Struct(&payload); err != nil {
-		validationMsg := utils.FormatValidationError(err)
-		h.logger.Warnw("Admin creation validation failed",
-			"email", payload.Email,
-			"validation_error", validationMsg,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  validationMsg,
-		})
-	}
-
-	if err := h.service.CreateAccountService(ctx, payload); err != nil {
-		return h.handleCreateAccountError(c, err, payload.Email)
-	}
-
-	h.logger.Infow("Admin account created successfully",
-		"email", payload.Email,
-		"ip", requestIP,
-	)
-
-	return c.JSON(http.StatusCreated, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Account created successfully",
-	})
-}
-
-func (h *MainAdminHandler) LoginMainAdminHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-	requestIP := c.RealIP()
-
-	var req model.SigninMainAdminPayload
-
-	// Bind request payload
+/* College Auth handlers*/
+func (h *MainAdminHandler) CollegeLoginRequestHandler(c echo.Context) error {
+	var req model.CollegeLoginRequest
 	if err := c.Bind(&req); err != nil {
-		h.logger.Warnw("Failed to bind login request",
-			"ip", requestIP,
+		h.logger.Warnw("Failed to bind college login request",
 			"error", err,
 		)
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Invalid request format. Please check your email and password.",
+			Error:  "Invalid login request. Please check your credentials format.",
 		})
 	}
 
-	// Validate request
-	if err := h.validate.Struct(req); err != nil {
-		validationMsg := utils.FormatValidationError(err)
-		h.logger.Warnw("Login validation failed",
-			"email", req.Email,
-			"validation_error", validationMsg,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  validationMsg,
-		})
-	}
-
-	// Call service layer
-	token, email, username, err := h.service.LoginMainAdminService(ctx, req)
+	res, err := h.service.CollegeLoginService(c.Request().Context(), req)
 	if err != nil {
-		return h.handleLoginError(c, err, req.Email)
+		h.logger.Warnw("College login failed",
+			"error", err,
+		)
+		if errors.Is(err, apperrors.ErrInvalidPassword) {
+			return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Invalid Credentials",
+			})
+		}
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Login failed: " + err.Error(),
+		})
 	}
-
-	h.logger.Infow("Main admin logged in successfully",
-		"email", req.Email,
-		"ip", requestIP,
-	)
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "Login successful.",
-		Data: map[string]string{
-			"token": token,
-			"email": email,
-			"username": username,
-		},
+		Data:    res,
 	})
 }
 
-// CreateMachineHandler handles the creation of new machines  
-// handles super admin
-func (h *MainAdminHandler) CreateMachineHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-	requestIP := c.RealIP()
-
-	var payload model.MachineCreateRequest
-
-	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
-		h.logger.Warnw("Failed to decode machine creation payload",
-			"ip", requestIP,
-			"error", err,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid request payload. Please check your input.",
-		})
-	}
-
-	if err := h.validate.Struct(&payload); err != nil {
-		validationMsg := utils.FormatValidationError(err)
-		h.logger.Warnw("Machine creation validation failed",
-			"machine_no", payload.MachineNo,
-			"validation_error", validationMsg,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  validationMsg,
-		})
-	}
-
-	if err := h.service.CreateMachineService(ctx, payload); err != nil {
-		return h.handleCreateMachineError(c, err, payload.MachineNo)
-	}
-
-	h.logger.Infow("Machine created successfully",
-		"machine_no", payload.MachineNo,
-		"machine_name", payload.MachineName,
-		"ip", requestIP,
-	)
-
-	return c.JSON(http.StatusCreated, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Machine created successfully",
-	})
-}
-
-// RechargeMachineHandler handles machine balance recharge requests~
-//handles main admin 
+/* Recharge Machine Handlers */
 func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
@@ -233,8 +124,179 @@ func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 	})
 }
 
-// RechargeRFIDHandler handles RFID-based recharge requests
-//handles warden user
+func (h *MainAdminHandler) GetMachineBalanceHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	machineID := strings.TrimSpace(c.Param("machine_id"))
+
+	if machineID == "" {
+		h.logger.Warnw("Empty machine ID for balance request",
+			"ip", c.RealIP(),
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid machine ID to view its balance.",
+		})
+	}
+
+	balance, err := h.service.GetMachineBalanceService(ctx, machineID)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch machine balance",
+			"machine_id", machineID,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch machine balance at this time.",
+		})
+	}
+
+	h.logger.Infow("Machine balance retrieved successfully",
+		"machine_id", machineID,
+		"balance", balance.Balance,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Balance retrieved successfully.",
+		Data:    balance,
+	})
+}
+
+func (h *MainAdminHandler) GetRechargeMachineHistoryHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	machineID := strings.TrimSpace(c.Param("machine_id"))
+
+	if machineID == "" {
+		h.logger.Warnw("Empty machine ID for recharge history request",
+			"ip", c.RealIP(),
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid machine ID to view its recharge history.",
+		})
+	}
+
+	history, err := h.service.GetRechargeMachineHistoryService(ctx, machineID)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch machine recharge history",
+			"machine_id", machineID,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch recharge history at this time.",
+		})
+	}
+
+	h.logger.Infow("Machine recharge history retrieved successfully",
+		"machine_id", machineID,
+		"record_count", len(history),
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Recharge history retrieved successfully.",
+		Data:    history,
+	})
+}
+
+func (h *MainAdminHandler) FetchConnectedMachinesHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	machineNo := strings.TrimSpace(c.Param("machine_no"))
+
+	if machineNo == "" {
+		h.logger.Warnw("Empty machine number for connected machines request",
+			"ip", c.RealIP(),
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid machine number to view connected machines.",
+		})
+	}
+
+	machine, err := h.service.FetchConnectedMachinesService(ctx, machineNo)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch connected machines",
+			"machine_no", machineNo,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch connected machines at this time.",
+		})
+	}
+
+	h.logger.Infow("Connected machines retrieved successfully",
+		"machine_no", machineNo,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Connected machines retrieved successfully.",
+		Data:    machine,
+	})
+}
+
+func (h *MainAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	collegeID := c.Param("college_id")
+	if collegeID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "College ID is required to fetch machines.",
+		})
+	}
+
+	machines, err := h.service.GetMachinesByCollegeID(ctx, collegeID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			h.logger.Warnw("College not found when fetching machines",
+				"college_id", collegeID,
+				"ip", requestIP,
+			)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "College not found.",
+			})
+		}
+
+		h.logger.Errorw("Failed to fetch machines for college",
+			"college_id", collegeID,
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch machines: " + err.Error(),
+		})
+	}
+
+	if len(machines) == 0 {
+		h.logger.Infow("No machines found for college",
+			"college_id", collegeID,
+			"ip", requestIP,
+		)
+		return c.JSON(http.StatusOK, domain.SuccessResponse{
+			Status:  "success",
+			Message: "No machines found for this college.",
+			Data:    []model.Machine{},
+		})
+	}
+
+	h.logger.Infow("Machines fetched successfully for college",
+		"college_id", collegeID,
+		"machine_count", len(machines),
+		"ip", requestIP,
+	)
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Machines fetched successfully.",
+		Data:    machines,
+	})
+}
+/* RFID Recharge Handlers */
 func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
@@ -270,7 +332,6 @@ func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate recharge amount
 	if strings.TrimSpace(body.RechargeAmount) == "" {
 		h.logger.Warnw("Empty recharge amount in RFID recharge request",
 			"machine_id", machineID,
@@ -282,7 +343,6 @@ func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 		})
 	}
 
-	// Build request object
 	req := model.RechargeRFIDRequest{
 		MachineID:      machineID,
 		UserID:         userID,
@@ -328,8 +388,6 @@ func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 	})
 }
 
-// GetRFIDRechargeHistoryHandler retrieves RFID recharge history for a machine
-//handler both warden user and main admin
 func (h *MainAdminHandler) GetRFIDRechargeHistoryHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	machineID := strings.TrimSpace(c.Param("machine_id"))
@@ -368,154 +426,8 @@ func (h *MainAdminHandler) GetRFIDRechargeHistoryHandler(c echo.Context) error {
 	})
 }
 
-// GetMachineBalanceHandler retrieves the current balance of a machine
-//handles both warden user and main admin
-func (h *MainAdminHandler) GetMachineBalanceHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-	machineID := strings.TrimSpace(c.Param("machine_id"))
-
-	if machineID == "" {
-		h.logger.Warnw("Empty machine ID for balance request",
-			"ip", c.RealIP(),
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Please provide a valid machine ID to view its balance.",
-		})
-	}
-
-	balance, err := h.service.GetMachineBalanceService(ctx, machineID)
-	if err != nil {
-		h.logger.Errorw("Failed to fetch machine balance",
-			"machine_id", machineID,
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to fetch machine balance at this time.",
-		})
-	}
-
-	h.logger.Infow("Machine balance retrieved successfully",
-		"machine_id", machineID,
-		"balance", balance.Balance,
-	)
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Balance retrieved successfully.",
-		Data:    balance,
-	})
-}
-
-// GetRechargeMachineHistoryHandler retrieves machine recharge history
-//handles main admin 
-func (h *MainAdminHandler) GetRechargeMachineHistoryHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-	machineID := strings.TrimSpace(c.Param("machine_id"))
-
-	if machineID == "" {
-		h.logger.Warnw("Empty machine ID for recharge history request",
-			"ip", c.RealIP(),
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Please provide a valid machine ID to view its recharge history.",
-		})
-	}
-
-	history, err := h.service.GetRechargeMachineHistoryService(ctx, machineID)
-	if err != nil {
-		h.logger.Errorw("Failed to fetch machine recharge history",
-			"machine_id", machineID,
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to fetch recharge history at this time.",
-		})
-	}
-
-	h.logger.Infow("Machine recharge history retrieved successfully",
-		"machine_id", machineID,
-		"record_count", len(history),
-	)
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Recharge history retrieved successfully.",
-		Data:    history,
-	})
-}
-
-// FetchConnectedMachinesHandler retrieves machine details by machine number
-//handles warden
-func (h *MainAdminHandler) FetchConnectedMachinesHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-	machineNo := strings.TrimSpace(c.Param("machine_no"))
-
-	if machineNo == "" {
-		h.logger.Warnw("Empty machine number for connected machines request",
-			"ip", c.RealIP(),
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Please provide a valid machine number to view connected machines.",
-		})
-	}
-
-	machine, err := h.service.FetchConnectedMachinesService(ctx, machineNo)
-	if err != nil {
-		h.logger.Errorw("Failed to fetch connected machines",
-			"machine_no", machineNo,
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to fetch connected machines at this time.",
-		})
-	}
-
-	h.logger.Infow("Connected machines retrieved successfully",
-		"machine_no", machineNo,
-	)
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Connected machines retrieved successfully.",
-		Data:    machine,
-	})
-}
-
-// GetAvailableMachinesHandler retrieves all available machines
-//handles main admin
-func (h *MainAdminHandler) GetAvailableMachinesHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-
-	machines, err := h.service.GetAvailableMachinesService(ctx)
-	if err != nil {
-		h.logger.Errorw("Failed to fetch available machines",
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to fetch available machines at this time.",
-		})
-	}
-
-	h.logger.Infow("Available machines retrieved successfully",
-		"machine_count", len(machines),
-	)
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Machines retrieved successfully.",
-		Data:    machines,
-	})
-}
-
-// CreateUserHandler handles warden user creation
-func (h *MainAdminHandler) CreateUserHandler(c echo.Context) error {
+/*Recharge Machine Users Handler */
+func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
@@ -547,7 +459,7 @@ func (h *MainAdminHandler) CreateUserHandler(c echo.Context) error {
 	}
 
 	// Call service layer
-	user, err := h.service.CreateUserService(ctx, req)
+	user, err := h.service.CreateRechargeMachineUserService(ctx, req)
 	if err != nil {
 		h.logger.Errorw("User creation failed",
 			"email", req.Email,
@@ -574,14 +486,12 @@ func (h *MainAdminHandler) CreateUserHandler(c echo.Context) error {
 	})
 }
 
-// LoginUserHandler handles warden user login
-func (h *MainAdminHandler) LoginUserHandler(c echo.Context) error {
+func (h *MainAdminHandler) LoginRechargeMachineUser(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
 	var req model.UserAccessLoginRequest
 
-	// Bind request payload
 	if err := c.Bind(&req); err != nil {
 		h.logger.Warnw("Failed to bind login request",
 			"ip", requestIP,
@@ -593,7 +503,6 @@ func (h *MainAdminHandler) LoginUserHandler(c echo.Context) error {
 		})
 	}
 
-	// Validate request
 	if err := h.validate.Struct(req); err != nil {
 		validationMsg := utils.FormatValidationError(err)
 		h.logger.Warnw("Login validation failed",
@@ -606,8 +515,7 @@ func (h *MainAdminHandler) LoginUserHandler(c echo.Context) error {
 		})
 	}
 
-	// Call service layer
-	token, err := h.service.LoginUserService(ctx, req)
+	token, err := h.service.LoginRechargeMachineUserService(ctx, req)
 	if err != nil {
 		return h.handleLoginError(c, err, req.Email)
 	}
@@ -625,64 +533,9 @@ func (h *MainAdminHandler) LoginUserHandler(c echo.Context) error {
 		},
 	})
 }
-// handleCreateAccountError handles errors from account creation service
-func (h *MainAdminHandler) handleCreateAccountError(c echo.Context, err error, email string) error {
-	switch {
-	case errors.Is(err, apperrors.ErrEmailAlreadyExists):
-		h.logger.Warnw("Email already exists during account creation",
-			"email", email,
-		)
-		return c.JSON(http.StatusConflict, domain.ErrorResponse{
-			Status: "error",
-			Error:  "An account with this email already exists.",
-		})
 
-	case errors.Is(err, apperrors.ErrInvalidCredentials):
-		h.logger.Warnw("Invalid credentials provided during account creation",
-			"email", email,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid credentials provided.",
-		})
 
-	default:
-		h.logger.Errorw("Unexpected error during account creation",
-			"email", email,
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to create account at this time. Please try again later.",
-		})
-	}
-}
-
-// handleCreateMachineError handles errors from machine creation service
-func (h *MainAdminHandler) handleCreateMachineError(c echo.Context, err error, machineNo string) error {
-	switch {
-	case errors.Is(err, apperrors.ErrMachineAlreadyExists):
-		h.logger.Warnw("Machine already exists during creation",
-			"machine_no", machineNo,
-		)
-		return c.JSON(http.StatusConflict, domain.ErrorResponse{
-			Status: "error",
-			Error:  "A machine with this number already exists.",
-		})
-
-	default:
-		h.logger.Errorw("Unexpected error during machine creation",
-			"machine_no", machineNo,
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to create machine at this time. Please try again later.",
-		})
-	}
-}
-
-// handleLoginError handles errors from login service
+/* Error Handling */
 func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email string) error {
 	switch {
 	case errors.Is(err, apperrors.ErrFacultyNotFound):
@@ -714,7 +567,6 @@ func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email str
 		})
 	}
 }
-
 
 // func (h *MainAdminHandler) GetAllUsers(c echo.Context) error {
 // 	collegeId := strings.TrimSpace(c.Param("college_id"))

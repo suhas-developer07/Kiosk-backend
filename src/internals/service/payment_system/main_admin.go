@@ -39,193 +39,62 @@ func NewMainAdminService(
 		logger: logger,
 	}
 }
+/* College Auth Service */
+func (s *MainAdminService) CollegeLoginService(ctx context.Context, req model.CollegeLoginRequest) (*model.CollegeTokenResponse, error) {
 
-// CreateAccountService creates a new main admin account
-func (s *MainAdminService) CreateAccountService(ctx context.Context, req model.CreateMainAdminPayload) error {
+	collegeID, name, hashedPassword, superadminID, err := s.repo.GetCollegeForLogin(ctx, req.CollegeEmail)
+	if err != nil {
+		return nil, errors.New("college account not found")
+	}
+
+	if !utils.CheckPassword(req.CollegePassword, hashedPassword) {
+		return nil, apperrors.ErrInvalidPassword
+	}
+
+	balance, err := s.repo.GetCollegeBalance(ctx, collegeID)
+	if err != nil {
+		return nil, errors.New("unable to retrieve account balance at the moment")
+	}
+
+	token, err := utils.GenerateAccessTokenForCollegeLogin(req.CollegeEmail, name, collegeID, superadminID)
+	if err != nil {
+		return nil, errors.New("failed to log in, please try again")
+	}
+
+	return &model.CollegeTokenResponse{
+		Token:   token,
+		Balance: balance,
+	}, nil
+}
+
+/* Recharge Machine Services */
+func (s *MainAdminService) GetMachinesByCollegeID(ctx context.Context, collegeID string) ([]model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
-	// Sanitize email input
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-	req.Name = strings.TrimSpace(req.Name)
-
-	if req.Email == "" {
-		s.logger.Warnw("Empty email provided for account creation")
-		return apperrors.ErrInvalidInput
+	if collegeID == "" {
+		s.logger.Warn("College ID is required to fetch machines")
+		return nil, errors.New("college ID is required")
 	}
 
-	if req.Password == "" {
-		s.logger.Warnw("Empty password provided for account creation",
-			"email", req.Email,
-		)
-		return apperrors.ErrInvalidPassword
-	}
-
-	// Hash password
-	hashedPassword, err := utils.HashPassword(req.Password)
+	machines, err := s.repo.GetMachinesByCollegeID(ctx, collegeID)
 	if err != nil {
-		s.logger.Errorw("Failed to hash password during account creation",
-			"email", req.Email,
-			"error", err,
-		)
-		return fmt.Errorf("password hashing failed: %w", err)
-	}
-	req.Password = hashedPassword
-
-	s.logger.Infow("Creating admin account",
-		"email", req.Email,
-		"username", req.Name,
-	)
-
-	// Generate unique ID
-	adminID := utils.GenerateUUID()
-
-	// Build admin entity
-	admin := model.MainAdmin{
-		MainAdminID: adminID,
-		Username:    req.Name,
-		Email:       req.Email,
-		Password:    req.Password,
-		CreatedAt:   time.Now().UTC(),
-	}
-
-	if err := s.repo.CreateAccount(ctx, admin); err != nil {
-		if errors.Is(err, apperrors.ErrEmailAlreadyExists) {
-			s.logger.Warnw("Attempted to create account with existing email",
-				"email", req.Email,
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			s.logger.Warnw("College not found while fetching machines",
+				"college_id", collegeID,
 			)
-			return apperrors.ErrEmailAlreadyExists
+			return nil, apperrors.ErrCollegeNotFound
 		}
-		s.logger.Errorw("Failed to create admin account in database",
-			"email", req.Email,
+		s.logger.Errorw("Failed to fetch machines for college",
+			"college_id", collegeID,
 			"error", err,
 		)
-		return fmt.Errorf("account creation failed: %w", err)
+		return nil, err
 	}
 
-	s.logger.Infow("Admin account created successfully",
-		"admin_id", adminID,
-		"email", req.Email,
-	)
-
-	return nil
+	return machines, nil
 }
 
-func (s *MainAdminService) LoginMainAdminService(
-	ctx context.Context,
-	req model.SigninMainAdminPayload,
-) (string, string, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
-	defer cancel()
-
-	// Sanitize email
-	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
-
-	s.logger.Infow("Main admin login attempt",
-		"email", req.Email,
-	)
-
-	// Retrieve user by email
-	super_admin, err := s.repo.GetSuperAdminByEmail(ctx, req.Email)
-	if err != nil {
-		if errors.Is(err, apperrors.ErrSuperAdminNotFound) {
-			s.logger.Warnw("Login attempt for non-existent user",
-				"email", req.Email,
-			)
-			return "", "", "", apperrors.ErrSuperAdminNotFound
-		}
-		s.logger.Errorw("Database error during user lookup",
-			"email", req.Email,
-			"error", err,
-		)
-		return "", "", "", fmt.Errorf("Super admin lookup failed: %w", err)
-	}
-
-	// Verify password
-	if !utils.CheckPassword(req.Password, super_admin.Password) {
-		s.logger.Warnw("Invalid password attempt",
-			"email", req.Email,
-		)
-		return "", "", "", apperrors.ErrInvalidPassword
-	}
-
-	// Generate access token
-	accessToken, err := utils.GenerateAccessTokenForMainAdmin(super_admin.MainAdminID)
-	if err != nil {
-		s.logger.Errorw("Failed to generate access token",
-			"main_admin_id", super_admin.MainAdminID,
-			"email", req.Email,
-			"error", err,
-		)
-		return "", "", "", fmt.Errorf("token generation failed: %w", err)
-	}
-
-	s.logger.Infow("Main admin logged in successfully",
-		"main_admin_id", super_admin.MainAdminID,
-		"email", req.Email,
-	)
-
-	return accessToken, super_admin.Email, super_admin.Username, nil
-}
-
-// CreateMachineService creates a new machine
-func (s *MainAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
-	defer cancel()
-
-	// Sanitize inputs
-	req.MachineNo = strings.TrimSpace(req.MachineNo)
-	req.MachineName = strings.TrimSpace(req.MachineName)
-
-	if req.MachineNo == "" || req.MachineName == "" {
-		s.logger.Warnw("Missing required fields for machine creation",
-			"machine_no", req.MachineNo,
-			"machine_name", req.MachineName,
-		)
-		return apperrors.ErrInvalidInput
-	}
-
-	s.logger.Infow("Creating new machine",
-		"machine_no", req.MachineNo,
-		"machine_name", req.MachineName,
-	)
-
-	// Generate unique machine ID
-	machineID := utils.GenerateUUID()
-
-	// Build machine entity
-	machine := model.Machine{
-		MachineID:   machineID,
-		MachineNo:   req.MachineNo,
-		MachineName: req.MachineName,
-		CollegeId: req.CollegeId,
-		SuperAdminId: req.SuperAdminId,
-		Balance:     initialMachineBalance,
-	}
-
-	if err := s.repo.CreateMachine(ctx, machine); err != nil {
-		if errors.Is(err, apperrors.ErrMachineAlreadyExists) {
-			s.logger.Warnw("Attempted to create machine with existing number",
-				"machine_no", req.MachineNo,
-			)
-			return apperrors.ErrMachineAlreadyExists
-		}
-		s.logger.Errorw("Failed to create machine in database",
-			"machine_no", req.MachineNo,
-			"error", err,
-		)
-		return fmt.Errorf("machine creation failed: %w", err)
-	}
-
-	s.logger.Infow("Machine created successfully",
-		"machine_id", machineID,
-		"machine_no", req.MachineNo,
-	)
-
-	return nil
-}
-
-// RechargeMachine handles adding balance to a machine
 func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
@@ -266,7 +135,6 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		"amount", rechargeAmt,
 	)
 
-	// Get current machine balance
 	currentBalance, err := s.repo.GetMachineBalance(ctx, req.MachineID)
 	if err != nil {
 		s.logger.Errorw("Failed to fetch machine balance for recharge",
@@ -276,7 +144,6 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		return errors.New("machine not found or balance unavailable")
 	}
 
-	// Parse current balance
 	currentBalanceInt, err := strconv.Atoi(currentBalance)
 	if err != nil {
 		s.logger.Errorw("Machine balance is in invalid format",
@@ -287,7 +154,6 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		return errors.New("machine balance is corrupted. Please contact support")
 	}
 
-	// Calculate new balance
 	newCollegeBalance := collegeBal - rechargeAmt
 	newCollegeBalanceStr := strconv.Itoa(newCollegeBalance)
 	newBalance := currentBalanceInt + rechargeAmt
@@ -302,7 +168,6 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		return errors.New("failed to update college balance. Please try again")
 	}
 
-	// Update machine balance
 	if err := s.repo.UpdateMachineBalance(ctx, req.MachineID, newBalanceStr); err != nil {
 		s.logger.Errorw("Failed to update machine balance",
 			"machine_id", req.MachineID,
@@ -313,7 +178,6 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
-	// Record transaction in history
 	if err := s.recordMachineRechargeHistory(ctx, req); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record recharge history, attempting rollback",
@@ -333,127 +197,6 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 	return nil
 }
 
-// RechargeRFIDService handles RFID-based recharge operations
-func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.RechargeRFIDRequest) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
-	defer cancel()
-
-	// Validate recharge amount
-	if err := s.validateRechargeAmount(req.RechargeAmount); err != nil {
-		s.logger.Warnw("Invalid RFID recharge amount provided",
-			"machine_id", req.MachineID,
-			"user_id", req.UserID,
-			"amount", req.RechargeAmount,
-			"error", err,
-		)
-		return err
-	}
-
-	rechargeAmt, _ := strconv.Atoi(req.RechargeAmount)
-
-	s.logger.Infow("Processing RFID recharge",
-		"machine_id", req.MachineID,
-		"user_id", req.UserID,
-		"amount", rechargeAmt,
-	)
-
-	// Get current machine balance
-	currentBalance, err := s.repo.GetMachineBalance(ctx, req.MachineID)
-	if err != nil {
-		s.logger.Errorw("Failed to fetch machine balance for RFID recharge",
-			"machine_id", req.MachineID,
-			"error", err,
-		)
-		return errors.New("machine not found or balance unavailable")
-	}
-
-	// Parse current balance
-	currentBalanceInt, err := strconv.Atoi(currentBalance)
-	if err != nil {
-		s.logger.Errorw("Machine balance is in invalid format during RFID recharge",
-			"machine_id", req.MachineID,
-			"balance", currentBalance,
-			"error", err,
-		)
-		return errors.New("machine balance is corrupted. Please contact support")
-	}
-
-	// Verify sufficient balance
-	if currentBalanceInt < rechargeAmt {
-		s.logger.Warnw("Insufficient machine balance for RFID recharge",
-			"machine_id", req.MachineID,
-			"available_balance", currentBalanceInt,
-			"requested_amount", rechargeAmt,
-		)
-		return errors.New("insufficient machine balance for this recharge")
-	}
-
-	// Calculate new balance (deduct for RFID recharge)
-	newBalance := currentBalanceInt - rechargeAmt
-	newBalanceStr := strconv.Itoa(newBalance)
-
-	// Update machine balance
-	if err := s.repo.UpdateMachineBalance(ctx, req.MachineID, newBalanceStr); err != nil {
-		s.logger.Errorw("Failed to update machine balance for RFID recharge",
-			"machine_id", req.MachineID,
-			"new_balance", newBalance,
-			"error", err,
-		)
-		return errors.New("failed to update machine balance. Please try again")
-	}
-
-	// Record transaction in RFID history
-	if err := s.recordRFIDRechargeHistory(ctx, req); err != nil {
-		// Rollback balance update on history insertion failure
-		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
-			"machine_id", req.MachineID,
-			"user_id", req.UserID,
-			"error", err,
-		)
-		_ = s.repo.UpdateMachineBalance(ctx, req.MachineID, currentBalance)
-		return errors.New("failed to record recharge history. Transaction rolled back")
-	}
-
-	s.logger.Infow("RFID recharge completed successfully",
-		"machine_id", req.MachineID,
-		"user_id", req.UserID,
-		"amount", rechargeAmt,
-		"new_balance", newBalance,
-	)
-
-	return nil
-}
-
-// GetRFIDRechargeHistoryService retrieves RFID recharge history for a machine
-func (s *MainAdminService) GetRFIDRechargeHistoryService(
-	ctx context.Context,
-	machineID string,
-) ([]model.RechargerRFIDHistory, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
-	defer cancel()
-
-	s.logger.Infow("Fetching RFID recharge history",
-		"machine_id", machineID,
-	)
-
-	history, err := s.repo.GetRFIDRechargeHistory(ctx, machineID)
-	if err != nil {
-		s.logger.Errorw("Failed to fetch RFID recharge history",
-			"machine_id", machineID,
-			"error", err,
-		)
-		return nil, errors.New("unable to fetch recharge history at this time")
-	}
-
-	s.logger.Infow("RFID recharge history fetched successfully",
-		"machine_id", machineID,
-		"record_count", len(history),
-	)
-
-	return history, nil
-}
-
-// GetMachineBalanceService retrieves the current balance of a machine
 func (s *MainAdminService) GetMachineBalanceService(
 	ctx context.Context,
 	machineID string,
@@ -485,8 +228,6 @@ func (s *MainAdminService) GetMachineBalanceService(
 	}, nil
 }
 
-// GetRechargeMachineHistoryService retrieves machine recharge history
-//accessed by main admin to view machine recharge history for a specific machine
 func (s *MainAdminService) GetRechargeMachineHistoryService(
 	ctx context.Context,
 	machineID string,
@@ -515,7 +256,6 @@ func (s *MainAdminService) GetRechargeMachineHistoryService(
 	return history, nil
 }
 
-// FetchConnectedMachinesService retrieves machine details by machine number
 func (s *MainAdminService) FetchConnectedMachinesService(
 	ctx context.Context,
 	machineNo string,
@@ -544,7 +284,6 @@ func (s *MainAdminService) FetchConnectedMachinesService(
 	return machine, nil
 }
 
-// GetAvailableMachinesService retrieves all available machines
 func (s *MainAdminService) GetAvailableMachinesService(ctx context.Context) ([]model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
@@ -566,8 +305,120 @@ func (s *MainAdminService) GetAvailableMachinesService(ctx context.Context) ([]m
 	return machines, nil
 }
 
-// CreateUserService creates a new warden user
-func (s *MainAdminService) CreateUserService(
+/* RFID Recharge Services */
+func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.RechargeRFIDRequest) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	if err := s.validateRechargeAmount(req.RechargeAmount); err != nil {
+		s.logger.Warnw("Invalid RFID recharge amount provided",
+			"machine_id", req.MachineID,
+			"user_id", req.UserID,
+			"amount", req.RechargeAmount,
+			"error", err,
+		)
+		return err
+	}
+
+	rechargeAmt, _ := strconv.Atoi(req.RechargeAmount)
+
+	s.logger.Infow("Processing RFID recharge",
+		"machine_id", req.MachineID,
+		"user_id", req.UserID,
+		"amount", rechargeAmt,
+	)
+
+	currentBalance, err := s.repo.GetMachineBalance(ctx, req.MachineID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch machine balance for RFID recharge",
+			"machine_id", req.MachineID,
+			"error", err,
+		)
+		return errors.New("machine not found or balance unavailable")
+	}
+
+	currentBalanceInt, err := strconv.Atoi(currentBalance)
+	if err != nil {
+		s.logger.Errorw("Machine balance is in invalid format during RFID recharge",
+			"machine_id", req.MachineID,
+			"balance", currentBalance,
+			"error", err,
+		)
+		return errors.New("machine balance is corrupted. Please contact support")
+	}
+
+	if currentBalanceInt < rechargeAmt {
+		s.logger.Warnw("Insufficient machine balance for RFID recharge",
+			"machine_id", req.MachineID,
+			"available_balance", currentBalanceInt,
+			"requested_amount", rechargeAmt,
+		)
+		return errors.New("insufficient machine balance for this recharge")
+	}
+
+	newBalance := currentBalanceInt - rechargeAmt
+	newBalanceStr := strconv.Itoa(newBalance)
+
+	if err := s.repo.UpdateMachineBalance(ctx, req.MachineID, newBalanceStr); err != nil {
+		s.logger.Errorw("Failed to update machine balance for RFID recharge",
+			"machine_id", req.MachineID,
+			"new_balance", newBalance,
+			"error", err,
+		)
+		return errors.New("failed to update machine balance. Please try again")
+	}
+
+	if err := s.recordRFIDRechargeHistory(ctx, req); err != nil {
+		// Rollback balance update on history insertion failure
+		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
+			"machine_id", req.MachineID,
+			"user_id", req.UserID,
+			"error", err,
+		)
+		_ = s.repo.UpdateMachineBalance(ctx, req.MachineID, currentBalance)
+		return errors.New("failed to record recharge history. Transaction rolled back")
+	}
+
+	s.logger.Infow("RFID recharge completed successfully",
+		"machine_id", req.MachineID,
+		"user_id", req.UserID,
+		"amount", rechargeAmt,
+		"new_balance", newBalance,
+	)
+
+	return nil
+}
+
+func (s *MainAdminService) GetRFIDRechargeHistoryService(
+	ctx context.Context,
+	machineID string,
+) ([]model.RechargerRFIDHistory, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Fetching RFID recharge history",
+		"machine_id", machineID,
+	)
+
+	history, err := s.repo.GetRFIDRechargeHistory(ctx, machineID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch RFID recharge history",
+			"machine_id", machineID,
+			"error", err,
+		)
+		return nil, errors.New("unable to fetch recharge history at this time")
+	}
+
+	s.logger.Infow("RFID recharge history fetched successfully",
+		"machine_id", machineID,
+		"record_count", len(history),
+	)
+
+	return history, nil
+}
+
+/* Recharge Machine User Services */
+func (s *MainAdminService) CreateRechargeMachineUserService(
 	ctx context.Context,
 	req model.UserAccessCreateRequest,
 ) (*model.User, error) {
@@ -584,8 +435,7 @@ func (s *MainAdminService) CreateUserService(
 		"machine_id", req.MachineId,
 	)
 
-	// Check if email already exists
-	existingUser, _ := s.repo.GetUserByEmail(ctx, req.Email)
+	existingUser, _ := s.repo.GetRechargeMachineUserByEmail(ctx, req.Email)
 	if existingUser != nil {
 		s.logger.Warnw("Attempted to create user with existing email",
 			"email", req.Email,
@@ -593,7 +443,6 @@ func (s *MainAdminService) CreateUserService(
 		return nil, errors.New("this email is already registered. Please use a different email")
 	}
 
-	// Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		s.logger.Errorw("Failed to hash password during user creation",
@@ -603,10 +452,8 @@ func (s *MainAdminService) CreateUserService(
 		return nil, errors.New("unable to create account at this time. Please try again")
 	}
 
-	// Generate unique user ID
 	userID := utils.GenerateUUID()
 
-	// Fetch machine name
 	machineName := s.repo.GetMachineNameByID(ctx, req.MachineId)
 	if machineName == "" {
 		s.logger.Warnw("Machine name not found for user creation",
@@ -614,7 +461,6 @@ func (s *MainAdminService) CreateUserService(
 		)
 	}
 
-	// Build user entity
 	user := &model.User{
 		UserID:      userID,
 		UserName:    req.UserName,
@@ -625,7 +471,7 @@ func (s *MainAdminService) CreateUserService(
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err := s.repo.CreateUser(ctx, user); err != nil {
+	if err := s.repo.CreateRechargeMachineUser(ctx, user); err != nil {
 		s.logger.Errorw("Failed to create user in database",
 			"email", req.Email,
 			"error", err,
@@ -642,23 +488,20 @@ func (s *MainAdminService) CreateUserService(
 	return user, nil
 }
 
-// LoginUserService handles warden user authentication
-func (s *MainAdminService) LoginUserService(
+func (s *MainAdminService) LoginRechargeMachineUserService(
 	ctx context.Context,
 	req model.UserAccessLoginRequest,
 ) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
-	// Sanitize email
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
 	s.logger.Infow("User login attempt",
 		"email", req.Email,
 	)
 
-	// Retrieve user by email
-	user, err := s.repo.GetWardenByEmail(ctx, req.Email)
+	user, err := s.repo.GetRechargeMachineUserByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrFacultyNotFound) {
 			s.logger.Warnw("Login attempt for non-existent user",
@@ -673,7 +516,6 @@ func (s *MainAdminService) LoginUserService(
 		return "", fmt.Errorf("user lookup failed: %w", err)
 	}
 
-	// Verify password
 	if !utils.CheckPassword(req.Password, user.Password) {
 		s.logger.Warnw("Invalid password attempt",
 			"email", req.Email,
@@ -681,7 +523,6 @@ func (s *MainAdminService) LoginUserService(
 		return "", apperrors.ErrInvalidPassword
 	}
 
-	// Generate access token
 	accessToken, err := utils.GenerateAccessTokenForWarden(user.UserID)
 	if err != nil {
 		s.logger.Errorw("Failed to generate access token",
@@ -700,14 +541,13 @@ func (s *MainAdminService) LoginUserService(
 	return accessToken, nil
 }
 
-// validateRechargeAmount validates that the recharge amount is a positive whole number
 func (s *MainAdminService) validateRechargeAmount(amount string) error {
-	// Check for decimal point
+
 	if strings.Contains(amount, ".") {
 		return errors.New("recharge amount must be a whole number")
 	}
 
-	// Parse and validate amount
+
 	amountInt, err := strconv.Atoi(amount)
 	if err != nil {
 		return errors.New("recharge amount must be a valid number")
@@ -720,7 +560,7 @@ func (s *MainAdminService) validateRechargeAmount(amount string) error {
 	return nil
 }
 
-// recordMachineRechargeHistory records a machine recharge transaction in history
+/* Helper methods for recording transaction history */
 func (s *MainAdminService) recordMachineRechargeHistory(
 	ctx context.Context,
 	req model.MachineRechargeRequest,
@@ -748,7 +588,6 @@ func (s *MainAdminService) recordMachineRechargeHistory(
 		return err
 	}
 
-	// Build history record
 	history := model.MachineRechargeHistory{
 		SuperAdminID:   Machine.SuperAdminId,
 		CollegeID:      req.CollegeID,
@@ -759,7 +598,6 @@ func (s *MainAdminService) recordMachineRechargeHistory(
 		Time:           now.Format(timeFormat),
 	}
 
-	// Insert into database
 	if err := s.repo.InsertRechargeHistory(ctx, history); err != nil {
 		s.logger.Errorw("Failed to insert machine recharge history",
 			"machine_id", req.MachineID,
@@ -771,12 +609,10 @@ func (s *MainAdminService) recordMachineRechargeHistory(
 	return nil
 }
 
-// recordRFIDRechargeHistory records an RFID recharge transaction in history
 func (s *MainAdminService) recordRFIDRechargeHistory(
 	ctx context.Context,
 	req model.RechargeRFIDRequest,
 ) error {
-	// Load timezone
 	loc, err := time.LoadLocation(timezoneLocation)
 	if err != nil {
 		s.logger.Errorw("Failed to load timezone for RFID recharge history",
@@ -796,14 +632,13 @@ func (s *MainAdminService) recordRFIDRechargeHistory(
 		return err
 	}
 
-	UserName, err := s.repo.GetUserById(ctx, req.UserID)
+	UserName, err := s.repo.GetRechargeMachineUserById(ctx, req.UserID)
 	if err != nil {
 		s.logger.Errorw("failed to get username for this user id",
 			"user_id", req.UserID)
 		return err
 	}
 
-	// Build history record
 	history := model.RechargerRFIDHistory{
 		MachineID:      req.MachineID,
 		MachineName:    Machine.MachineName,
@@ -814,7 +649,6 @@ func (s *MainAdminService) recordRFIDRechargeHistory(
 		Time:           now.Format(timeFormat),
 	}
 
-	// Insert into database
 	if err := s.repo.InsertRechargeRFIDHistory(ctx, history); err != nil {
 		s.logger.Errorw("Failed to insert RFID recharge history",
 			"machine_id", req.MachineID,

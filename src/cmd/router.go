@@ -51,15 +51,12 @@ func SetupRouter(
 
 	/* Admin Handler routes */
 	admin := e.Group("/admin")
+	adminAuth := admin.Group("")
+	adminAuth.Use(admin_auth)
 
 	admin.POST("/signup", adminHandler.CreateAccount)
 	admin.POST("/signin", adminHandler.Signin)
 	admin.GET("/subjects", adminHandler.GetAvailableSubjectsHandler)
-
-	/* Admin private routes with admin auth middleware */
-	adminAuth := admin.Group("")
-	adminAuth.Use(admin_auth)
-
 	adminAuth.POST("/create-faculty", adminHandler.AddFacultyHandler)
 	adminAuth.GET("/get-faculties", adminHandler.GetFacultiesHandler)
 	adminAuth.GET("/total-faculties-count", adminHandler.GetTotalFacultiesCount)
@@ -72,7 +69,6 @@ func SetupRouter(
 	adminAuth.GET("/pending-delete-request-files", adminHandler.GetPendingDeleteRequestFilesHandler)
 	adminAuth.DELETE("/files/delete/:file_id", adminHandler.DeleteFileHandler)
 
-	
 	/*
 	 Paymemt system routes
 	*/
@@ -81,19 +77,17 @@ func SetupRouter(
 	mainAdminAuth := mainAdmin.Group("")
 	mainAdminAuth.Use(main_admin_auth)
 
-	mainAdmin.POST("/signup", mainAdminHandler.CreateMainAdminHandler)
-	mainAdmin.POST("/signin", mainAdminHandler.LoginMainAdminHandler)
-	mainAdminAuth.POST("/create-machine", mainAdminHandler.CreateMachineHandler)
-	mainAdminAuth.POST("/recharge-machine", mainAdminHandler.RechargeMachineHandler)
-	mainAdminAuth.GET("/fetch-machine-balance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
-	mainAdminAuth.GET("/fetch-machine-recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
-	mainAdminAuth.GET("/fetch-available-machines", mainAdminHandler.GetAvailableMachinesHandler)
+	mainAdmin.POST("/college/signin",mainAdminHandler.CollegeLoginRequestHandler)
+	mainAdminAuth.POST("/machine/recharge", mainAdminHandler.RechargeMachineHandler)
+	mainAdminAuth.GET("/machine/balance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
+	mainAdminAuth.GET("/machine/recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
+	mainAdminAuth.GET("/college/machines", mainAdminHandler.GetMachinesByCollegeID)
 	mainAdminAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
+	mainAdminAuth.POST("/create-recharge-machine-user", mainAdminHandler.CreateRechargeMachineUser)//changed
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")
-	machineUser.POST("/create-user", mainAdminHandler.CreateUserHandler)
-	machineUser.POST("/login-user", mainAdminHandler.LoginUserHandler)
+	machineUser.POST("/login-user", mainAdminHandler.LoginRechargeMachineUser)
 
 	machineUserAuth := machineUser.Group("")
 	machineUserAuth.Use(machine_user_auth)
@@ -101,4 +95,20 @@ func SetupRouter(
 	machineUserAuth.GET("/fetchConnectedMachines/:machine_no", mainAdminHandler.FetchConnectedMachinesHandler)
 	machineUserAuth.GET("/fetchMachineBalance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
 	machineUserAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
+
+	superAdmin := e.Group("/super-admin")
+	superAdminAuth := superAdmin.Group("")
+	superAdminAuth.Use(main_admin_auth)
+
+	superAdmin.POST("/signup",superAdminHandler.CreateSuperAdmin)
+	superAdmin.POST("/signin",superAdminHandler.LoginSuperAdminHandler)
+	superAdminAuth.POST("/create-college",superAdminHandler.CreateCollege)
+	superAdminAuth.POST("/recharge-college",superAdminHandler.RechargeCollege)
+	superAdminAuth.GET("/fetch-college-recharge-history/:college_id",superAdminHandler.GetCollegeRechargeHistory)
+	superAdminAuth.GET("/fetch-colleges",superAdminHandler.GetCollegesBySuperAdmin)
+	superAdminAuth.GET("/get-colleges",superAdminHandler.GetCollegeDetails)
+	superAdminAuth.DELETE("/college/delete",superAdminHandler.DeleteCollege)
+	superAdminAuth.POST("/create-machine",superAdminHandler.CreateMachineHandler)
+	superAdminAuth.GET("/college/machines/:college_id",superAdminHandler.GetMachinesByCollegeID)
+	superAdminAuth.POST("/create-machine",superAdminHandler.CreateMachineHandler)
 }

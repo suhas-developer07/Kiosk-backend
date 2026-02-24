@@ -13,179 +13,172 @@ import (
 )
 
 const (
-	SUPER_ADMIN_COLLECTION              = "super_admins"
-	COLLEGE_COLLECTION                  = "colleges"
-	RECHARGE_COLLEGE_HISTORY_COLLECTION = "college_recharge_history"
-	MACHINE_COLLECTION                  = "recharge_machines"
+	collectionSuperAdmins            = "super_admins"
+	collectionColleges               = "colleges"
+	collectionCollegeRechargeHistory = "college_recharge_history"
 )
 
 type SuperAdminRepository struct {
 	client                           *mongo.Client
-	SuperAdminCollection             *mongo.Collection
-	CollegeCollection                *mongo.Collection
-	CollegeRechargeHistoryCollection *mongo.Collection
-	MachineCollection                *mongo.Collection
+	superAdminCollection             *mongo.Collection
+	collegeCollection                *mongo.Collection
+	collegeRechargeHistoryCollection *mongo.Collection
+	machineCollection                *mongo.Collection
 }
 
 func NewSuperAdminRepo(db *mongo.Database, client *mongo.Client) *SuperAdminRepository {
 	return &SuperAdminRepository{
 		client:                           client,
-		SuperAdminCollection:             db.Collection(SUPER_ADMIN_COLLECTION),
-		CollegeCollection:                db.Collection(COLLEGE_COLLECTION),
-		CollegeRechargeHistoryCollection: db.Collection(RECHARGE_COLLEGE_HISTORY_COLLECTION),
-		MachineCollection:                db.Collection(MACHINE_COLLECTION),
+		superAdminCollection:             db.Collection(collectionSuperAdmins),
+		collegeCollection:                db.Collection(collectionColleges),
+		collegeRechargeHistoryCollection: db.Collection(collectionCollegeRechargeHistory),
+		machineCollection:                db.Collection(collectionMachines),
 	}
 }
 
-/*
-Not implemented yet
-*/
-func (repo *SuperAdminRepository) CreateSuperAdmin(ctx context.Context, superadmin model.SuperAdmin) error {
+/* Super Admin Repository Methods */
+
+func (r *SuperAdminRepository) CreateSuperAdmin(ctx context.Context, superAdmin model.SuperAdmin) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
-	_, err := repo.SuperAdminCollection.InsertOne(ctx, superadmin)
+
+	_, err := r.superAdminCollection.InsertOne(ctx, superAdmin)
 	if err != nil {
-		return errors.New("failed to create Super Admin account. Please try again later")
+		return fmt.Errorf("failed to insert super admin: %w", err)
 	}
+
 	return nil
 }
 
-func (repo *SuperAdminRepository) CheckSuperAdminEmailExists(ctx context.Context, email string) (bool, error) {
-	filter := bson.M{"super_admin_email": email}
-	count, err := repo.SuperAdminCollection.CountDocuments(ctx, filter)
+func (r *SuperAdminRepository) CheckSuperAdminEmailExists(ctx context.Context, email string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	count, err := r.superAdminCollection.CountDocuments(ctx, bson.M{"super_admin_email": email})
 	if err != nil {
-		return false, errors.New("unable to verify email. Please try again later")
+		return false, fmt.Errorf("failed to check super admin email existence: %w", err)
 	}
+
 	return count > 0, nil
 }
 
-func (repo *SuperAdminRepository) GetSuperAdminByEmail(ctx context.Context, email string) (*model.SuperAdmin, error) {
+func (r *SuperAdminRepository) GetSuperAdminByEmail(ctx context.Context, email string) (*model.SuperAdmin, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
-	filter := bson.M{"super_admin_email": email}
+
 	var superAdmin model.SuperAdmin
 
-	err := repo.SuperAdminCollection.FindOne(ctx, filter).Decode(&superAdmin)
+	err := r.superAdminCollection.FindOne(ctx, bson.M{"super_admin_email": email}).Decode(&superAdmin)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, errors.New("super admin not found")
+			return nil, apperrors.ErrSuperAdminNotFound
 		}
-		return nil, errors.New("unable to retrieve super admin details")
+		return nil, fmt.Errorf("failed to retrieve super admin by email: %w", err)
 	}
 
 	return &superAdmin, nil
 }
 
-func (repo *SuperAdminRepository) GetSuperAdminBalance(ctx context.Context, superAdminID string) (string, error) {
+func (r *SuperAdminRepository) UpdateSuperAdminBalance(ctx context.Context, superAdminID, newBalance string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
-	filter := bson.M{"super_admin_id": superAdminID}
-	var superAdmin model.SuperAdmin
 
-	err := repo.SuperAdminCollection.FindOne(ctx, filter).Decode(&superAdmin)
-	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return "0", errors.New("superadmin not found")
-		}
-		return "0", errors.New("unable to fetch superadmin balance")
+	if _, err := strconv.ParseFloat(newBalance, 64); err != nil {
+		return errors.New("invalid balance value provided")
 	}
 
-	return superAdmin.Balance, nil
-}
-
-func (repo *SuperAdminRepository) UpdateSuperAdminBalance(ctx context.Context, superAdminID, newBalance string) error {
-	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
-	defer cancel()
-	filter := bson.M{"super_admin_id": superAdminID}
-	update := bson.M{"$set": bson.M{"balance": newBalance}}
-	res, err := repo.SuperAdminCollection.UpdateOne(ctx, filter, update)
+	res, err := r.superAdminCollection.UpdateOne(ctx,
+		bson.M{"super_admin_id": superAdminID},
+		bson.M{"$set": bson.M{"balance": newBalance}},
+	)
 	if err != nil {
-		return errors.New("failed to update superadmin balance")
+		return fmt.Errorf("failed to update super admin balance: %w", err)
 	}
 	if res.MatchedCount == 0 {
-		return errors.New("superadmin not found")
+		return apperrors.ErrSuperAdminNotFound
 	}
+
 	return nil
 }
+
+/*  College Repository Methods  */
 
 func (r *SuperAdminRepository) CreateCollege(ctx context.Context, college model.SuperAdminCollege) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	_, err := r.CollegeCollection.InsertOne(ctx, college)
+	_, err := r.collegeCollection.InsertOne(ctx, college)
 	if err != nil {
-		return errors.New("failed to create college")
+		return fmt.Errorf("failed to insert college: %w", err)
 	}
+
 	return nil
 }
 
-func (repo *SuperAdminRepository) GetCollegeForLogin(ctx context.Context, email string) (collegeID, collegename, hashedPassword, superadminID string, err error) {
+func (r *SuperAdminRepository) CheckCollegeEmailExists(ctx context.Context, email string) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	filter := bson.M{"college_email": email}
-	var college model.SuperAdminCollege
-	err = repo.CollegeCollection.FindOne(ctx, filter).Decode(&college)
+	count, err := r.collegeCollection.CountDocuments(ctx, bson.M{"college_email": email})
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return "", "", "", "", errors.New("college not found")
-		}
-		return "", "", "", "", errors.New("unable to retrieve college login details")
+		return false, fmt.Errorf("failed to check college email existence: %w", err)
 	}
-	return college.CollegeID, college.CollegeName, college.CollegePassword, college.SuperAdminId, nil
-}
 
-func (r *SuperAdminRepository) CheckCollegeEmailExists(ctx context.Context, email string) (bool, error) {
-	filter := bson.M{"college_email": email}
-	count, err := r.CollegeCollection.CountDocuments(ctx, filter)
-	if err != nil {
-		return false, errors.New("failed to check college email")
-	}
 	return count > 0, nil
 }
 
-func (repo *SuperAdminRepository) GetCollegeBalance(ctx context.Context, collegeID string) (string, error) {
-	var college struct {
+func (r *SuperAdminRepository) GetCollegeBalance(ctx context.Context, collegeID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	var result struct {
 		Balance string `bson:"balance"`
 	}
-	err := repo.CollegeCollection.FindOne(ctx, bson.M{"college_id": collegeID}).Decode(&college)
+
+	err := r.collegeCollection.FindOne(ctx, bson.M{"college_id": collegeID}).Decode(&result)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return "", errors.New("college not found")
+			return "", apperrors.ErrCollegeNotFound
 		}
-		return "", errors.New("unable to fetch college balance at the moment")
+		return "", fmt.Errorf("failed to fetch college balance: %w", err)
 	}
-	if _, err := strconv.ParseFloat(college.Balance, 64); err != nil {
+
+	if _, err := strconv.ParseFloat(result.Balance, 64); err != nil {
 		return "", errors.New("stored college balance is in an invalid format")
 	}
-	return college.Balance, nil
+
+	return result.Balance, nil
 }
 
-func (repo *SuperAdminRepository) UpdateCollegeBalance(ctx context.Context, collegeID string, newBalance string) error {
+func (r *SuperAdminRepository) UpdateCollegeBalance(ctx context.Context, collegeID, newBalance string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
 	if _, err := strconv.ParseFloat(newBalance, 64); err != nil {
 		return errors.New("invalid balance value provided")
 	}
-	res, err := repo.CollegeCollection.UpdateOne(ctx,
+
+	res, err := r.collegeCollection.UpdateOne(ctx,
 		bson.M{"college_id": collegeID},
 		bson.M{"$set": bson.M{"balance": newBalance}},
 	)
 	if err != nil {
-		return errors.New("failed to update college balance due to a database error")
+		return fmt.Errorf("failed to update college balance: %w", err)
 	}
 	if res.MatchedCount == 0 {
-		return errors.New("college not found")
+		return apperrors.ErrCollegeNotFound
 	}
-	return nil
-} 
 
-func (repo *SuperAdminRepository) GetCollegesBySuperAdminID(ctx context.Context, adminID string) ([]model.SuperAdminCollege, error) {
+	return nil
+}
+
+func (r *SuperAdminRepository) GetCollegesBySuperAdminID(ctx context.Context, adminID string) ([]model.SuperAdminCollege, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	filter := bson.M{"super_admin_id": adminID}
-	cursor, err := repo.CollegeCollection.Find(ctx, filter)
+	cursor, err := r.collegeCollection.Find(ctx, bson.M{"super_admin_id": adminID})
 	if err != nil {
-		return nil, errors.New("failed to fetch colleges")
+		return nil, fmt.Errorf("failed to query colleges by super admin: %w", err)
 	}
 	defer cursor.Close(ctx)
 
@@ -193,46 +186,47 @@ func (repo *SuperAdminRepository) GetCollegesBySuperAdminID(ctx context.Context,
 	for cursor.Next(ctx) {
 		var college model.SuperAdminCollege
 		if err := cursor.Decode(&college); err != nil {
-			return nil, errors.New("error reading college data")
+			return nil, fmt.Errorf("failed to decode college record: %w", err)
 		}
 		colleges = append(colleges, college)
 	}
 
-	if len(colleges) == 0 {
-		return nil, errors.New("no colleges found for the given super admin")
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error while reading colleges: %w", err)
 	}
 
 	return colleges, nil
 }
 
-func (repo *SuperAdminRepository) GetCollegeByID(ctx context.Context, collegeID string) (*model.SuperAdminCollege, error) {
+func (r *SuperAdminRepository) GetCollegeByID(ctx context.Context, collegeID string) (*model.SuperAdminCollege, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	filter := bson.M{"college_id": collegeID}
 	var college model.SuperAdminCollege
-	err := repo.CollegeCollection.FindOne(ctx, filter).Decode(&college)
+
+	err := r.collegeCollection.FindOne(ctx, bson.M{"college_id": collegeID}).Decode(&college)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, errors.New("college not found")
+			return nil, apperrors.ErrCollegeNotFound
 		}
-		return nil, errors.New("unable to retrieve college details")
+		return nil, fmt.Errorf("failed to retrieve college by ID: %w", err)
 	}
+
 	return &college, nil
 }
 
-func (repo *SuperAdminRepository) DeleteCollege(ctx context.Context, collegeID string) error {
+func (r *SuperAdminRepository) DeleteCollege(ctx context.Context, collegeID string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	filter := bson.M{"college_id": collegeID}
-	res, err := repo.CollegeCollection.DeleteOne(ctx, filter)
+	res, err := r.collegeCollection.DeleteOne(ctx, bson.M{"college_id": collegeID})
 	if err != nil {
-		return errors.New("failed to delete college")
+		return fmt.Errorf("failed to delete college: %w", err)
 	}
 	if res.DeletedCount == 0 {
-		return errors.New("college not found")
+		return apperrors.ErrCollegeNotFound
 	}
+
 	return nil
 }
 
@@ -240,23 +234,21 @@ func (r *SuperAdminRepository) InsertCollegeRechargeHistory(ctx context.Context,
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	_, err := r.CollegeRechargeHistoryCollection.InsertOne(ctx, history)
+	_, err := r.collegeRechargeHistoryCollection.InsertOne(ctx, history)
 	if err != nil {
-		return fmt.Errorf("failed to insert recharge history: %w", err)
+		return fmt.Errorf("failed to insert college recharge history: %w", err)
 	}
 
 	return nil
 }
 
-func (repo *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Context, collegeID string) ([]model.CollegeRechargeHistory, error) {
+func (r *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Context, collegeID string) ([]model.CollegeRechargeHistory, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	filter := bson.M{"college_id": collegeID}
-
-	cursor, err := repo.CollegeRechargeHistoryCollection.Find(ctx, filter)
+	cursor, err := r.collegeRechargeHistoryCollection.Find(ctx, bson.M{"college_id": collegeID})
 	if err != nil {
-		return nil, errors.New("failed to retrieve recharge history")
+		return nil, fmt.Errorf("failed to query college recharge history: %w", err)
 	}
 	defer cursor.Close(ctx)
 
@@ -264,21 +256,21 @@ func (repo *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Cont
 	for cursor.Next(ctx) {
 		var recharge model.CollegeRechargeHistory
 		if err := cursor.Decode(&recharge); err != nil {
-			return nil, errors.New("error reading recharge history data")
+			return nil, fmt.Errorf("failed to decode recharge history record: %w", err)
 		}
 		recharges = append(recharges, recharge)
 	}
 
-	if len(recharges) == 0 {
-		return nil, errors.New("no recharge history found for this college")
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error while reading recharge history: %w", err)
 	}
 
 	return recharges, nil
 }
 
-/* Machine management repository methods*/
+/* Machine Repository Methods */
 
-func (repo *SuperAdminRepository) CreateMachine(ctx context.Context, machine model.Machine) error {
+func (r *SuperAdminRepository) CreateMachine(ctx context.Context, machine model.Machine) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -287,36 +279,30 @@ func (repo *SuperAdminRepository) CreateMachine(ctx context.Context, machine mod
 		"college_id": machine.CollegeId,
 	}
 
-	var existingMachine model.Machine
-	err := repo.MachineCollection.FindOne(ctx, filter).Decode(&existingMachine)
-
+	var existing model.Machine
+	err := r.machineCollection.FindOne(ctx, filter).Decode(&existing)
 	if err == nil {
 		return apperrors.ErrMachineAlreadyExists
 	}
-
 	if !errors.Is(err, mongo.ErrNoDocuments) {
 		return fmt.Errorf("failed to check existing machine: %w", err)
 	}
 
-	_, insertErr := repo.MachineCollection.InsertOne(ctx, machine)
-	if insertErr != nil {
-		return fmt.Errorf("failed to insert machine: %w", insertErr)
+	_, err = r.machineCollection.InsertOne(ctx, machine)
+	if err != nil {
+		return fmt.Errorf("failed to insert machine: %w", err)
 	}
 
 	return nil
 }
 
-func (repo *SuperAdminRepository) GetMachinesByCollegeID(ctx context.Context, collegeID string) ([]model.Machine, error) {
+func (r *SuperAdminRepository) GetMachinesByCollegeID(ctx context.Context, collegeID string) ([]model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	filter := bson.M{"college_id": collegeID}
-	cursor, err := repo.MachineCollection.Find(ctx, filter)
+	cursor, err := r.machineCollection.Find(ctx, bson.M{"college_id": collegeID})
 	if err != nil {
-		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, apperrors.ErrCollegeNotFound
-		}
-		return nil, errors.New("failed to fetch machines")
+		return nil, fmt.Errorf("failed to query machines by college: %w", err)
 	}
 	defer cursor.Close(ctx)
 
@@ -324,12 +310,14 @@ func (repo *SuperAdminRepository) GetMachinesByCollegeID(ctx context.Context, co
 	for cursor.Next(ctx) {
 		var machine model.Machine
 		if err := cursor.Decode(&machine); err != nil {
-			return nil, errors.New("error reading machine data")
+			return nil, fmt.Errorf("failed to decode machine record: %w", err)
 		}
 		machines = append(machines, machine)
 	}
 
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error while reading machines: %w", err)
+	}
+
 	return machines, nil
 }
-
-

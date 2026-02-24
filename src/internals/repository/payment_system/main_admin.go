@@ -17,27 +17,21 @@ import (
 const (
 	defaultQueryTimeout = 5 * time.Second
 
-	// Collection names
 	collectionMachines            = "recharge_machines"
 	collectionRechargeHistory     = "recharge_machine_history"
 	collectionRechargeRFIDHistory = "rfid_recharge_history"
 	users                         = "recharge_machine_users"
-	collectionMainAdmin           = "main_admins"
-	collectionCollege             = "colleges"
 )
 
-// MainAdminRepo handles database operations for main admin domain
 type MainAdminRepo struct {
 	client                               *mongo.Client
 	MachineCollection                    *mongo.Collection
 	RechargeMachineHistoryCollection     *mongo.Collection
 	RFIDRechargeMachineHistoryCollection *mongo.Collection
 	UsersCollection                      *mongo.Collection
-	MainAdminCollection                  *mongo.Collection
 	CollegeCollection                    *mongo.Collection
 }
 
-// NewMainAdminRepo creates a new instance of MainAdminRepo
 func NewMainAdminRepo(db *mongo.Database, client *mongo.Client) *MainAdminRepo {
 	return &MainAdminRepo{
 		client:                               client,
@@ -45,8 +39,7 @@ func NewMainAdminRepo(db *mongo.Database, client *mongo.Client) *MainAdminRepo {
 		RechargeMachineHistoryCollection:     db.Collection(collectionRechargeHistory),
 		RFIDRechargeMachineHistoryCollection: db.Collection(collectionRechargeRFIDHistory),
 		UsersCollection:                      db.Collection(users),
-		MainAdminCollection:                  db.Collection(collectionMainAdmin),
-		CollegeCollection:                    db.Collection(collectionCollege),
+		CollegeCollection:                    db.Collection(collectionColleges),
 	}
 }
 /* College Repository methods */

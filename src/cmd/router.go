@@ -103,13 +103,13 @@ func SetupRouter(
 
 	superAdmin.POST("/signup",superAdminHandler.CreateSuperAdmin)
 	superAdmin.POST("/signin",superAdminHandler.LoginSuperAdminHandler)
-	superAdminAuth.POST("/create-college",superAdminHandler.CreateCollege)
-	superAdminAuth.POST("/recharge-college",superAdminHandler.RechargeCollege)
-	superAdminAuth.GET("/fetch-college-recharge-history/:college_id",superAdminHandler.GetCollegeRechargeHistory)
-	superAdminAuth.GET("/fetch-colleges",superAdminHandler.GetCollegesBySuperAdmin)
-	superAdminAuth.GET("/get-colleges",superAdminHandler.GetCollegeDetails)
+	superAdminAuth.POST("/college/create",superAdminHandler.CreateCollege)
+	superAdminAuth.POST("/college/recharge/:college_id",superAdminHandler.RechargeCollege)
+	superAdminAuth.GET("/college/recharge/history/:college_id",superAdminHandler.GetCollegeRechargeHistory)
+	superAdminAuth.GET("/colleges",superAdminHandler.GetCollegesBySuperAdmin)
+	superAdminAuth.GET("/college/:college_id",superAdminHandler.GetCollegeDetails)
 	superAdminAuth.DELETE("/college/delete",superAdminHandler.DeleteCollege)
-	superAdminAuth.POST("/create-machine",superAdminHandler.CreateMachineHandler)
+	superAdminAuth.POST("/college/machine/create",superAdminHandler.CreateMachineHandler)
 	superAdminAuth.GET("/college/machines/:college_id",superAdminHandler.GetMachinesByCollegeID)
-	superAdminAuth.POST("/create-machine",superAdminHandler.CreateMachineHandler)
+	
 }

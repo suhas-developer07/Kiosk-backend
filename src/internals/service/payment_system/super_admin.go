@@ -16,89 +16,113 @@ import (
 )
 
 type SuperAdminService struct {
-	Repo   *repository.SuperAdminRepository
+	repo   *repository.SuperAdminRepository
 	logger *zap.SugaredLogger
 }
 
-func NewSuperAdminService(repo *repository.SuperAdminRepository, logger *zap.SugaredLogger) *SuperAdminService {
+func NewSuperAdminService(
+	repo *repository.SuperAdminRepository,
+	logger *zap.SugaredLogger,
+) *SuperAdminService {
 	return &SuperAdminService{
-		Repo:   repo,
+		repo:   repo,
 		logger: logger,
 	}
 }
 
-/*
-super admin auth services still not implemented
-*/
+/*  Super Admin Auth Services  */
 
-func (s *SuperAdminService) CreateSuperAdmin(ctx context.Context, req model.SuperAdminCreateRequest) (error) {
-	
+func (s *SuperAdminService) CreateSuperAdmin(ctx context.Context, req model.SuperAdminCreateRequest) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
 	email := strings.ToLower(strings.TrimSpace(req.SuperAdminEmail))
-	exists, err := s.Repo.CheckSuperAdminEmailExists(ctx, email)
+
+	exists, err := s.repo.CheckSuperAdminEmailExists(ctx, email)
 	if err != nil {
-		return  errors.New("unable to verify super admin email at the moment, please try again later")
+		s.logger.Errorw("Failed to check super admin email existence",
+			"email", email,
+			"error", err,
+		)
+		return errors.New("unable to verify super admin email at the moment. Please try again later")
 	}
 	if exists {
-		return  errors.New("this email is already registered with another super admin")
+		s.logger.Warnw("Attempted to register with existing super admin email",
+			"email", email,
+		)
+		return errors.New("this email is already registered with another super admin")
 	}
 
 	hashedPassword, err := utils.HashPassword(req.SuperAdminPassword)
 	if err != nil {
-		return  errors.New("unable to process password, please try again")
+		s.logger.Errorw("Failed to hash password during super admin creation",
+			"email", email,
+			"error", err,
+		)
+		return errors.New("unable to process password. Please try again")
 	}
 
-	superadminID := utils.GenerateUUID()
-	superadmin := model.SuperAdmin{
-		SuperAdminId:    superadminID,
-		SuperAdminName:  req.SuperAdminName,
-		SuperAdminEmail: email,
+	superAdminID := utils.GenerateUUID()
+	superAdmin := model.SuperAdmin{
+		SuperAdminId:       superAdminID,
+		SuperAdminName:     req.SuperAdminName,
+		SuperAdminEmail:    email,
 		SuperAdminPassword: hashedPassword,
-		CreatedAt:       time.Now().Format(time.RFC3339),
+		CreatedAt:          time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err := s.Repo.CreateSuperAdmin(ctx, superadmin); err != nil {
-		return  errors.New("failed to create super admin, please try again")
+	if err := s.repo.CreateSuperAdmin(ctx, superAdmin); err != nil {
+		s.logger.Errorw("Failed to persist super admin to database",
+			"email", email,
+			"error", err,
+		)
+		return errors.New("failed to create super admin. Please try again")
 	}
+
+	s.logger.Infow("Super admin created successfully",
+		"super_admin_id", superAdminID,
+		"email", email,
+	)
 
 	return nil
 }
 
-func (s *SuperAdminService) LoginSuperAdminService(ctx context.Context,req model.SuperAdminLoginRequest) (string, string, string, error) {
+func (s *SuperAdminService) LoginSuperAdminService(ctx context.Context, req model.SuperAdminLoginRequest) (token, email, username string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
-	req.SuperAdminEmail = strings.TrimSpace(strings.ToLower(req.SuperAdminEmail))
+	req.SuperAdminEmail = strings.ToLower(strings.TrimSpace(req.SuperAdminEmail))
 
 	s.logger.Infow("Super admin login attempt",
 		"email", req.SuperAdminEmail,
 	)
 
-	super_admin, err := s.Repo.GetSuperAdminByEmail(ctx, req.SuperAdminEmail)
+	superAdmin, err := s.repo.GetSuperAdminByEmail(ctx, req.SuperAdminEmail)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrSuperAdminNotFound) {
-			s.logger.Warnw("Login attempt for non-existent user",
+			s.logger.Warnw("Login attempt for non-existent super admin",
 				"email", req.SuperAdminEmail,
 			)
 			return "", "", "", apperrors.ErrSuperAdminNotFound
 		}
-		s.logger.Errorw("Database error during user lookup",
+		s.logger.Errorw("Database error during super admin lookup",
 			"email", req.SuperAdminEmail,
 			"error", err,
 		)
-		return "", "", "", fmt.Errorf("Super admin lookup failed: %w", err)
+		return "", "", "", fmt.Errorf("super admin lookup failed: %w", err)
 	}
 
-	if !utils.CheckPassword(req.SuperAdminPassword, super_admin.SuperAdminPassword) {
-		s.logger.Warnw("Invalid password attempt",
+	if !utils.CheckPassword(req.SuperAdminPassword, superAdmin.SuperAdminPassword) {
+		s.logger.Warnw("Invalid password attempt for super admin",
 			"email", req.SuperAdminEmail,
 		)
 		return "", "", "", apperrors.ErrInvalidPassword
 	}
 
-	accessToken, err := utils.GenerateAccessTokenForSuperAdmin(super_admin.SuperAdminId)
+	accessToken, err := utils.GenerateAccessTokenForSuperAdmin(superAdmin.SuperAdminId)
 	if err != nil {
-		s.logger.Errorw("Failed to generate access token",
-			"super_admin_id", super_admin.SuperAdminId,
+		s.logger.Errorw("Failed to generate access token for super admin",
+			"super_admin_id", superAdmin.SuperAdminId,
 			"email", req.SuperAdminEmail,
 			"error", err,
 		)
@@ -106,33 +130,48 @@ func (s *SuperAdminService) LoginSuperAdminService(ctx context.Context,req model
 	}
 
 	s.logger.Infow("Super admin logged in successfully",
-		"super_admin_id", super_admin.SuperAdminId,
+		"super_admin_id", superAdmin.SuperAdminId,
 		"email", req.SuperAdminEmail,
 	)
 
-	return accessToken, super_admin.SuperAdminEmail, super_admin.SuperAdminName, nil
+	return accessToken, superAdmin.SuperAdminEmail, superAdmin.SuperAdminName, nil
 }
 
+/*  College Management Services  */
 
-func (s *SuperAdminService) CreateCollege(ctx context.Context, req model.CollegeCreateRequest, SuperadminID string) (*model.CollegeResponse, error) {
+func (s *SuperAdminService) CreateCollege(ctx context.Context, req model.CollegeCreateRequest, superAdminID string) (*model.CollegeResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
 
 	email := strings.ToLower(strings.TrimSpace(req.CollegeEmail))
-	exists, err :=  s.Repo.CheckCollegeEmailExists(ctx, email)
+
+	exists, err := s.repo.CheckCollegeEmailExists(ctx, email)
 	if err != nil {
-		return nil, errors.New("unable to verify college email at the moment, please try again later")
+		s.logger.Errorw("Failed to check college email existence",
+			"email", email,
+			"error", err,
+		)
+		return nil, errors.New("unable to verify college email at the moment. Please try again later")
 	}
 	if exists {
+		s.logger.Warnw("Attempted to register with existing college email",
+			"email", email,
+		)
 		return nil, errors.New("this email is already registered with another college")
 	}
 
 	hashedPassword, err := utils.HashPassword(req.CollegePassword)
 	if err != nil {
-		return nil, errors.New("unable to process password, please try again")
+		s.logger.Errorw("Failed to hash password during college creation",
+			"email", email,
+			"error", err,
+		)
+		return nil, errors.New("unable to process password. Please try again")
 	}
 
 	collegeID := utils.GenerateUUID()
 	college := model.SuperAdminCollege{
-		SuperAdminId:    SuperadminID,
+		SuperAdminId:    superAdminID,
 		CollegeID:       collegeID,
 		CollegeName:     req.CollegeName,
 		CollegeEmail:    email,
@@ -140,54 +179,45 @@ func (s *SuperAdminService) CreateCollege(ctx context.Context, req model.College
 		CollegePassword: hashedPassword,
 		CollegeAddress:  req.CollegeAddress,
 		Balance:         "0",
-		CreatedAt:       time.Now().Format(time.RFC3339),
+		CreatedAt:       time.Now().UTC().Format(time.RFC3339),
 	}
 
-	if err := s.Repo.CreateCollege(ctx, college); err != nil {
-		return nil, errors.New("failed to create college, please try again")
+	if err := s.repo.CreateCollege(ctx, college); err != nil {
+		s.logger.Errorw("Failed to persist college to database",
+			"email", email,
+			"super_admin_id", superAdminID,
+			"error", err,
+		)
+		return nil, errors.New("failed to create college. Please try again")
 	}
+
+	s.logger.Infow("College created successfully",
+		"college_id", collegeID,
+		"super_admin_id", superAdminID,
+	)
 
 	return &model.CollegeResponse{
-		SuperAdminId: SuperadminID,
+		SuperAdminId: superAdminID,
 		CollegeID:    collegeID,
 		CollegeName:  req.CollegeName,
 		Balance:      college.Balance,
 	}, nil
 }
 
-func (s *SuperAdminService) CollegeLogin(ctx context.Context, req model.CollegeLoginRequest) (*model.CollegeTokenResponse, error) {
-
-	collegeID, name, hashedPassword, superadminID, err := s.Repo.GetCollegeForLogin(ctx, req.CollegeEmail)
-	if err != nil {
-		return nil, errors.New("college account not found")
-	}
-
-	if !utils.CheckPassword(req.CollegePassword, hashedPassword) {
-		return nil, apperrors.ErrInvalidPassword
-	}
-
-	balance, err := s.Repo.GetCollegeBalance(ctx, collegeID)
-	if err != nil {
-		return nil, errors.New("unable to retrieve account balance at the moment")
-	}
-
-	token, err := utils.GenerateAccessTokenForCollegeLogin(req.CollegeEmail, name, collegeID, superadminID)
-	if err != nil {
-		return nil, errors.New("failed to log in, please try again")
-	}
-
-	return &model.CollegeTokenResponse{
-		Token:   token,
-		Balance: balance,
-	}, nil
-}
-
 func (s *SuperAdminService) GetCollegesBySuperAdminID(ctx context.Context, adminID string) ([]model.SuperAdminCollege, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
 	if adminID == "" {
 		return nil, errors.New("admin ID is required")
 	}
-	colleges, err := s.Repo.GetCollegesBySuperAdminID(ctx, adminID)
+
+	colleges, err := s.repo.GetCollegesBySuperAdminID(ctx, adminID)
 	if err != nil {
+		s.logger.Errorw("Failed to fetch colleges for super admin",
+			"super_admin_id", adminID,
+			"error", err,
+		)
 		return nil, errors.New("unable to fetch colleges at this time")
 	}
 
@@ -195,99 +225,146 @@ func (s *SuperAdminService) GetCollegesBySuperAdminID(ctx context.Context, admin
 }
 
 func (s *SuperAdminService) GetCollegeDetails(ctx context.Context, collegeID string) (*model.SuperAdminCollege, error) {
-	return s.Repo.GetCollegeByID(ctx, collegeID)
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	if collegeID == "" {
+		return nil, errors.New("college ID is required")
+	}
+
+	college, err := s.repo.GetCollegeByID(ctx, collegeID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch college details",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return nil, err
+	}
+
+	return college, nil
 }
 
 func (s *SuperAdminService) DeleteCollege(ctx context.Context, collegeID string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
 	if collegeID == "" {
 		return errors.New("college ID is required")
 	}
 
-	college, err := s.Repo.GetCollegeByID(ctx, collegeID)
+	college, err := s.repo.GetCollegeByID(ctx, collegeID)
 	if err != nil {
-		return errors.New("unable to verify college details")
+		s.logger.Errorw("Failed to verify college before deletion",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return err
 	}
 	if college == nil {
-		return errors.New("college not found")
+		return apperrors.ErrCollegeNotFound
 	}
 
-	if err := s.Repo.DeleteCollege(ctx, collegeID); err != nil {
-		return errors.New("failed to delete college, please try again")
+	if err := s.repo.DeleteCollege(ctx, collegeID); err != nil {
+		s.logger.Errorw("Failed to delete college",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return errors.New("failed to delete college. Please try again")
 	}
+
+	s.logger.Infow("College deleted successfully",
+		"college_id", collegeID,
+	)
 
 	return nil
 }
 
-func (s *SuperAdminService) RechargeToCollege(ctx context.Context,req model.CollegeRechargeRequest) error {
-	ctx,cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+func (s *SuperAdminService) RechargeToCollege(ctx context.Context, req model.CollegeRechargeRequest) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
-	//if err := s.valid
-	rechargeAmt,err := strconv.Atoi(req.RechargeAmount)
+	rechargeAmt, err := strconv.Atoi(req.RechargeAmount)
 	if err != nil || rechargeAmt <= 0 {
-		s.logger.Warnw("Recharge amount must be an Positive whole number","recharge_amount",req.RechargeAmount)
-		return errors.New("recharge amount must be greater than zero")
+		s.logger.Warnw("Invalid recharge amount for college",
+			"college_id", req.CollegeID,
+			"recharge_amount", req.RechargeAmount,
+		)
+		return errors.New("recharge amount must be a positive whole number")
 	}
 
-	collegeBalStr, err := s.Repo.GetCollegeBalance(ctx, req.CollegeID)
+	collegeBalStr, err := s.repo.GetCollegeBalance(ctx, req.CollegeID)
 	if err != nil {
+		s.logger.Errorw("Failed to retrieve college balance before recharge",
+			"college_id", req.CollegeID,
+			"error", err,
+		)
 		return errors.New("unable to retrieve college balance")
 	}
+
 	collegeBal, err := strconv.Atoi(collegeBalStr)
 	if err != nil {
-		return errors.New("college balance data is invalid")
+		s.logger.Errorw("College balance is in invalid format",
+			"college_id", req.CollegeID,
+			"balance", collegeBalStr,
+		)
+		return errors.New("college balance data is invalid. Please contact support")
 	}
-	
-	newCollegeBalance := strconv.Itoa(collegeBal + rechargeAmt)
-	
-	if err := s.Repo.UpdateCollegeBalance(ctx, req.CollegeID, newCollegeBalance); err != nil {
+
+	newBalance := strconv.Itoa(collegeBal + rechargeAmt)
+
+	if err := s.repo.UpdateCollegeBalance(ctx, req.CollegeID, newBalance); err != nil {
+		s.logger.Errorw("Failed to update college balance",
+			"college_id", req.CollegeID,
+			"new_balance", newBalance,
+			"error", err,
+		)
 		return errors.New("failed to update college balance. Please try again")
 	}
 
 	if err := s.recordCollegeRechargeHistory(ctx, req); err != nil {
-		s.logger.Errorw("Failed to record college recharge history",
+		s.logger.Errorw("Failed to record recharge history, attempting rollback",
 			"college_id", req.CollegeID,
 			"recharge_amount", req.RechargeAmount,
 			"error", err,
 		)
-		//Rollback balance update on history insertion failure
-		_ = s.Repo.UpdateCollegeBalance(ctx, req.CollegeID, collegeBalStr)
-		return errors.New("failed to record recharge history. Please try again")
+		// Rollback balance update on history insertion failure.
+		_ = s.repo.UpdateCollegeBalance(ctx, req.CollegeID, collegeBalStr)
+		return errors.New("failed to record recharge history. Transaction rolled back")
 	}
+
+	s.logger.Infow("College recharged successfully",
+		"college_id", req.CollegeID,
+		"super_admin_id", req.SuperAdminId,
+		"amount", rechargeAmt,
+		"new_balance", newBalance,
+	)
 
 	return nil
 }
 
 func (s *SuperAdminService) GetRechargeHistory(ctx context.Context, collegeID string) ([]model.CollegeRechargeHistory, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
 	if collegeID == "" {
 		return nil, errors.New("college ID is required")
 	}
 
-	recharges, err := s.Repo.GetRechargeHistoryByCollegeID(ctx, collegeID)
+	recharges, err := s.repo.GetRechargeHistoryByCollegeID(ctx, collegeID)
 	if err != nil {
-		return nil, errors.New("unable to retrieve recharge history")
+		s.logger.Errorw("Failed to retrieve college recharge history",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return nil, errors.New("unable to retrieve recharge history at this time")
 	}
 
 	return recharges, nil
 }
 
-func (s *SuperAdminService) GetSuperAdminBalance(ctx context.Context, superAdminID string) (string, error) {
-	if superAdminID == "" {
-		return "0", errors.New("super admin ID is required")
-	}
+/*  Machine Management Services  */
 
-	balance, err := s.Repo.GetSuperAdminBalance(ctx, superAdminID)
-	if err != nil {
-		return "0", err
-	}
-
-	return balance, nil
-}
-
-
-/* Machine management services */
-
-func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest,superadminId string) error {
+func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest, superAdminID string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -305,23 +382,24 @@ func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.
 	s.logger.Infow("Creating new machine",
 		"machine_no", req.MachineNo,
 		"machine_name", req.MachineName,
+		"super_admin_id", superAdminID,
 	)
 
 	machineID := utils.GenerateUUID()
-
 	machine := model.Machine{
-		MachineID:   machineID,
-		MachineNo:   req.MachineNo,
-		MachineName: req.MachineName,
-		CollegeId: req.CollegeId,
-		SuperAdminId: superadminId,
-		Balance:     initialMachineBalance,
+		MachineID:    machineID,
+		MachineNo:    req.MachineNo,
+		MachineName:  req.MachineName,
+		CollegeId:    req.CollegeId,
+		SuperAdminId: superAdminID,
+		Balance:      initialMachineBalance,
 	}
 
-	if err := s.Repo.CreateMachine(ctx, machine); err != nil {
+	if err := s.repo.CreateMachine(ctx, machine); err != nil {
 		if errors.Is(err, apperrors.ErrMachineAlreadyExists) {
 			s.logger.Warnw("Attempted to create machine with existing number",
 				"machine_no", req.MachineNo,
+				"college_id", req.CollegeId,
 			)
 			return apperrors.ErrMachineAlreadyExists
 		}
@@ -335,6 +413,7 @@ func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.
 	s.logger.Infow("Machine created successfully",
 		"machine_id", machineID,
 		"machine_no", req.MachineNo,
+		"super_admin_id", superAdminID,
 	)
 
 	return nil
@@ -349,7 +428,7 @@ func (s *SuperAdminService) GetMachinesByCollegeID(ctx context.Context, collegeI
 		return nil, errors.New("college ID is required")
 	}
 
-	machines, err := s.Repo.GetMachinesByCollegeID(ctx, collegeID)
+	machines, err := s.repo.GetMachinesByCollegeID(ctx, collegeID)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrCollegeNotFound) {
 			s.logger.Warnw("College not found while fetching machines",
@@ -367,8 +446,9 @@ func (s *SuperAdminService) GetMachinesByCollegeID(ctx context.Context, collegeI
 	return machines, nil
 }
 
-func (s *SuperAdminService) recordCollegeRechargeHistory(ctx context.Context,req model.CollegeRechargeRequest) error {
+/*  Private Helper Methods  */
 
+func (s *SuperAdminService) recordCollegeRechargeHistory(ctx context.Context, req model.CollegeRechargeRequest) error {
 	loc, err := time.LoadLocation(timezoneLocation)
 	if err != nil {
 		s.logger.Errorw("Failed to load timezone for recharge history",
@@ -380,18 +460,16 @@ func (s *SuperAdminService) recordCollegeRechargeHistory(ctx context.Context,req
 
 	now := time.Now().In(loc)
 
-	// Build history record
 	history := model.CollegeRechargeHistory{
-		RechargeID: utils.GenerateUUID(),
+		RechargeID:     utils.GenerateUUID(),
 		CollegeID:      req.CollegeID,
-		SuperAdminId: req.SuperAdminId,
+		SuperAdminId:   req.SuperAdminId,
 		RechargeAmount: req.RechargeAmount,
 		Date:           now.Format(dateFormat),
 		Time:           now.Format(timeFormat),
 	}
 
-	// Insert into database
-	if err := s.Repo.InsertCollegeRechargeHistory(ctx, history); err != nil {
+	if err := s.repo.InsertCollegeRechargeHistory(ctx, history); err != nil {
 		s.logger.Errorw("Failed to insert college recharge history",
 			"college_id", req.CollegeID,
 			"error", err,

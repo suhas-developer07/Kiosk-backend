@@ -8,7 +8,6 @@ type SuperAdmin struct {
 	SuperAdminName     string `json:"super_admin_name" bson:"super_admin_name" validate:"required"`
 	SuperAdminEmail    string `json:"super_admin_email" bson:"super_admin_email" validate:"required,email"`
 	SuperAdminPassword string `json:"super_admin_password" bson:"super_admin_password" validate:"required,min=8,strongpassword"`
-	Balance            string `json:"balance" bson:"balance"`
 	CreatedAt          string `json:"created_at" bson:"created_at"`
 }
 

@@ -1,7 +1,6 @@
 package paymentsystem
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -22,36 +21,56 @@ type SuperAdminHandler struct {
 	validate *validator.Validate
 }
 
-func NewSuperAdminHandler(service *service.SuperAdminService, logger *zap.SugaredLogger) *SuperAdminHandler {
+func NewSuperAdminHandler(
+	superAdminService *service.SuperAdminService,
+	logger *zap.SugaredLogger,
+) *SuperAdminHandler {
 	return &SuperAdminHandler{
-		service:  service,
+		service:  superAdminService,
 		logger:   logger,
 		validate: validator.New(),
 	}
 }
 
-/*super admin auth handlers */
-
 func (h *SuperAdminHandler) CreateSuperAdmin(c echo.Context) error {
 	var req model.SuperAdminCreateRequest
+
 	if err := c.Bind(&req); err != nil {
 		h.logger.Warnw("Failed to bind super admin creation request",
-			"error", err)
+			"error", err,
+		)
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
 			Error:  "We could not process your request. Please ensure all required fields are filled correctly.",
 		})
 	}
 
-	err := h.service.CreateSuperAdmin(c.Request().Context(), req)
-	if err != nil {
-		h.logger.Errorw("Failed to create super admin",
-			"error", err)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+	if err := h.validate.Struct(req); err != nil {
+		validationMsg := utils.FormatValidationError(err)
+		h.logger.Warnw("Super admin creation validation failed",
+			"email", req.SuperAdminEmail,
+			"validation_error", validationMsg,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to create super admin: " + err.Error(),
+			Error:  validationMsg,
 		})
 	}
+
+	if err := h.service.CreateSuperAdmin(c.Request().Context(), req); err != nil {
+		h.logger.Errorw("Failed to create super admin",
+			"email", req.SuperAdminEmail,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to create super admin. Please try again later.",
+		})
+	}
+
+	h.logger.Infow("Super admin created successfully",
+		"email", req.SuperAdminEmail,
+	)
 
 	return c.JSON(http.StatusCreated, domain.SuccessResponse{
 		Status:  "success",
@@ -78,7 +97,7 @@ func (h *SuperAdminHandler) LoginSuperAdminHandler(c echo.Context) error {
 
 	if err := h.validate.Struct(req); err != nil {
 		validationMsg := utils.FormatValidationError(err)
-		h.logger.Warnw("Login validation failed",
+		h.logger.Warnw("Super admin login validation failed",
 			"email", req.SuperAdminEmail,
 			"validation_error", validationMsg,
 		)
@@ -109,11 +128,16 @@ func (h *SuperAdminHandler) LoginSuperAdminHandler(c echo.Context) error {
 	})
 }
 
-/* super admin college management handlers */
+/* Super Admin College Management Handlers  */
+
 func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
+	requestIP := c.RealIP()
+
 	var req model.CollegeCreateRequest
+
 	if err := c.Bind(&req); err != nil {
 		h.logger.Warnw("Failed to bind college creation request",
+			"ip", requestIP,
 			"error", err,
 		)
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
@@ -122,11 +146,26 @@ func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
 		})
 	}
 
-	adminID := c.Get("super_admin_id").(string)
-	if adminID == "" {
+	if err := h.validate.Struct(req); err != nil {
+		validationMsg := utils.FormatValidationError(err)
+		h.logger.Warnw("College creation validation failed",
+			"email", req.CollegeEmail,
+			"validation_error", validationMsg,
+		)
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Super Admin ID is required to create a college.",
+			Error:  validationMsg,
+		})
+	}
+
+	adminID, ok := c.Get("super_admin_id").(string)
+	if !ok || adminID == "" {
+		h.logger.Warnw("Missing super admin ID in context",
+			"ip", requestIP,
+		)
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unauthorized: super admin identity could not be verified.",
 		})
 	}
 
@@ -134,13 +173,19 @@ func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
 	if err != nil {
 		h.logger.Errorw("Failed to create college",
 			"super_admin_id", adminID,
+			"email", req.CollegeEmail,
 			"error", err,
 		)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to create college: " + err.Error(),
+			Error:  "Unable to create college. Please try again later.",
 		})
 	}
+
+	h.logger.Infow("College created successfully",
+		"super_admin_id", adminID,
+		"college_id", res.CollegeID,
+	)
 
 	return c.JSON(http.StatusCreated, domain.SuccessResponse{
 		Status:  "success",
@@ -148,58 +193,40 @@ func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
 		Data:    res,
 	})
 }
-//TODO: NEED TO REMOVE THIS HANDLER FROM HERE
-func (h *SuperAdminHandler) CollegeLogin(c echo.Context) error {
-	var req model.CollegeLoginRequest
-	if err := c.Bind(&req); err != nil {
-		h.logger.Warnw("Failed to bind college login request",
-			"error", err,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid login request. Please check your credentials format.",
-		})
-	}
 
-	res, err := h.service.CollegeLogin(c.Request().Context(), req)
-	if err != nil {
-		h.logger.Warnw("College login failed",
-			"error", err,
+func (h *SuperAdminHandler) GetCollegesBySuperAdmin(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	adminID, ok := c.Get("super_admin_id").(string)
+	if !ok || adminID == "" {
+		h.logger.Warnw("Missing super admin ID in context",
+			"ip", requestIP,
 		)
 		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Login failed: " + err.Error(),
+			Error:  "Unauthorized: super admin identity could not be verified.",
 		})
 	}
 
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Login successful.",
-		Data:    res,
-	})
-}
-
-func (h *SuperAdminHandler) GetCollegesBySuperAdmin(c echo.Context) error {
-	//TODO:NEED TO RECIEVE SUPER ADMIN ID FROM JWT CLAIMS INSTEAD OF PARAMS
-	adminID := c.Get("super_admin_id").(string)
-	if adminID == "" {
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Super Admin ID is required to fetch colleges.",
-		})
-	}
-
-	colleges, err := h.service.GetCollegesBySuperAdminID(c.Request().Context(), adminID)
+	colleges, err := h.service.GetCollegesBySuperAdminID(ctx, adminID)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch colleges for super admin",
 			"super_admin_id", adminID,
+			"ip", requestIP,
 			"error", err,
 		)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to fetch colleges: " + err.Error(),
+			Error:  "Unable to fetch colleges at this time.",
 		})
 	}
+
+	h.logger.Infow("Colleges fetched successfully",
+		"super_admin_id", adminID,
+		"college_count", len(colleges),
+		"ip", requestIP,
+	)
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
@@ -209,7 +236,10 @@ func (h *SuperAdminHandler) GetCollegesBySuperAdmin(c echo.Context) error {
 }
 
 func (h *SuperAdminHandler) GetCollegeDetails(c echo.Context) error {
-	collegeID := c.Get("super_admin_id").(string)
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	collegeID := strings.TrimSpace(c.Param("college_id"))
 	if collegeID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -217,17 +247,33 @@ func (h *SuperAdminHandler) GetCollegeDetails(c echo.Context) error {
 		})
 	}
 
-	college, err := h.service.GetCollegeDetails(c.Request().Context(), collegeID)
+	college, err := h.service.GetCollegeDetails(ctx, collegeID)
 	if err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			h.logger.Warnw("College not found",
+				"college_id", collegeID,
+				"ip", requestIP,
+			)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "College not found.",
+			})
+		}
 		h.logger.Errorw("Failed to fetch college details",
 			"college_id", collegeID,
+			"ip", requestIP,
 			"error", err,
 		)
-		return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "College not found: " + err.Error(),
+			Error:  "Unable to fetch college details at this time.",
 		})
 	}
+
+	h.logger.Infow("College details retrieved successfully",
+		"college_id", collegeID,
+		"ip", requestIP,
+	)
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
@@ -237,6 +283,9 @@ func (h *SuperAdminHandler) GetCollegeDetails(c echo.Context) error {
 }
 
 func (h *SuperAdminHandler) DeleteCollege(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
 	collegeID := strings.TrimSpace(c.Param("college_id"))
 	if collegeID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
@@ -245,16 +294,32 @@ func (h *SuperAdminHandler) DeleteCollege(c echo.Context) error {
 		})
 	}
 
-	if err := h.service.DeleteCollege(c.Request().Context(), collegeID); err != nil {
+	if err := h.service.DeleteCollege(ctx, collegeID); err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			h.logger.Warnw("Attempted to delete non-existent college",
+				"college_id", collegeID,
+				"ip", requestIP,
+			)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "College not found.",
+			})
+		}
 		h.logger.Errorw("Failed to delete college",
 			"college_id", collegeID,
+			"ip", requestIP,
 			"error", err,
 		)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to delete college: " + err.Error(),
+			Error:  "Unable to delete college at this time.",
 		})
 	}
+
+	h.logger.Infow("College deleted successfully",
+		"college_id", collegeID,
+		"ip", requestIP,
+	)
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
@@ -263,20 +328,8 @@ func (h *SuperAdminHandler) DeleteCollege(c echo.Context) error {
 }
 
 func (h *SuperAdminHandler) RechargeCollege(c echo.Context) error {
-	type Request struct {
-		RechargeAmount string `json:"recharge_amount"`
-	}
-
-	var req Request
-	if err := c.Bind(&req); err != nil {
-		h.logger.Warnw("Failed to bind college recharge request",
-			"error", err,
-		)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid recharge request format.",
-		})
-	}
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
 
 	collegeID := strings.TrimSpace(c.Param("college_id"))
 	if collegeID == "" {
@@ -286,30 +339,72 @@ func (h *SuperAdminHandler) RechargeCollege(c echo.Context) error {
 		})
 	}
 
-	superadminID := c.Get("super_admin_id").(string)
-	if superadminID == "" {
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+	superAdminID, ok := c.Get("super_admin_id").(string)
+	if !ok || superAdminID == "" {
+		h.logger.Warnw("Missing super admin ID in context during recharge",
+			"college_id", collegeID,
+			"ip", requestIP,
+		)
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Super Admin ID is required for recharge.",
+			Error:  "Unauthorized: super admin identity could not be verified.",
 		})
 	}
 
-	if err := h.service.RechargeToCollege(c.Request().Context(), model.CollegeRechargeRequest{
-		CollegeID:      collegeID,
-		RechargeAmount: req.RechargeAmount,
-		SuperAdminId:   superadminID,
-	}); err != nil {
-		h.logger.Errorw("Failed to recharge college account",
+	var body struct {
+		RechargeAmount string `json:"recharge_amount" validate:"required"`
+	}
+
+	if err := c.Bind(&body); err != nil {
+		h.logger.Warnw("Failed to bind college recharge request",
 			"college_id", collegeID,
-			"super_admin_id", superadminID,
-			"amount", req.RechargeAmount,
+			"ip", requestIP,
 			"error", err,
 		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to process recharge: " + err.Error(),
+			Error:  "Invalid recharge request format.",
 		})
 	}
+
+	if err := h.validate.Struct(body); err != nil {
+		validationMsg := utils.FormatValidationError(err)
+		h.logger.Warnw("College recharge validation failed",
+			"college_id", collegeID,
+			"validation_error", validationMsg,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  validationMsg,
+		})
+	}
+
+	req := model.CollegeRechargeRequest{
+		CollegeID:      collegeID,
+		RechargeAmount: body.RechargeAmount,
+		SuperAdminId:   superAdminID,
+	}
+
+	if err := h.service.RechargeToCollege(ctx, req); err != nil {
+		h.logger.Errorw("Failed to recharge college account",
+			"college_id", collegeID,
+			"super_admin_id", superAdminID,
+			"amount", body.RechargeAmount,
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	h.logger.Infow("College account recharged successfully",
+		"college_id", collegeID,
+		"super_admin_id", superAdminID,
+		"amount", body.RechargeAmount,
+		"ip", requestIP,
+	)
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
@@ -318,6 +413,9 @@ func (h *SuperAdminHandler) RechargeCollege(c echo.Context) error {
 }
 
 func (h *SuperAdminHandler) GetCollegeRechargeHistory(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
 	collegeID := strings.TrimSpace(c.Param("college_id"))
 	if collegeID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
@@ -326,14 +424,24 @@ func (h *SuperAdminHandler) GetCollegeRechargeHistory(c echo.Context) error {
 		})
 	}
 
-	ctx := context.Background()
 	history, err := h.service.GetRechargeHistory(ctx, collegeID)
 	if err != nil {
+		h.logger.Errorw("Failed to fetch college recharge history",
+			"college_id", collegeID,
+			"ip", requestIP,
+			"error", err,
+		)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to fetch recharge history: " + err.Error(),
+			Error:  "Unable to fetch recharge history at this time.",
 		})
 	}
+
+	h.logger.Infow("College recharge history retrieved successfully",
+		"college_id", collegeID,
+		"record_count", len(history),
+		"ip", requestIP,
+	)
 
 	return c.JSON(http.StatusOK, model.CollegeRechargeHistoryResponse{
 		Status:  "success",
@@ -342,43 +450,28 @@ func (h *SuperAdminHandler) GetCollegeRechargeHistory(c echo.Context) error {
 	})
 }
 
-func (h *SuperAdminHandler) GetSuperAdminBalance(c echo.Context) error {
-	ctx := c.Request().Context()
-	superAdminID := c.Get("super_admin_id").(string)
-	if superAdminID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "super admin ID is required",
-		})
-	}
-
-	balance, err := h.service.GetSuperAdminBalance(ctx, superAdminID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": err.Error(),
-		})
-	}
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Balance fetched successfully",
-		Data: map[string]string{
-			"balance": balance,
-		},
-	})
-}
-
-/*super admin machine management handlers */
+/*  Super Admin Machine Management Handlers  */
 
 func (h *SuperAdminHandler) CreateMachineHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
-	var payload model.MachineCreateRequest
+	superAdminID, ok := c.Get("super_admin_id").(string)
+	if !ok || superAdminID == "" {
+		h.logger.Warnw("Missing super admin ID in context during machine creation",
+			"ip", requestIP,
+		)
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unauthorized: super admin identity could not be verified.",
+		})
+	}
 
-	superadminId := c.Get("super_admin_id").(string)
+	var payload model.MachineCreateRequest
 
 	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
 		h.logger.Warnw("Failed to decode machine creation payload",
+			"super_admin_id", superAdminID,
 			"ip", requestIP,
 			"error", err,
 		)
@@ -400,19 +493,20 @@ func (h *SuperAdminHandler) CreateMachineHandler(c echo.Context) error {
 		})
 	}
 
-	if err := h.service.CreateMachineService(ctx, payload,superadminId); err != nil {
+	if err := h.service.CreateMachineService(ctx, payload, superAdminID); err != nil {
 		return h.handleCreateMachineError(c, err, payload.MachineNo)
 	}
 
 	h.logger.Infow("Machine created successfully",
 		"machine_no", payload.MachineNo,
 		"machine_name", payload.MachineName,
+		"super_admin_id", superAdminID,
 		"ip", requestIP,
 	)
 
 	return c.JSON(http.StatusCreated, domain.SuccessResponse{
 		Status:  "success",
-		Message: "Machine created successfully",
+		Message: "Machine created successfully.",
 	})
 }
 
@@ -420,7 +514,7 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
-	collegeID := c.Param("college_id")
+	collegeID := strings.TrimSpace(c.Param("college_id"))
 	if collegeID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -440,7 +534,6 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 				Error:  "College not found.",
 			})
 		}
-
 		h.logger.Errorw("Failed to fetch machines for college",
 			"college_id", collegeID,
 			"ip", requestIP,
@@ -448,7 +541,7 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 		)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to fetch machines: " + err.Error(),
+			Error:  "Unable to fetch machines at this time.",
 		})
 	}
 
@@ -469,6 +562,7 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 		"machine_count", len(machines),
 		"ip", requestIP,
 	)
+
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "Machines fetched successfully.",
@@ -476,13 +570,12 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 	})
 }
 
-/*
-super admin Error handling
-*/
+/*  Error Handlers  */
+
 func (h *SuperAdminHandler) handleLoginError(c echo.Context, err error, email string) error {
 	switch {
 	case errors.Is(err, apperrors.ErrSuperAdminNotFound):
-		h.logger.Warnw("User not found during login",
+		h.logger.Warnw("Login attempt for non-existent super admin",
 			"email", email,
 		)
 		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
@@ -491,7 +584,7 @@ func (h *SuperAdminHandler) handleLoginError(c echo.Context, err error, email st
 		})
 
 	case errors.Is(err, apperrors.ErrInvalidPassword):
-		h.logger.Warnw("Invalid password during login",
+		h.logger.Warnw("Invalid password during super admin login",
 			"email", email,
 		)
 		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
@@ -500,7 +593,7 @@ func (h *SuperAdminHandler) handleLoginError(c echo.Context, err error, email st
 		})
 
 	default:
-		h.logger.Errorw("Unexpected error during login",
+		h.logger.Errorw("Unexpected error during super admin login",
 			"email", email,
 			"error", err,
 		)
@@ -514,7 +607,7 @@ func (h *SuperAdminHandler) handleLoginError(c echo.Context, err error, email st
 func (h *SuperAdminHandler) handleCreateMachineError(c echo.Context, err error, machineNo string) error {
 	switch {
 	case errors.Is(err, apperrors.ErrMachineAlreadyExists):
-		h.logger.Warnw("Machine already exists during creation",
+		h.logger.Warnw("Attempted to create duplicate machine",
 			"machine_no", machineNo,
 		)
 		return c.JSON(http.StatusConflict, domain.ErrorResponse{

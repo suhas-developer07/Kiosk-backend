@@ -83,8 +83,8 @@ func SetupRouter(
 	mainAdminAuth.GET("/machine/balance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
 	mainAdminAuth.GET("/machine/recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
 	mainAdminAuth.GET("/college/machines", mainAdminHandler.GetMachinesByCollegeID)
-	mainAdminAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
-	mainAdminAuth.POST("/create-recharge-machine-user", mainAdminHandler.CreateRechargeMachineUser)//changed
+	mainAdminAuth.GET("/rfid/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
+	mainAdminAuth.POST("/machine/user/create", mainAdminHandler.CreateRechargeMachineUser)//changed
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")
@@ -110,6 +110,6 @@ func SetupRouter(
 	superAdminAuth.GET("/college/:college_id",superAdminHandler.GetCollegeDetails)
 	superAdminAuth.DELETE("/college/delete",superAdminHandler.DeleteCollege)
 	superAdminAuth.POST("/college/machine/create",superAdminHandler.CreateMachineHandler)
-	superAdminAuth.GET("/college/machines/:college_id",superAdminHandler.GetMachinesByCollegeID)
+	superAdminAuth.GET("/college/machine/:college_id",superAdminHandler.GetMachinesByCollegeID)
 	
 }

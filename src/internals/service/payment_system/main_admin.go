@@ -95,7 +95,7 @@ func (s *MainAdminService) GetMachinesByCollegeID(ctx context.Context, collegeID
 	return machines, nil
 }
 
-func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest) error {
+func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest,college_id string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -116,7 +116,7 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		return errors.New("recharge amount must be a positive whole number")
 	}
 
-	collegeBalStr, err := s.repo.GetCollegeBalance(ctx, req.CollegeID)
+	collegeBalStr, err := s.repo.GetCollegeBalance(ctx, college_id)
 	if err != nil {
 		return errors.New("college account not found")
 	}
@@ -159,9 +159,9 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 	newBalance := currentBalanceInt + rechargeAmt
 	newBalanceStr := strconv.Itoa(newBalance)
 
-	if err := s.repo.UpdateCollegeBalance(ctx, req.CollegeID, newCollegeBalanceStr); err != nil {
+	if err := s.repo.UpdateCollegeBalance(ctx, college_id, newCollegeBalanceStr); err != nil {
 		s.logger.Errorw("Failed to update college balance",
-			"college_id", req.CollegeID,
+			"college_id", college_id,
 			"new_balance", newCollegeBalance,
 			"error", err,
 		)
@@ -174,11 +174,11 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 			"new_balance", newBalance,
 			"error", err,
 		)
-		_ = s.repo.UpdateCollegeBalance(ctx, req.CollegeID, collegeBalStr)
+		_ = s.repo.UpdateCollegeBalance(ctx, college_id, collegeBalStr)
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
-	if err := s.recordMachineRechargeHistory(ctx, req); err != nil {
+	if err := s.recordMachineRechargeHistory(ctx, req,college_id); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record recharge history, attempting rollback",
 			"machine_id", req.MachineID,
@@ -421,6 +421,7 @@ func (s *MainAdminService) GetRFIDRechargeHistoryService(
 func (s *MainAdminService) CreateRechargeMachineUserService(
 	ctx context.Context,
 	req model.UserAccessCreateRequest,
+	college_id string,
 ) (*model.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
@@ -468,6 +469,7 @@ func (s *MainAdminService) CreateRechargeMachineUserService(
 		Email:       req.Email,
 		MachineID:   req.MachineId,
 		MachineName: machineName,
+		College_id: college_id,
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -564,6 +566,7 @@ func (s *MainAdminService) validateRechargeAmount(amount string) error {
 func (s *MainAdminService) recordMachineRechargeHistory(
 	ctx context.Context,
 	req model.MachineRechargeRequest,
+	college_id string,
 ) error {
 
 	// Load timezone
@@ -590,7 +593,7 @@ func (s *MainAdminService) recordMachineRechargeHistory(
 
 	history := model.MachineRechargeHistory{
 		SuperAdminID:   Machine.SuperAdminId,
-		CollegeID:      req.CollegeID,
+		CollegeID:      college_id,
 		MachineID:      req.MachineID,
 		MachineName:    Machine.MachineName,
 		RechargeAmount: req.RechargeAmount,

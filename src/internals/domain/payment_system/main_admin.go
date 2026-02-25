@@ -15,7 +15,6 @@ type MachineRechargeHistory struct {
 }
 
 type MachineRechargeRequest struct {
-	CollegeID      string `json:"college_id" validate:"required"`
 	MachineID      string `json:"machine_id" validate:"required"`
 	RechargeAmount string `json:"recharge_amount" validate:"required"`
 }
@@ -53,6 +52,7 @@ type User struct {
 	UserID      string `json:"user_id" bson:"user_id"`
 	MachineID   string `json:"machine_id" bson:"machine_id"`
 	MachineName string `json:"machine_name"`
+	College_id  string `json:"college_id"`
 	UserName    string `json:"user_name" bson:"user_name" validate:"required"`
 	Password    string `json:"password" bson:"password" validate:"required"`
 	Email       string `json:"email" bson:"email" validate:"required,email"`

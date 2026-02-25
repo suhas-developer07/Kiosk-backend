@@ -77,6 +77,8 @@ func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 
 	var req model.MachineRechargeRequest
 
+	college_id := c.Get("college_id").(string)
+
 	if err := c.Bind(&req); err != nil {
 		h.logger.Warnw("Failed to bind machine recharge request",
 			"ip", requestIP,
@@ -100,7 +102,7 @@ func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 		})
 	}
 
-	if err := h.service.RechargeMachine(ctx, req); err != nil {
+	if err := h.service.RechargeMachine(ctx, req,college_id); err != nil {
 		h.logger.Errorw("Machine recharge failed",
 			"machine_id", req.MachineID,
 			"amount", req.RechargeAmount,
@@ -241,7 +243,7 @@ func (h *MainAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
-	collegeID := c.Param("college_id")
+	collegeID := c.Get("college_id").(string)
 	if collegeID == "" {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
@@ -433,6 +435,8 @@ func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 
 	var req model.UserAccessCreateRequest
 
+	college_id := c.Get("college_id").(string)
+
 	// Bind request payload
 	if err := c.Bind(&req); err != nil {
 		h.logger.Warnw("Failed to bind user creation request",
@@ -459,7 +463,7 @@ func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 	}
 
 	// Call service layer
-	user, err := h.service.CreateRechargeMachineUserService(ctx, req)
+	user, err := h.service.CreateRechargeMachineUserService(ctx, req,college_id)
 	if err != nil {
 		h.logger.Errorw("User creation failed",
 			"email", req.Email,

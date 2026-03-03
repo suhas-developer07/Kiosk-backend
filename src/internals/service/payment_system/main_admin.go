@@ -23,13 +23,11 @@ const (
 	timeFormat              = "15:04:05"
 )
 
-// MainAdminService handles business logic for main admin operations
 type MainAdminService struct {
 	repo   *repository.MainAdminRepo
 	logger *zap.SugaredLogger
 }
 
-// NewMainAdminService creates a new instance of MainAdminService
 func NewMainAdminService(
 	MainAdminRepo *repository.MainAdminRepo,
 	logger *zap.SugaredLogger,

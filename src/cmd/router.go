@@ -111,5 +111,10 @@ func SetupRouter(
 	superAdminAuth.DELETE("/college/delete/:college_id",superAdminHandler.DeleteCollege)
 	superAdminAuth.POST("/college/machine/create",superAdminHandler.CreateMachineHandler)
 	superAdminAuth.GET("/college/machine/:college_id",superAdminHandler.GetMachinesByCollegeID)
-	
+	superAdminAuth.GET("/college/count",superAdminHandler.GetTotalCollegesCount)
+	superAdminAuth.GET("/recharge/volume",superAdminHandler.GetTotalRechargeVolume)
+	superAdminAuth.GET("/college/recharge/volume/:college_id",superAdminHandler.GetTotalRechargeVolumeByCollege)
+	superAdminAuth.GET("/recharge/history",superAdminHandler.GetOverallCollgeRechargeHistory)
+	superAdminAuth.GET("/machine/count",superAdminHandler.GetTotalMachineCount)
+
 }

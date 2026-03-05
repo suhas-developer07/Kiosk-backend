@@ -570,6 +570,174 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 	})
 }
 
+func (h *SuperAdminHandler) GetTotalCollegesCount(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	count, err := h.service.GetTotalCollegesCount(ctx)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch total college count",
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch total college count at this time.",
+		})
+	}
+
+	h.logger.Infow("Total college count retrieved successfully",
+		"total_count", count,
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Total college count retrieved successfully.",
+		Data: map[string]int64{
+			"total_colleges": count,
+		},
+	})
+}
+
+func (h *SuperAdminHandler) GetTotalMachineCount(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	count, err := h.service.GetTotalMachinesCount(ctx)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch total machine count",
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch total machine count at this time.",
+		})
+	}
+
+	h.logger.Infow("Total machine count retrieved successfully",
+		"total_count", count,
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Total machine count retrieved successfully.",
+		Data: map[string]int64{
+			"total_machines": count,
+		},
+	})
+}
+
+func (h *SuperAdminHandler) GetTotalRechargeVolume(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	volume, err := h.service.GetTotalRechargeVolume(ctx)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch total recharge volume",
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch total recharge volume at this time.",
+		})
+	}
+
+	h.logger.Infow("Total recharge volume retrieved successfully",
+		"total_volume", volume,
+		"ip", requestIP,
+	)
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Total recharge volume retrieved successfully.",
+		Data: map[string]string{
+			"total_recharge_volume": volume,
+		},
+	})
+}
+
+func (h *SuperAdminHandler) GetTotalRechargeVolumeByCollege(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	collegeID := strings.TrimSpace(c.Param("college_id"))
+	if collegeID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "College ID is required to fetch recharge volume.",
+		})
+	}
+
+	volume, err := h.service.GetTotalRechargeVolumeByCollege(ctx, collegeID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			h.logger.Warnw("College not found when fetching recharge volume",
+				"college_id", collegeID,
+				"ip", requestIP,
+			)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "College not found.",
+			})
+		}
+		h.logger.Errorw("Failed to fetch total recharge volume for college",
+			"college_id", collegeID,
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch total recharge volume for college at this time.",
+		})
+	}
+
+	h.logger.Infow("Total recharge volume for college retrieved successfully",
+		"college_id", collegeID,
+		"total_volume", volume,
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Total recharge volume for college retrieved successfully.",
+		Data: map[string]string{
+			"total_recharge_volume": volume,
+		},
+	})
+}
+
+func (h *SuperAdminHandler) GetOverallCollgeRechargeHistory(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	history, err := h.service.GetOverallCollegeRechargeHistory(ctx)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch overall college recharge history",
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch overall college recharge history at this time.",
+		})
+	}
+
+	h.logger.Infow("Overall college recharge history retrieved successfully",
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Overall college recharge history retrieved successfully.",
+		Data: map[string]interface{}{
+			"recharge_history": history,
+		},
+	})
+}
+
 /*  Error Handlers  */
 
 func (h *SuperAdminHandler) handleLoginError(c echo.Context, err error, email string) error {

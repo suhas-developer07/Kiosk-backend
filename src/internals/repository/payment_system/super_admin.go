@@ -268,6 +268,99 @@ func (r *SuperAdminRepository) GetRechargeHistoryByCollegeID(ctx context.Context
 	return recharges, nil
 }
 
+func (r *SuperAdminRepository) GetTotalCollegesCount(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	count, err := r.collegeCollection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to count colleges: %w", err)
+	}
+
+	return count, nil
+}
+
+func (r *SuperAdminRepository) GetTotalRechargeVolume(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	cursor, err := r.collegeRechargeHistoryCollection.Find(ctx, bson.M{})
+	if err != nil {
+		return "", fmt.Errorf("failed to query recharge history for total volume: %w", err)
+	}
+	defer cursor.Close(ctx)
+	var totalVolume float64
+	for cursor.Next(ctx) {
+		var history model.CollegeRechargeHistory
+		if err := cursor.Decode(&history); err != nil {
+			return "", fmt.Errorf("failed to decode recharge history record: %w", err)
+		}
+		amount, err := strconv.ParseFloat(history.RechargeAmount, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid recharge amount format in history record: %w", err)
+		}
+		totalVolume += amount
+	}
+
+	if err := cursor.Err(); err != nil {
+		return "", fmt.Errorf("cursor error while calculating total recharge volume: %w", err)
+	}
+
+	return fmt.Sprintf("%.2f", totalVolume), nil
+}
+
+func (h *SuperAdminRepository) GetTotalRechargeVolumeByCollege(ctx context.Context, collegeID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	cursor, err := h.collegeRechargeHistoryCollection.Find(ctx, bson.M{"college_id": collegeID})
+	if err != nil {
+		return "", fmt.Errorf("failed to query recharge history for college %s: %w", collegeID, err)
+	}
+	defer cursor.Close(ctx)
+
+	var totalVolume float64
+	for cursor.Next(ctx) {
+		var history model.CollegeRechargeHistory
+		if err := cursor.Decode(&history); err != nil {
+			return "", fmt.Errorf("failed to decode recharge history record for college %s: %w", collegeID, err)
+		}
+		amount, err := strconv.ParseFloat(history.RechargeAmount, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid recharge amount format in history record for college %s: %w", collegeID, err)
+		}
+		totalVolume += amount
+	}
+
+	if err := cursor.Err(); err != nil {
+		return "", fmt.Errorf("cursor error while calculating total recharge volume for college %s: %w", collegeID, err)
+	}
+
+	return fmt.Sprintf("%.2f", totalVolume), nil
+}
+
+func (r *SuperAdminRepository) GetOverallCollegeRechargeHistory(ctx context.Context) ([]model.CollegeRechargeHistory, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	//TODO: Needs to check whether this return from the latest record to oldest record
+	cursor, err := r.collegeRechargeHistoryCollection.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to query overall college recharge history: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var recharges []model.CollegeRechargeHistory
+	for cursor.Next(ctx) {
+		var recharge model.CollegeRechargeHistory
+		if err := cursor.Decode(&recharge); err != nil {
+			return nil, fmt.Errorf("failed to decode overall recharge history record: %w", err)
+		}
+		recharges = append(recharges, recharge)
+	}	
+	recharges = reverseRechargeHistory(recharges)
+	return recharges, nil
+}
 /* Machine Repository Methods */
 
 func (r *SuperAdminRepository) CreateMachine(ctx context.Context, machine model.Machine) error {
@@ -320,4 +413,37 @@ func (r *SuperAdminRepository) GetMachinesByCollegeID(ctx context.Context, colle
 	}
 
 	return machines, nil
+}
+
+func (s *SuperAdminRepository) GetTotalMachinesCountByCollege(ctx context.Context, collegeID string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	count, err := s.machineCollection.CountDocuments(ctx, bson.M{"college_id": collegeID})
+	if err != nil {
+		return 0, fmt.Errorf("failed to count machines: %w", err)
+	}
+
+	return count, nil
+}
+
+func (s *SuperAdminRepository) GetTotalMachinesCount(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	count, err := s.machineCollection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to count machines: %w", err)
+	}
+
+	return count, nil
+}
+
+/*Helper functions */
+
+func reverseRechargeHistory(history []model.CollegeRechargeHistory) []model.CollegeRechargeHistory {
+	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
+		history[i], history[j] = history[j], history[i]
+	}
+	return history
 }

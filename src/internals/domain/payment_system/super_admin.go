@@ -80,8 +80,9 @@ type CollegeLoginRequest struct {
 }
 
 type CollegeTokenResponse struct {
-	Token   string `json:"token"`
-	Balance string `json:"balance"`
+	Token       string `json:"token"`
+	CollegeName string `json:"college_name"`
+	Balance     string `json:"balance"`
 }
 
 type CollegeRechargeRequest struct {
@@ -91,8 +92,8 @@ type CollegeRechargeRequest struct {
 }
 
 type CollegeRechargeHistoryResponse struct {
-	Status  string            `json:"status"`
-	Message string            `json:"message"`
+	Status  string                   `json:"status"`
+	Message string                   `json:"message"`
 	Data    []CollegeRechargeHistory `json:"data"`
 }
 
@@ -108,7 +109,7 @@ type Machine struct {
 }
 
 type MachineCreateRequest struct {
-	MachineNo    string `json:"machine_no" bson:"machine_no" validate:"required"`
-	MachineName  string `json:"machine_name" bson:"machine_name" validate:"required"`
-	CollegeId    string `json:"college_id" bson:"college_id" validate:"required"`
+	MachineNo   string `json:"machine_no" bson:"machine_no" validate:"required"`
+	MachineName string `json:"machine_name" bson:"machine_name" validate:"required"`
+	CollegeId   string `json:"college_id" bson:"college_id" validate:"required"`
 }

@@ -62,6 +62,7 @@ func (s *MainAdminService) CollegeLoginService(ctx context.Context, req model.Co
 	return &model.CollegeTokenResponse{
 		Token:   token,
 		Balance: balance,
+		CollegeName: name,
 	}, nil
 }
 

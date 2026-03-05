@@ -362,6 +362,71 @@ func (s *SuperAdminService) GetRechargeHistory(ctx context.Context, collegeID st
 	return recharges, nil
 }
 
+func (s *SuperAdminService) GetTotalCollegesCount(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	count, err := s.repo.GetTotalCollegesCount(ctx)
+	if err != nil {
+		s.logger.Errorw("Failed to retrieve total colleges count",
+			"error", err,
+		)
+		return 0, errors.New("unable to retrieve colleges count at this time")
+	}
+
+	return count, nil
+}
+
+func (s *SuperAdminService) GetTotalRechargeVolume(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	volume, err := s.repo.GetTotalRechargeVolume(ctx)
+	if err != nil {
+		s.logger.Errorw("Failed to retrieve total recharge volume",
+			"error", err,
+		)
+		return "", errors.New("unable to retrieve recharge volume at this time")
+	}
+
+	return volume, nil
+}
+
+
+func(s *SuperAdminService) GetTotalRechargeVolumeByCollege(ctx context.Context, collegeID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	if collegeID == "" {
+		return "", errors.New("college ID is required")
+	}
+
+	volume, err := s.repo.GetTotalRechargeVolumeByCollege(ctx, collegeID)
+	if err != nil {
+		s.logger.Errorw("Failed to retrieve total recharge volume for college",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return "", errors.New("unable to retrieve recharge volume for college at this time")
+	}
+
+	return volume, nil
+}
+
+func(s *SuperAdminService) GetOverallCollegeRechargeHistory(ctx context.Context) ([]model.CollegeRechargeHistory, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	history, err := s.repo.GetOverallCollegeRechargeHistory(ctx)
+	if err != nil {
+		s.logger.Errorw("Failed to retrieve overall college recharge history",
+			"error", err,
+		)
+		return nil, errors.New("unable to retrieve overall recharge history at this time")
+	}
+
+	return history, nil
+}
 /*  Machine Management Services  */
 
 func (s *SuperAdminService) CreateMachineService(ctx context.Context, req model.MachineCreateRequest, superAdminID string) error {
@@ -444,6 +509,48 @@ func (s *SuperAdminService) GetMachinesByCollegeID(ctx context.Context, collegeI
 	}
 
 	return machines, nil
+}
+
+func (s *SuperAdminService) GetTotalMachinesCountByCollege(ctx context.Context, collegeID string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	if collegeID == "" {
+		s.logger.Warn("College ID is required to fetch machines count")
+		return 0, errors.New("college ID is required")
+	}
+
+	count, err := s.repo.GetTotalMachinesCountByCollege(ctx, collegeID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			s.logger.Warnw("College not found while fetching machines count",
+				"college_id", collegeID,
+			)
+			return 0, apperrors.ErrCollegeNotFound
+		}
+		s.logger.Errorw("Failed to fetch machines count for college",
+			"college_id", collegeID,
+			"error", err,
+		)
+		return 0, err
+	}
+
+	return count, nil
+}
+
+func (s *SuperAdminService) GetTotalMachinesCount(ctx context.Context) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	count, err := s.repo.GetTotalMachinesCount(ctx)
+	if err != nil {
+		s.logger.Errorw("Failed to retrieve total machines count",
+			"error", err,
+		)
+		return 0, errors.New("unable to retrieve machines count at this time")
+	}
+
+	return count, nil
 }
 
 /*  Private Helper Methods  */

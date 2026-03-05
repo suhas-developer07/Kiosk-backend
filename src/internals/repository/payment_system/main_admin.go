@@ -21,6 +21,7 @@ const (
 	collectionRechargeHistory     = "recharge_machine_history"
 	collectionRechargeRFIDHistory = "rfid_recharge_history"
 	users                         = "recharge_machine_users"
+	rfidCards                     = "rfid_cards"
 )
 
 type MainAdminRepo struct {
@@ -30,6 +31,7 @@ type MainAdminRepo struct {
 	RFIDRechargeMachineHistoryCollection *mongo.Collection
 	UsersCollection                      *mongo.Collection
 	CollegeCollection                    *mongo.Collection
+	RFIDCardsCollection                  *mongo.Collection
 }
 
 func NewMainAdminRepo(db *mongo.Database, client *mongo.Client) *MainAdminRepo {
@@ -40,6 +42,7 @@ func NewMainAdminRepo(db *mongo.Database, client *mongo.Client) *MainAdminRepo {
 		RFIDRechargeMachineHistoryCollection: db.Collection(collectionRechargeRFIDHistory),
 		UsersCollection:                      db.Collection(users),
 		CollegeCollection:                    db.Collection(collectionColleges),
+		RFIDCardsCollection:                  db.Collection(rfidCards),
 	}
 }
 /* College Repository methods */
@@ -353,6 +356,149 @@ func (r *MainAdminRepo) GetRFIDRechargeHistory(ctx context.Context, machineID st
 	}
 
 	return history, nil
+}
+
+// new functions
+func (r *MainAdminRepo) InitializeRFIDCard(ctx context.Context, card model.RFIDCard) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	_, err := r.RFIDCardsCollection.InsertOne(ctx, card)
+	if err != nil {
+		return fmt.Errorf("failed to initialize RFID card: %w", err)
+	}
+	return nil
+}
+func (r *MainAdminRepo) RechargeRFIDCard(ctx context.Context,cardID string, rechargeAmount string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	var card model.RFIDCard
+	err := r.RFIDCardsCollection.FindOne(ctx, bson.M{"card_id": cardID}).Decode(&card)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return errors.New("RFID card not found")
+		}
+		return fmt.Errorf("failed to fetch RFID card: %w", err)
+	}
+
+	currentBalanceInt, err := strconv.Atoi(card.Balance)
+	if err != nil {
+		return errors.New("stored RFID card balance is in an invalid format")
+	}
+
+	rechargeAmountInt, err := strconv.Atoi(rechargeAmount)
+	if err != nil {
+		return errors.New("invalid recharge amount format")
+	}
+
+	newBalance := currentBalanceInt + rechargeAmountInt
+
+	update := bson.M{"$set": bson.M{"balance": strconv.Itoa(newBalance)}}
+	result, err := r.RFIDCardsCollection.UpdateOne(ctx, bson.M{"card_id": cardID}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update RFID card balance: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("RFID card not found for balance update")
+	}
+	return nil
+}
+
+func (r *MainAdminRepo) GetRFIDCardBalance(ctx context.Context, cardID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	var card model.RFIDCard
+	err := r.RFIDCardsCollection.FindOne(ctx, bson.M{"card_id": cardID}).Decode(&card)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", errors.New("RFID card not found")
+		}
+		return "", fmt.Errorf("failed to fetch RFID card: %w", err)
+	}
+	if _, err := strconv.Atoi(card.Balance); err != nil {
+		return "", errors.New("stored RFID card balance is in an invalid format")
+	}
+	return card.Balance, nil
+} 
+
+
+func (r *MainAdminRepo) UpdateRFIDCardBalance(ctx context.Context, cardID string, newBalance string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	if _, err := strconv.Atoi(newBalance); err != nil {
+		return errors.New("invalid balance value provided")
+	}
+	update := bson.M{"$set": bson.M{"balance": newBalance}}
+	result, err := r.RFIDCardsCollection.UpdateOne(ctx, bson.M{"card_id": cardID}, update)
+	if err != nil {
+		return fmt.Errorf("failed to update RFID card balance: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("RFID card not found for balance update")
+	}
+	return nil
+}
+
+func (r *MainAdminRepo) GetUSNByCardID(ctx context.Context, cardID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	var card model.RFIDCard
+	err := r.RFIDCardsCollection.FindOne(ctx, bson.M{"card_id": cardID}).Decode(&card)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", errors.New("RFID card not found")
+		}
+		return "", fmt.Errorf("failed to fetch RFID card: %w", err)
+	}
+	return card.USN, nil
+}
+
+func (r *MainAdminRepo) GetRFIDCardDetails(ctx context.Context, cardID string) (model.RFIDCard, error) {
+	ctx,cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	var card model.RFIDCard
+	err := r.RFIDCardsCollection.FindOne(ctx, bson.M{"card_id": cardID}).Decode(&card)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return model.RFIDCard{}, errors.New("RFID card not found")
+		}
+		return model.RFIDCard{}, fmt.Errorf("failed to fetch RFID card: %w", err)
+	}
+	return card, nil
+}
+
+func (r *MainAdminRepo) DeleteRFIDCard(ctx context.Context, cardID string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	result, err := r.RFIDCardsCollection.DeleteOne(ctx, bson.M{"card_id": cardID})
+	if err != nil {
+		return fmt.Errorf("failed to delete RFID card: %w", err)
+	}
+	if result.DeletedCount == 0 {
+		return errors.New("RFID card not found for deletion")
+	}
+	return nil
+}
+
+
+func (r *MainAdminRepo) GetCollegeIdByMachineID(ctx context.Context, machineID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+	var result struct {
+		CollegeID string `bson:"college_id"`
+	}
+
+	filter := bson.M{"machine_id": machineID}
+	err := r.MachineCollection.FindOne(ctx, filter).Decode(&result)
+
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", apperrors.ErrFileNotFound
+		}
+		return "", fmt.Errorf("failed to fetch college ID by machine ID: %w", err)
+	}
+
+	return result.CollegeID, nil
 }
 
 /* Recharge machine user repository methods */

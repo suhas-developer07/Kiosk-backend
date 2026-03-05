@@ -78,13 +78,13 @@ func SetupRouter(
 	mainAdminAuth := mainAdmin.Group("")
 	mainAdminAuth.Use(college_auth)
 
-	mainAdmin.POST("/college/signin",mainAdminHandler.CollegeLoginRequestHandler)
+	mainAdmin.POST("/college/signin", mainAdminHandler.CollegeLoginRequestHandler)
 	mainAdminAuth.POST("/machine/recharge", mainAdminHandler.RechargeMachineHandler)
 	mainAdminAuth.GET("/machine/balance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
 	mainAdminAuth.GET("/machine/recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
 	mainAdminAuth.GET("/college/machines", mainAdminHandler.GetMachinesByCollegeID)
 	mainAdminAuth.GET("/rfid/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
-	mainAdminAuth.POST("/machine/user/create", mainAdminHandler.CreateRechargeMachineUser)//changed
+	mainAdminAuth.POST("/machine/user/create", mainAdminHandler.CreateRechargeMachineUser) //changed
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")
@@ -92,29 +92,32 @@ func SetupRouter(
 
 	machineUserAuth := machineUser.Group("")
 	machineUserAuth.Use(machine_user_auth)
+	machineUserAuth.POST("/rfid/initiate", mainAdminHandler.InitializeCard)
 	machineUserAuth.POST("/recharge-rfid/:machine_id", mainAdminHandler.RechargeRFIDHandler) //need to inform frontend team
 	machineUserAuth.GET("/fetchConnectedMachines/:machine_no", mainAdminHandler.FetchConnectedMachinesHandler)
 	machineUserAuth.GET("/fetchMachineBalance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
 	machineUserAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
+	machineUserAuth.GET("/rfid/details",mainAdminHandler.GetRFIDCardDetails)
+	machineUserAuth.GET("/rfid/balance",mainAdminHandler.GetRFIDCardBalance)
 
 	superAdmin := e.Group("/super-admin")
 	superAdminAuth := superAdmin.Group("")
 	superAdminAuth.Use(super_admin_auth)
 
-	superAdmin.POST("/signup",superAdminHandler.CreateSuperAdmin)
-	superAdmin.POST("/signin",superAdminHandler.LoginSuperAdminHandler)
-	superAdminAuth.POST("/college/create",superAdminHandler.CreateCollege)
-	superAdminAuth.POST("/college/recharge/:college_id",superAdminHandler.RechargeCollege)
-	superAdminAuth.GET("/college/recharge/history/:college_id",superAdminHandler.GetCollegeRechargeHistory)
-	superAdminAuth.GET("/colleges",superAdminHandler.GetCollegesBySuperAdmin)
-	superAdminAuth.GET("/college/:college_id",superAdminHandler.GetCollegeDetails)
-	superAdminAuth.DELETE("/college/delete/:college_id",superAdminHandler.DeleteCollege)
-	superAdminAuth.POST("/college/machine/create",superAdminHandler.CreateMachineHandler)
-	superAdminAuth.GET("/college/machine/:college_id",superAdminHandler.GetMachinesByCollegeID)
-	superAdminAuth.GET("/college/count",superAdminHandler.GetTotalCollegesCount)
-	superAdminAuth.GET("/recharge/volume",superAdminHandler.GetTotalRechargeVolume)
-	superAdminAuth.GET("/college/recharge/volume/:college_id",superAdminHandler.GetTotalRechargeVolumeByCollege)
-	superAdminAuth.GET("/recharge/history",superAdminHandler.GetOverallCollgeRechargeHistory)
-	superAdminAuth.GET("/machine/count",superAdminHandler.GetTotalMachineCount)
+	superAdmin.POST("/signup", superAdminHandler.CreateSuperAdmin)
+	superAdmin.POST("/signin", superAdminHandler.LoginSuperAdminHandler)
+	superAdminAuth.POST("/college/create", superAdminHandler.CreateCollege)
+	superAdminAuth.POST("/college/recharge/:college_id", superAdminHandler.RechargeCollege)
+	superAdminAuth.GET("/college/recharge/history/:college_id", superAdminHandler.GetCollegeRechargeHistory)
+	superAdminAuth.GET("/colleges", superAdminHandler.GetCollegesBySuperAdmin)
+	superAdminAuth.GET("/college/:college_id", superAdminHandler.GetCollegeDetails)
+	superAdminAuth.DELETE("/college/delete/:college_id", superAdminHandler.DeleteCollege)
+	superAdminAuth.POST("/college/machine/create", superAdminHandler.CreateMachineHandler)
+	superAdminAuth.GET("/college/machine/:college_id", superAdminHandler.GetMachinesByCollegeID)
+	superAdminAuth.GET("/college/count", superAdminHandler.GetTotalCollegesCount)
+	superAdminAuth.GET("/recharge/volume", superAdminHandler.GetTotalRechargeVolume)
+	superAdminAuth.GET("/college/recharge/volume/:college_id", superAdminHandler.GetTotalRechargeVolumeByCollege)
+	superAdminAuth.GET("/recharge/history", superAdminHandler.GetOverallCollgeRechargeHistory)
+	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachineCount)
 
 }

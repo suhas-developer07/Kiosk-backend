@@ -102,7 +102,7 @@ func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 		})
 	}
 
-	if err := h.service.RechargeMachine(ctx, req,college_id); err != nil {
+	if err := h.service.RechargeMachine(ctx, req, college_id); err != nil {
 		h.logger.Errorw("Machine recharge failed",
 			"machine_id", req.MachineID,
 			"amount", req.RechargeAmount,
@@ -298,6 +298,7 @@ func (h *MainAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 		Data:    machines,
 	})
 }
+
 /* RFID Recharge Handlers */
 func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -320,8 +321,10 @@ func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 	}
 
 	var body struct {
+		CardID         string `json:"card_id" bson:"card_id" validate:"required"`
 		RechargeAmount string `json:"recharge_amount" validate:"required"`
 	}
+
 	if err := c.Bind(&body); err != nil {
 		h.logger.Warnw("Failed to bind RFID recharge request body",
 			"machine_id", machineID,
@@ -348,6 +351,7 @@ func (h *MainAdminHandler) RechargeRFIDHandler(c echo.Context) error {
 	req := model.RechargeRFIDRequest{
 		MachineID:      machineID,
 		UserID:         userID,
+		CardID:         body.CardID,
 		RechargeAmount: body.RechargeAmount,
 	}
 
@@ -428,6 +432,150 @@ func (h *MainAdminHandler) GetRFIDRechargeHistoryHandler(c echo.Context) error {
 	})
 }
 
+func (h *MainAdminHandler) InitializeCard(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	var req model.InitializeCardRequest
+
+	machineId := strings.ToLower(c.Param("machine_id"))
+	userId := c.Get("user_id").(string)
+
+	if machineId == "" || userId == "" {
+		h.logger.Warnw("Missing required parameters for card initialization",
+			"machine_id", machineId,
+			"user_id", userId,
+			"ip", requestIP,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Missing required parameters: machine_id and user_id are mandatory.",
+		})
+	}
+
+	if err := c.Bind(&req); err != nil {
+		h.logger.Warnw("Failed to bind card initialization request",
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Invalid request format. Please ensure all fields are correctly formatted.",
+		})
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		validationMsg := utils.FormatValidationError(err)
+		h.logger.Warnw("Card initialization validation failed",
+			"card_id", req.CardID,
+			"usn", req.USN,
+			"validation_error", validationMsg,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  validationMsg,
+		})
+	}
+
+	if err := h.service.InitializeCardService(ctx, req); err != nil {
+		h.logger.Errorw("Card initialization failed",
+			"card_id", req.CardID,
+			"usn", req.USN,
+			"error", err,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	h.logger.Infow("Card initialized successfully",
+		"card_id", req.CardID,
+		"usn", req.USN,
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Card has been initialized successfully.",
+	})
+}
+
+func (h *MainAdminHandler) GetRFIDCardBalance(c echo.Context) error {
+	ctx := c.Request().Context()
+	cardID := strings.TrimSpace(c.Param("card_id"))
+
+	if cardID == "" {
+		h.logger.Warnw("Empty card ID for balance request",
+			"ip", c.RealIP(),
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid card ID to view its balance.",
+		})
+	}
+
+	balance, err := h.service.GetRFIDCardBalanceService(ctx, cardID)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch RFID card balance",
+			"card_id", cardID,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch card balance at this time.",
+		})
+	}
+
+	h.logger.Infow("RFID card balance retrieved successfully",
+		"card_id", cardID,
+		"balance", balance,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Card balance retrieved successfully.",
+		Data:    balance,
+	})
+}
+
+func (h *MainAdminHandler) GetRFIDCardDetails(c echo.Context) error {
+	ctx := c.Request().Context()
+	cardID := strings.TrimSpace(c.Param("card_id"))
+
+	if cardID == "" {
+		h.logger.Warnw("Empty card ID for details request",
+			"ip", c.RealIP(),
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid card ID to view its details.",
+		})
+	}
+
+	cardDetails, err := h.service.GetRFIDCardDetailsService(ctx, cardID)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch RFID card details",
+			"card_id", cardID,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch card details at this time.",
+		})
+	}
+
+	h.logger.Infow("RFID card details retrieved successfully",
+		"card_id", cardID,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Card details retrieved successfully.",
+		Data:    cardDetails,
+	})
+}
+
 /*Recharge Machine Users Handler */
 func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -463,7 +611,7 @@ func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 	}
 
 	// Call service layer
-	user, err := h.service.CreateRechargeMachineUserService(ctx, req,college_id)
+	user, err := h.service.CreateRechargeMachineUserService(ctx, req, college_id)
 	if err != nil {
 		h.logger.Errorw("User creation failed",
 			"email", req.Email,
@@ -537,7 +685,6 @@ func (h *MainAdminHandler) LoginRechargeMachineUser(c echo.Context) error {
 		},
 	})
 }
-
 
 /* Error Handling */
 func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email string) error {

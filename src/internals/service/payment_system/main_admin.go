@@ -14,7 +14,7 @@ import (
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.uber.org/zap"
 )
-    
+
 const (
 	defaultOperationTimeout = 5 * time.Second
 	timezoneLocation        = "Asia/Kolkata"
@@ -33,10 +33,11 @@ func NewMainAdminService(
 	logger *zap.SugaredLogger,
 ) *MainAdminService {
 	return &MainAdminService{
-		repo: MainAdminRepo ,
+		repo:   MainAdminRepo,
 		logger: logger,
 	}
 }
+
 /* College Auth Service */
 func (s *MainAdminService) CollegeLoginService(ctx context.Context, req model.CollegeLoginRequest) (*model.CollegeTokenResponse, error) {
 
@@ -60,8 +61,8 @@ func (s *MainAdminService) CollegeLoginService(ctx context.Context, req model.Co
 	}
 
 	return &model.CollegeTokenResponse{
-		Token:   token,
-		Balance: balance,
+		Token:       token,
+		Balance:     balance,
 		CollegeName: name,
 	}, nil
 }
@@ -94,7 +95,7 @@ func (s *MainAdminService) GetMachinesByCollegeID(ctx context.Context, collegeID
 	return machines, nil
 }
 
-func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest,college_id string) error {
+func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.MachineRechargeRequest, college_id string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -177,7 +178,7 @@ func (s *MainAdminService) RechargeMachine(ctx context.Context, req model.Machin
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
-	if err := s.recordMachineRechargeHistory(ctx, req,college_id); err != nil {
+	if err := s.recordMachineRechargeHistory(ctx, req, college_id); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record recharge history, attempting rollback",
 			"machine_id", req.MachineID,
@@ -355,6 +356,24 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 		return errors.New("insufficient machine balance for this recharge")
 	}
 
+	CardBalance, err := s.repo.GetRFIDCardBalance(ctx, req.CardID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch RFID card balance for recharge",
+			"card_id", req.CardID,
+			"error", err,
+		)
+		return errors.New("RFID card not found or balance unavailable")
+	}
+
+	err = s.repo.RechargeRFIDCard(ctx, req.CardID, req.RechargeAmount)
+	if err != nil {
+		s.logger.Errorw("Failed to recharge RFID card",
+			"card_id", req.CardID,
+			"error", err,
+		)
+		return errors.New("failed to recharge RFID card. Please try again")
+	}
+
 	newBalance := currentBalanceInt - rechargeAmt
 	newBalanceStr := strconv.Itoa(newBalance)
 
@@ -364,6 +383,7 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 			"new_balance", newBalance,
 			"error", err,
 		)
+		_ = s.repo.UpdateRFIDCardBalance(ctx, req.CardID, CardBalance) // Rollback RFID card recharge
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
@@ -375,6 +395,7 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 			"error", err,
 		)
 		_ = s.repo.UpdateMachineBalance(ctx, req.MachineID, currentBalance)
+		_ = s.repo.UpdateRFIDCardBalance(ctx, req.CardID, CardBalance) // Rollback RFID card recharge
 		return errors.New("failed to record recharge history. Transaction rolled back")
 	}
 
@@ -416,6 +437,171 @@ func (s *MainAdminService) GetRFIDRechargeHistoryService(
 	return history, nil
 }
 
+func (s *MainAdminService) InitializeCardService(ctx context.Context, req model.InitializeCardRequest) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Initializing RFID card",
+		"card_id", req.CardID,
+		"usn", req.USN,
+	)
+
+	if err := s.validateRechargeAmount(req.RechargeAmount); err != nil {
+		s.logger.Warnw("Invalid initial recharge amount for card initialization",
+			"card_id", req.CardID,
+			"usn", req.USN,
+			"amount", req.RechargeAmount,
+			"error", err,
+		)
+		return err
+	}
+	rechargeAmt, _ := strconv.Atoi(req.RechargeAmount)
+
+	s.logger.Infow("Processing RFID recharge",
+		"amount", rechargeAmt,
+	)
+	CollegeID, err := s.repo.GetCollegeIdByMachineID(ctx, req.MachineID)
+	if err != nil {
+		s.logger.Errorw("Failed to get college ID by machine ID",
+			"machine_id", req.MachineID,
+			"error", err,
+		)
+		return errors.New("failed to initialize card. Please try again")
+	}
+
+	currentBalance, err := s.repo.GetMachineBalance(ctx, req.MachineID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch machine balance for card initialization",
+			"machine_id", req.MachineID,
+			"error", err,
+		)
+		return errors.New("machine not found or balance unavailable")
+	}
+
+	currentBalanceInt, err := strconv.Atoi(currentBalance)
+	if err != nil {
+		s.logger.Errorw("Machine balance is in invalid format during card initialization",
+			"machine_id", req.MachineID,
+			"balance", currentBalance,
+			"error", err,
+		)
+		return errors.New("machine balance is corrupted. Please contact support")
+	}
+
+	if currentBalanceInt < rechargeAmt {
+		s.logger.Warnw("Insufficient machine balance for card initialization",
+			"machine_id", req.MachineID,
+			"available_balance", currentBalanceInt,
+			"requested_amount", rechargeAmt,
+		)
+		return errors.New("insufficient machine balance for this recharge")
+	}
+
+	data := model.RFIDCard{
+		CardID:    req.CardID,
+		USN:       req.USN,
+		Balance:   req.RechargeAmount,
+		CollegeID: CollegeID,
+	}
+	err = s.repo.InitializeRFIDCard(ctx, data)
+	if err != nil {
+		s.logger.Errorw("Failed to initialize RFID card",
+			"card_id", req.CardID,
+			"usn", req.USN,
+			"error", err,
+		)
+		return errors.New("failed to initialize card. Please try again")
+	}
+
+	newBalance := currentBalanceInt - rechargeAmt
+	newBalanceStr := strconv.Itoa(newBalance)
+
+	if err := s.repo.UpdateMachineBalance(ctx, req.MachineID, newBalanceStr); err != nil {
+		s.logger.Errorw("Failed to update machine balance for RFID recharge",
+			"machine_id", req.MachineID,
+			"new_balance", newBalance,
+			"error", err,
+		)
+		_ = s.repo.DeleteRFIDCard(ctx, req.CardID) // Rollback card initialization
+		return errors.New("failed to update machine balance. Please try again")
+	}
+
+	rfidRechargeReq := model.RechargeRFIDRequest{
+		UserID:         req.UserID,
+		CardID:         req.CardID,
+		MachineID:      req.MachineID,
+		RechargeAmount: req.RechargeAmount,
+	}
+
+	if err := s.recordRFIDRechargeHistory(ctx, rfidRechargeReq); err != nil {
+		// Rollback balance update on history insertion failure
+		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
+			"machine_id", req.MachineID,
+			"card_id", req.CardID,
+			"usn", req.USN,
+			"error", err,
+		)
+		_ = s.repo.UpdateMachineBalance(ctx, req.MachineID, currentBalance)
+		_ = s.repo.DeleteRFIDCard(ctx, req.CardID) // Rollback card initialization
+		return errors.New("failed to record recharge history. Transaction rolled back")
+	}
+
+	s.logger.Infow("RFID card initialized successfully",
+		"card_id", req.CardID,
+		"usn", req.USN,
+	)
+
+	return nil
+}
+
+func (s *MainAdminService) GetRFIDCardBalanceService(ctx context.Context, cardID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Fetching RFID card balance",
+		"card_id", cardID,
+	)
+
+	balance, err := s.repo.GetRFIDCardBalance(ctx, cardID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch RFID card balance",
+			"card_id", cardID,
+			"error", err,
+		)
+		return "", errors.New("unable to fetch RFID card balance at this time")
+	}
+
+	s.logger.Infow("RFID card balance fetched successfully",
+		"card_id", cardID,
+		"balance", balance,
+	)
+
+	return balance, nil
+}
+
+func (s *MainAdminService) GetRFIDCardDetailsService(ctx context.Context, cardID string) (model.RFIDCard, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Fetching RFID card details",
+		"card_id", cardID,
+	)
+
+	card, err := s.repo.GetRFIDCardDetails(ctx, cardID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch RFID card details",
+			"card_id", cardID,
+			"error", err,
+		)
+		return model.RFIDCard{}, errors.New("unable to fetch RFID card details at this time")
+	}
+
+	s.logger.Infow("RFID card details fetched successfully",
+		"card_id", cardID,
+	)
+
+	return card, nil
+}
 /* Recharge Machine User Services */
 func (s *MainAdminService) CreateRechargeMachineUserService(
 	ctx context.Context,
@@ -468,7 +654,7 @@ func (s *MainAdminService) CreateRechargeMachineUserService(
 		Email:       req.Email,
 		MachineID:   req.MachineId,
 		MachineName: machineName,
-		College_id: college_id,
+		College_id:  college_id,
 		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -547,7 +733,6 @@ func (s *MainAdminService) validateRechargeAmount(amount string) error {
 	if strings.Contains(amount, ".") {
 		return errors.New("recharge amount must be a whole number")
 	}
-
 
 	amountInt, err := strconv.Atoi(amount)
 	if err != nil {
@@ -641,11 +826,22 @@ func (s *MainAdminService) recordRFIDRechargeHistory(
 		return err
 	}
 
+	USN, err := s.repo.GetUSNByCardID(ctx, req.CardID)
+	if err != nil {
+		s.logger.Errorw("failed to get USN for this card id",
+			"card_id", req.CardID)
+		return err
+	}
+
 	history := model.RechargerRFIDHistory{
+		SuperAdminID:   Machine.SuperAdminId,
+		CollegeID:      Machine.CollegeId,
 		MachineID:      req.MachineID,
 		MachineName:    Machine.MachineName,
 		UserID:         req.UserID,
 		UserName:       UserName,
+		CardID:         req.CardID,
+		USN:            USN,
 		RechargeAmount: req.RechargeAmount,
 		Date:           now.Format(dateFormat),
 		Time:           now.Format(timeFormat),

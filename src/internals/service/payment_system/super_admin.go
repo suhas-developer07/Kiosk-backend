@@ -50,7 +50,7 @@ func (s *SuperAdminService) CreateSuperAdmin(ctx context.Context, req model.Supe
 		s.logger.Warnw("Attempted to register with existing super admin email",
 			"email", email,
 		)
-		return errors.New("this email is already registered with another super admin")
+		return apperrors.ErrEmailAlreadyExists
 	}
 
 	hashedPassword, err := utils.HashPassword(req.SuperAdminPassword)

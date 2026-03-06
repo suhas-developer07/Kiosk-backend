@@ -97,8 +97,8 @@ func SetupRouter(
 	machineUserAuth.GET("/fetchConnectedMachines/:machine_no", mainAdminHandler.FetchConnectedMachinesHandler)
 	machineUserAuth.GET("/fetchMachineBalance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
 	machineUserAuth.GET("/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
-	machineUserAuth.GET("/rfid/details",mainAdminHandler.GetRFIDCardDetails)
-	machineUserAuth.GET("/rfid/balance",mainAdminHandler.GetRFIDCardBalance)
+	machineUserAuth.GET("/rfid/details", mainAdminHandler.GetRFIDCardDetails)
+	machineUserAuth.GET("/rfid/balance", mainAdminHandler.GetRFIDCardBalance)
 
 	superAdmin := e.Group("/super-admin")
 	superAdminAuth := superAdmin.Group("")
@@ -119,5 +119,5 @@ func SetupRouter(
 	superAdminAuth.GET("/college/recharge/volume/:college_id", superAdminHandler.GetTotalRechargeVolumeByCollege)
 	superAdminAuth.GET("/recharge/history", superAdminHandler.GetOverallCollgeRechargeHistory)
 	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachineCount)
-
+	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachinesCountByCollege)
 }

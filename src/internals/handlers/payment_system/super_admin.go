@@ -58,6 +58,15 @@ func (h *SuperAdminHandler) CreateSuperAdmin(c echo.Context) error {
 	}
 
 	if err := h.service.CreateSuperAdmin(c.Request().Context(), req); err != nil {
+		if errors.Is(err, apperrors.ErrEmailAlreadyExists) {
+			h.logger.Warnw("Attempted to register with existing super admin email",
+				"email", req.SuperAdminEmail,
+			)
+			return c.JSON(http.StatusConflict, domain.ErrorResponse{
+				Status: "error",
+				Error:  "A super admin with this email already exists.",
+			})
+		}
 		h.logger.Errorw("Failed to create super admin",
 			"email", req.SuperAdminEmail,
 			"error", err,
@@ -570,6 +579,55 @@ func (h *SuperAdminHandler) GetMachinesByCollegeID(c echo.Context) error {
 	})
 }
 
+func (h *SuperAdminHandler) GetTotalMachinesCountByCollege(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+
+	collegeID := strings.TrimSpace(c.Param("college_id"))
+
+	if collegeID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "College ID is required.",
+		})
+	}
+	count, err := h.service.GetTotalMachinesCountByCollege(ctx, collegeID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrCollegeNotFound) {
+			h.logger.Warnw("College not found when fetching machine count",
+				"college_id", collegeID,
+				"ip", requestIP,
+			)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "College not found.",
+			})
+		}
+		h.logger.Errorw("Failed to fetch machine count for college",
+			"college_id", collegeID,
+			"ip", requestIP,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch machine count at this time.",
+		})
+	}
+
+	h.logger.Infow("Machine count for college retrieved successfully",
+		"college_id", collegeID,
+		"total_count", count,
+		"ip", requestIP,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Machine count for college retrieved successfully.",
+		Data: map[string]int64{
+			"total_machines": count,
+		},
+	})
+}
 func (h *SuperAdminHandler) GetTotalCollegesCount(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()

@@ -119,5 +119,5 @@ func SetupRouter(
 	superAdminAuth.GET("/college/recharge/volume/:college_id", superAdminHandler.GetTotalRechargeVolumeByCollege)
 	superAdminAuth.GET("/recharge/history", superAdminHandler.GetOverallCollgeRechargeHistory)
 	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachineCount)
-	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachinesCountByCollege)
+	superAdminAuth.GET("/machine/count/:college_id", superAdminHandler.GetTotalMachinesCountByCollege)
 }

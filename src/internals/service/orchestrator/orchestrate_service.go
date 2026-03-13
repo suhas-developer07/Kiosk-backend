@@ -228,3 +228,14 @@ func (s *OrchestrateService) FileDeleteRequestService(ctx context.Context, fileI
 
 	return s.FileRepo.DeleteFileRequest(ctx, fileID, reason)
 }
+
+func (s *OrchestrateService) GetPendingDeleteRequestsService(ctx context.Context, facultyId string) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	
+	if facultyId == "" {
+		return nil, errors.New("facultyId cannot be empty")
+	}
+
+	return s.FileRepo.GetPendingDeleteRequests(ctx, facultyId)
+}

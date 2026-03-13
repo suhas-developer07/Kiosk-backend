@@ -93,74 +93,6 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 	})
 }
 
-func (h *FileHandler) PrintUploadHandler(c echo.Context) error {
-	ctx := c.Request().Context()
-
-	var payload domain.PrintJobPayload
-
-	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
-		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v", c.RealIP(), err)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  err.Error(),
-		})
-	}
-
-	if err := utils.ValidatePrintJobPayload(payload); err != nil {
-		h.Logger.Warnf("Validation failed for printJob | payload=%v | Error=%v", payload, err)
-		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-			Status: "error",
-			Error:  err.Error(),
-		})
-	}
-
-	token, err := h.FileService.CreatePrintJobService(ctx, payload)
-	if err != nil {
-
-		switch {
-		case errors.Is(err, apperrors.ErrInvalidID):
-			h.Logger.Warnf("Invalid ObjectID formate | Error=%v", err)
-			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Invalid FileID.",
-			})
-
-		case errors.Is(err, apperrors.ErrInvalidCopies):
-			h.Logger.Warnf("Invalid copies | Error=%v", err)
-			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Copies value must be between 1 and 100.",
-			})
-
-		case errors.Is(err, apperrors.ErrFileNotFound):
-			h.Logger.Warnf("File not found in the Databse |Error=%v", err)
-			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
-				Status: "error",
-				Error:  "File not found.",
-			})
-
-		case errors.Is(err, apperrors.ErrDBFailure):
-			h.Logger.Errorf("DB error while creating printJob | err=%v", err)
-			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-				Status: "error",
-				Error:  "Database error. Please try again later.",
-			})
-		}
-
-		h.Logger.Errorf("Unexpected error while creating printJob | err=%v", err)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Internal error creating print job.",
-		})
-	}
-
-	return c.JSON(http.StatusOK, domain.SuccessResponse{
-		Status:  "success",
-		Message: "Print job created successfully",
-		Data:    token,
-	})
-}
-
 func (h *FileHandler) AccessFileHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -217,23 +149,126 @@ func (h *FileHandler) AccessFileHandler(c echo.Context) error {
 	})
 }
 
+func (h *FileHandler) CreatePrintJobsHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	h.Logger.Infow(
+		"fetch print jobs request received",
+	)
+
+	var payload domain.PrintJobPayload
+
+	if err := utils.DecodeAndValidateJSON(c.Request().Body, &payload); err != nil {
+		h.Logger.Warnf("Invalid print payload | IP=%s | Error=%v", c.RealIP(), err)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	err := h.FileService.CreatePrintJobService(ctx, payload)
+	if err != nil {
+		
+		switch {
+		case errors.Is(err, apperrors.ErrInvalidID):
+			h.Logger.Warnf("Invalid ObjectID formate | Error=%v", err)
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Invalid FileID.",
+			})
+		case errors.Is(err, apperrors.ErrInvalidCopies):
+			h.Logger.Warnf("Invalid copies | Error=%v", err)
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Copies value must be between 1 and 100.",
+			})
+		case errors.Is(err, apperrors.ErrFileNotFound):
+			h.Logger.Warnf("File not found in the Databse |Error=%v", err)
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "File not found.",
+			})
+		default:
+			h.Logger.Errorf("Unexpected error while creating printJob | err=%v", err)
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "Internal error creating print job.",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Print job created successfully",
+		Data:    "print job created successfully",
+	})
+}
 
 func (h *FileHandler) FetchPrintJobsHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	Data, err := h.FileService.FetchPrintJobsService(ctx)
+	h.Logger.Infow(
+		"fetch print jobs request received",
+	)
 
+	printJobs, err := h.FileService.FetchPrintJobsService(ctx)
 	if err != nil {
-		h.Logger.Errorf("Internal error fetching printjob details |err=%v", err)
+		h.Logger.Errorf("Failed to fetch print jobs | Error=%v", err)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "Error",
-			Error:  "Internal server error while fetching printjob Details",
+			Status: "error",
+			Error:  "Failed to fetch print jobs",
 		})
 	}
 
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
-		Data:    Data,
-		Message: "Data fecthed successfully",
+		Message: "Print jobs fetched successfully",
+		Data:    printJobs,
+	})
+}
+
+func (h *FileHandler) CalculateTotalRevenueHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+	
+	h.Logger.Infow(
+		"calculate total revenue request received",
+	)
+
+	totalRevenue, err := h.FileService.CalculateTotalRevenueService(ctx)
+	if err != nil {
+		h.Logger.Errorf("Failed to calculate total revenue | Error=%v", err)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Failed to calculate total revenue",
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Total revenue calculated successfully",
+		Data:    map[string]int{"total_revenue": totalRevenue},
+	})
+}
+
+func (h *FileHandler) GetRecentPrintJobsHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	
+	h.Logger.Infow(
+		"fetch recent print jobs request received",
+	)
+
+	printJobs, err := h.FileService.GetRecentPrintJobsService(ctx)
+	if err != nil {
+		h.Logger.Errorf("Failed to fetch recent print jobs | Error=%v", err)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Failed to fetch recent print jobs",
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Recent print jobs fetched successfully",
+		Data:    printJobs,
 	})
 }

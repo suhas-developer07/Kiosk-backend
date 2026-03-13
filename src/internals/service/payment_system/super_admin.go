@@ -567,9 +567,19 @@ func (s *SuperAdminService) recordCollegeRechargeHistory(ctx context.Context, re
 
 	now := time.Now().In(loc)
 
+	collegeName,err := s.repo.GetCollegeNameByID(ctx, req.CollegeID)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch college name for recharge history",
+			"college_id", req.CollegeID,
+			"error", err,
+		)
+		collegeName = "Unknown College"
+	}
+
 	history := model.CollegeRechargeHistory{
 		RechargeID:     utils.GenerateUUID(),
 		CollegeID:      req.CollegeID,
+		CollegeName:    collegeName,
 		SuperAdminId:   req.SuperAdminId,
 		RechargeAmount: req.RechargeAmount,
 		Date:           now.Format(dateFormat),

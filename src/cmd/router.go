@@ -26,10 +26,8 @@ func SetupRouter(
 	/* Files Handler routes */
 	files := e.Group("/files")
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
-	files.POST("/printjob", fileHandler.PrintUploadHandler)
 	files.GET("/accessfile/:file_id", fileHandler.AccessFileHandler)
-	files.GET("/printjobs", fileHandler.FetchPrintJobsHandler)
-
+	files.POST("/printjobs", fileHandler.CreatePrintJobsHandler)
 	/*Faculty Handler routes*/
 	faculty := e.Group("/faculty")
 	faculty.POST("/signin", facultyHandler.Signin)
@@ -49,7 +47,7 @@ func SetupRouter(
 	fileAuth.GET("/recentfiles", orchestratorHandler.GetRecentUploadedFilesHandler)
 	facultyAuth.GET("/ownedsubjects", facultyHandler.GetSubjectsByFacultyIDHandler)
 	facultyAuth.GET("/me", facultyHandler.GetFacultyByIdHandler)
-
+	facultyAuth.GET("/pending-delete-requests", orchestratorHandler.GetPendingDeleteRequests)
 	/* Admin Handler routes */
 	admin := e.Group("/admin")
 	adminAuth := admin.Group("")
@@ -68,6 +66,7 @@ func SetupRouter(
 	adminAuth.GET("/total-files", adminHandler.GetTotalFilesHandler)
 	adminAuth.GET("/total-files-count", adminHandler.GetTotalFilesCountHandler)
 	adminAuth.GET("/pending-delete-request-files", adminHandler.GetPendingDeleteRequestFilesHandler)
+	adminAuth.GET("/pending-delete-request-count", adminHandler.PendingDeleteRequestCountHandler)
 	adminAuth.DELETE("/files/delete/:file_id", adminHandler.DeleteFileHandler)
 
 	/*
@@ -84,7 +83,12 @@ func SetupRouter(
 	mainAdminAuth.GET("/machine/recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
 	mainAdminAuth.GET("/college/machines", mainAdminHandler.GetMachinesByCollegeID)
 	mainAdminAuth.GET("/rfid/recharge-history/:machine_id", mainAdminHandler.GetRFIDRechargeHistoryHandler)
-	mainAdminAuth.POST("/machine/user/create", mainAdminHandler.CreateRechargeMachineUser) //changed
+	mainAdminAuth.POST("/machine/user/create", mainAdminHandler.CreateRechargeMachineUser)
+	mainAdminAuth.GET("/revenue", fileHandler.CalculateTotalRevenueHandler)
+	mainAdminAuth.GET("/printjobs", fileHandler.FetchPrintJobsHandler)
+	mainAdminAuth.GET("/recent-printjobs", fileHandler.GetRecentPrintJobsHandler)
+	mainAdminAuth.GET("/machine/users/:machine_id",mainAdminHandler.GetMachineUsersByMachineIdHandler)
+	mainAdminAuth.DELETE("/machine/user/:machine_id/:user_id",mainAdminHandler.DeleteMachineUserHandler)
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")
@@ -92,7 +96,7 @@ func SetupRouter(
 
 	machineUserAuth := machineUser.Group("")
 	machineUserAuth.Use(machine_user_auth)
-	machineUserAuth.POST("/rfid/initiate", mainAdminHandler.InitializeCard)
+	machineUserAuth.POST("/rfid/initiate/:machine_id", mainAdminHandler.InitializeCard)
 	machineUserAuth.POST("/recharge-rfid/:machine_id", mainAdminHandler.RechargeRFIDHandler) //need to inform frontend team
 	machineUserAuth.GET("/fetchConnectedMachines/:machine_no", mainAdminHandler.FetchConnectedMachinesHandler)
 	machineUserAuth.GET("/fetchMachineBalance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)

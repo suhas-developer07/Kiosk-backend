@@ -361,6 +361,25 @@ func (r *SuperAdminRepository) GetOverallCollegeRechargeHistory(ctx context.Cont
 	recharges = reverseRechargeHistory(recharges)
 	return recharges, nil
 }
+
+func (r *SuperAdminRepository) GetCollegeNameByID(ctx context.Context, collegeID string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	var result struct {
+		CollegeName string `bson:"college_name"`
+	}
+
+	err := r.collegeCollection.FindOne(ctx, bson.M{"college_id": collegeID}).Decode(&result)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return "", apperrors.ErrCollegeNotFound
+		}
+		return "", fmt.Errorf("failed to fetch college name: %w", err)
+	}
+
+	return result.CollegeName, nil
+}
 /* Machine Repository Methods */
 
 func (r *SuperAdminRepository) CreateMachine(ctx context.Context, machine model.Machine) error {

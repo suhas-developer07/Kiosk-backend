@@ -858,3 +858,55 @@ func (s *MainAdminService) recordRFIDRechargeHistory(
 
 	return nil
 }
+
+func (s *MainAdminService) GetMachineUsersByMachineIdService(ctx context.Context, machineId string)([]model.User,error){
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Fetching machine users by machine id",
+		"machine_id", machineId,
+	)
+
+	users, err := s.repo.GetMachineUsersByMachineId(ctx, machineId)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch machine users by machine id",
+			"machine_id", machineId,
+			"error", err,
+		)
+		return nil, errors.New("unable to fetch machine users at this time")
+	}
+
+	s.logger.Infow("Machine users fetched successfully",
+		"machine_id", machineId,
+		"user_count", len(users),
+	)
+
+	return users, nil
+}
+
+func (s *MainAdminService) DeleteMachineUserService(ctx context.Context, machineId string,userId string) error{
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Deleting machine user",
+		"machine_id", machineId,
+		"user_id", userId,
+	)
+
+	err := s.repo.DeleteMachineUser(ctx, machineId,userId)
+	if err != nil {
+		s.logger.Errorw("Failed to delete machine user",
+			"machine_id", machineId,
+			"user_id", userId,
+			"error", err,
+		)
+		return errors.New("unable to delete machine user at this time")
+	}
+
+	s.logger.Infow("Machine user deleted successfully",
+		"machine_id", machineId,
+		"user_id", userId,
+	)
+
+	return nil
+}

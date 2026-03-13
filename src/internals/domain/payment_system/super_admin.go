@@ -53,6 +53,7 @@ type SuperAdminCollege struct {
 type CollegeRechargeHistory struct {
 	RechargeID     string `json:"recharge_id" bson:"recharge_id"`
 	CollegeID      string `json:"college_id" bson:"college_id"`
+	CollegeName    string `json:"college_name" bson:"college_name"`
 	SuperAdminId   string `json:"super_admin_id" bson:"super_admin_id"`
 	RechargeAmount string `json:"recharge_amount" bson:"recharge_amount"`
 	Date           string `json:"date" bson:"date"`

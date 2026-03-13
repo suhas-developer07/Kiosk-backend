@@ -65,10 +65,7 @@ func (s *FileService) GetFileByGradeAndSubjectService(ctx context.Context, grade
 	return files, nil
 }
 
-func (s *FileService) CreatePrintJobService(
-	ctx context.Context,
-	req domain.PrintJobPayload,
-) (string, error) {
+func (s *FileService) CreatePrintJobService(ctx context.Context, req domain.PrintJobPayload) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -79,43 +76,44 @@ func (s *FileService) CreatePrintJobService(
 	)
 
 	if req.Copies < 1 || req.Copies > 100 {
-		return "", apperrors.ErrInvalidCopies
+		return apperrors.ErrInvalidCopies
 	}
 
 	exists, err := s.FileRepo.GetFileByID(ctx, req.FileID.Hex())
 	if err != nil {
 		if errors.Is(err, apperrors.ErrInvalidID) {
-			return "", apperrors.ErrInvalidID
+			return apperrors.ErrInvalidID
 		}
 		if errors.Is(err, apperrors.ErrFileNotFound) {
-			return "", apperrors.ErrFileNotFound
+			return apperrors.ErrFileNotFound
 		}
-		return "", fmt.Errorf("service: db error while checking file: %w", err)
+		return fmt.Errorf("service: db error while checking file: %w", err)
 	}
 
 	if !exists {
-		return "", apperrors.ErrFileNotFound
+		return apperrors.ErrFileNotFound
 	}
 
 	printJob := domain.PrintJob{
-		FileID:              req.FileID,
+		FileId:              req.FileID,
+		FileName:            req.FileName,
 		Copies:              req.Copies,
 		PrintingSide:        req.PrintingSide,
 		PrintingMode:        req.PrintingMode,
 		PageRange:           req.PageRange,
 		PageLayout:          req.PageLayout,
-		OrderStatus:         "Initialized",
-		Price:               req.Price,
-		TotalSheetsRequired: req.TotalSheets,
+		OrderStatus:         "Initialized", //we need to some how update this order status after printing
+		Amount:              req.Amount,
+		TotalNumberOfSheets: req.TotalSheets,
 		CreatedAt:           time.Now(),
 	}
 
 	err = s.FileRepo.CreatePrintJob(ctx, printJob)
 	if err != nil {
-		return "", fmt.Errorf("service: create print job failed: %w", err)
+		return fmt.Errorf("service: create print job failed: %w", err)
 	}
 
-	return "", nil
+	return nil
 }
 
 func (s *FileService) AccessFileService(
@@ -176,7 +174,6 @@ func (s *FileService) AccessFileService(
 	return signedURL, nil
 }
 
-
 func (s *FileService) FetchPrintJobsService(ctx context.Context) ([]domain.PrintJob, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -193,4 +190,37 @@ func (s *FileService) FetchPrintJobsService(ctx context.Context) ([]domain.Print
 	}
 
 	return data, nil
+}
+
+
+func (s *FileService) CalculateTotalRevenueService(ctx context.Context)(int,error){
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	
+	s.Logger.Info("Calculating total revenue")
+
+	totalRevenue, err := s.FileRepo.CalculateTotalRevenue(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return totalRevenue, nil
+}
+
+func (s *FileService) GetRecentPrintJobsService(ctx context.Context)([]domain.PrintJob,error){
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	s.Logger.Info("Fetching recent print jobs")
+
+	printJobs, err := s.FileRepo.GetRecentPrintJobs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(printJobs) == 0 {
+		return []domain.PrintJob{}, nil
+	}
+
+	return printJobs, nil
 }

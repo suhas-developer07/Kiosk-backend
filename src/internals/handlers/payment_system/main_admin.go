@@ -436,7 +436,12 @@ func (h *MainAdminHandler) InitializeCard(c echo.Context) error {
 	ctx := c.Request().Context()
 	requestIP := c.RealIP()
 
-	var req model.InitializeCardRequest
+	type reqBody struct {
+		CardID         string `json:"card_id" validate:"required"`
+		USN            string `json:"usn" bson:"usn" validate:"required"`
+		RechargeAmount string `json:"recharge_amount" bson:"recharge_amount" validate:"required"`
+	}
+	var req reqBody
 
 	machineId := strings.ToLower(c.Param("machine_id"))
 	userId := c.Get("user_id").(string)
@@ -477,7 +482,15 @@ func (h *MainAdminHandler) InitializeCard(c echo.Context) error {
 		})
 	}
 
-	if err := h.service.InitializeCardService(ctx, req); err != nil {
+	data := model.InitializeCardRequest{
+		MachineID:      machineId,
+		CardID:         req.CardID,
+		UserID:         userId,
+		USN:            req.USN,
+		RechargeAmount: req.RechargeAmount,
+	}
+
+	if err := h.service.InitializeCardService(ctx, data); err != nil {
 		h.logger.Errorw("Card initialization failed",
 			"card_id", req.CardID,
 			"usn", req.USN,
@@ -719,6 +732,53 @@ func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email str
 	}
 }
 
+func (h *MainAdminHandler) GetMachineUsersByMachineIdHandler(c echo.Context) error {
+	machineId := strings.TrimSpace(c.Param("machine_id"))
+	if machineId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Machine ID is required to fetch users.",
+		})
+	}
+
+	users, err := h.service.GetMachineUsersByMachineIdService(c.Request().Context(), machineId)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch users: " + err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "User list retrieved successfully.",
+		Data:    users,
+	})
+}
+
+func (h *MainAdminHandler) DeleteMachineUserHandler(c echo.Context) error {
+	machineId := strings.TrimSpace(c.Param("machine_id"))
+	userId := strings.TrimSpace(c.Param("user_id"))
+
+	if machineId == "" || userId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Machine ID and User ID are required to delete an account.",
+		})
+	}
+
+	err := h.service.DeleteMachineUserService(c.Request().Context(), machineId, userId)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to delete user: " + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "User deleted successfully.",
+	})
+}
 // func (h *MainAdminHandler) GetAllUsers(c echo.Context) error {
 // 	collegeId := strings.TrimSpace(c.Param("college_id"))
 // 	if collegeId == "" {

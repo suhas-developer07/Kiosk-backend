@@ -246,3 +246,36 @@ func (h *OrchestrateHandler) FileDeleteRequestHandler(c echo.Context) error {
 		Message: "Delete request submitted successfully",
 	})
 }
+
+func (h *OrchestrateHandler) GetPendingDeleteRequests(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	facultyID := c.Get("faculty_id").(string)
+
+	h.Logger.Infow(
+		"Get pending delete requests received",
+		"faculty_id", facultyID,
+	)
+
+	if facultyID == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "faculty_id is required",
+		})
+	}
+
+	requests, err := h.OrchestrateService.GetPendingDeleteRequestsService(ctx, facultyID)
+	if err != nil {
+		h.Logger.Errorf("Failed to fetch pending delete requests | faculty_id=%s | error=%v", facultyID, err)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "failed to fetch pending delete requests",
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "pending delete requests fetched successfully",
+		Data:	requests,	
+	})
+}

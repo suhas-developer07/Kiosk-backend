@@ -450,3 +450,78 @@ func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
 
 	return files, nil
 }
+
+func (r *FilesRepo) GetPendingDeleteRequests(ctx context.Context, facultyId string) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	
+	objectID, err := primitive.ObjectIDFromHex(facultyId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid faculty id")
+	}
+
+	filter := bson.M{
+		"faculty_id":            objectID,
+		"delete_request.status": "pending",
+	}
+	
+	cursor, err := r.FilesCollection.Find(ctx, filter)
+
+	if err!=nil{
+		if errors.Is(err,mongo.ErrNoDocuments){
+			return nil,nil
+		}
+		return nil,fmt.Errorf("db.Find error:%v",err)
+	}
+	defer cursor.Close(ctx)
+	
+	var files []domain.File
+	if err = cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error:%v",err)
+	}
+
+	return files, nil
+}
+
+func (r *FilesRepo) CalculateTotalRevenue(ctx context.Context) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	
+	cursor, err := r.PrintJobCollection.Find(ctx, bson.M{})
+	if err != nil {
+		return 0, fmt.Errorf("db.Find error:%v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var printJobs []domain.PrintJob
+	if err = cursor.All(ctx, &printJobs); err != nil {
+		return 0, fmt.Errorf("cursor decode error:%v", err)
+	}
+
+	totalRevenue := 0
+	for _, job := range printJobs {
+		totalRevenue += job.Amount
+	}
+
+	return totalRevenue, nil
+}
+
+func (r *FilesRepo) GetRecentPrintJobs(ctx context.Context) ([]domain.PrintJob, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	opts := options.Find().SetSort(bson.M{"created_at": -1}).SetLimit(20)
+
+	cursor, err := r.PrintJobCollection.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, fmt.Errorf("db.Find error:%v", err)
+	}
+	defer cursor.Close(ctx)
+
+	var printJobs []domain.PrintJob
+	if err = cursor.All(ctx, &printJobs); err != nil {
+		return nil, fmt.Errorf("cursor decode error:%v", err)
+	}
+
+	return printJobs, nil
+}

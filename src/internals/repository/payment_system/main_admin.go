@@ -562,3 +562,45 @@ func (r *MainAdminRepo) GetRechargeMachineUserById(ctx context.Context, id strin
 	return result.Username, nil
 }
 
+func (r *MainAdminRepo) GetMachineUsersByMachineId(ctx context.Context, machineID string) ([]model.User, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	var users []model.User
+
+	filter := bson.M{"machine_id": machineID}
+	cursor, err := r.UsersCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users by machine ID: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var user model.User
+		if decodeErr := cursor.Decode(&user); decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode user record: %w", decodeErr)
+		}
+		users = append(users, user)
+	}
+
+	if cursorErr := cursor.Err(); cursorErr != nil {
+		return nil, fmt.Errorf("cursor error while reading users: %w", cursorErr)
+	}
+
+	return users, nil
+}
+
+func (r *MainAdminRepo) DeleteMachineUser(ctx context.Context, machineID string, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	result, err := r.UsersCollection.DeleteOne(ctx, bson.M{"machine_id": machineID, "user_id": userID})
+	if err != nil {
+		return fmt.Errorf("failed to delete machine user: %w", err)
+	}
+	if result.DeletedCount == 0 {
+		return errors.New("machine user not found for deletion")
+	}
+	return nil
+}
+

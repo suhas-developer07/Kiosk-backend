@@ -89,6 +89,7 @@ func SetupRouter(
 	mainAdminAuth.GET("/recent-printjobs", fileHandler.GetRecentPrintJobsHandler)
 	mainAdminAuth.GET("/machine/users/:machine_id",mainAdminHandler.GetMachineUsersByMachineIdHandler)
 	mainAdminAuth.DELETE("/machine/user/:machine_id/:user_id",mainAdminHandler.DeleteMachineUserHandler)
+	mainAdminAuth.POST("/machine/card/:card_id",mainAdminHandler.CardDeativationHandler)
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")

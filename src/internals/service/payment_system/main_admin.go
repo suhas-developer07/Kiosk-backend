@@ -502,6 +502,7 @@ func (s *MainAdminService) InitializeCardService(ctx context.Context, req model.
 		USN:       req.USN,
 		Balance:   req.RechargeAmount,
 		CollegeID: CollegeID,
+		Status:    "active",
 	}
 	err = s.repo.InitializeRFIDCard(ctx, data)
 	if err != nil {
@@ -601,6 +602,31 @@ func (s *MainAdminService) GetRFIDCardDetailsService(ctx context.Context, cardID
 	)
 
 	return card, nil
+}
+func (s *MainAdminService) CardDeactivationService(ctx context.Context, cardID string, status string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Deactivating RFID card",
+		"card_id", cardID,
+		"status", status,
+	)
+
+	if err := s.repo.DeactivateRFIDCard(ctx, cardID, status); err != nil {
+		s.logger.Errorw("Failed to deactivate RFID card",
+			"card_id", cardID,
+			"status", status,
+			"error", err,
+		)
+		return errors.New("failed to deactivate card. Please try again")
+	}
+
+	s.logger.Infow("RFID card deactivated successfully",
+		"card_id", cardID,
+		"status", status,
+	)
+
+	return nil
 }
 /* Recharge Machine User Services */
 func (s *MainAdminService) CreateRechargeMachineUserService(

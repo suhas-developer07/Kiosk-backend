@@ -18,7 +18,7 @@ func (l *LocalStorage) Save(file io.Reader, filename string) (string, error) {
 	if err := os.MkdirAll(l.BasePath, 0755); err != nil {
 		return "", err
 	}
-
+	
 	fullPath := filepath.Join(l.BasePath, filename)
 
 	dst, err := os.Create(fullPath)

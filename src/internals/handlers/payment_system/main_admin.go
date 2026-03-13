@@ -589,6 +589,52 @@ func (h *MainAdminHandler) GetRFIDCardDetails(c echo.Context) error {
 	})
 }
 
+func (h *MainAdminHandler) CardDeativationHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+	requestIP := c.RealIP()
+	cardID := strings.TrimSpace(c.Param("card_id"))
+
+	if cardID == "" {
+		h.logger.Warnw("Empty card ID for deactivation request",
+			"ip", requestIP,
+		)
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Please provide a valid card ID to deactivate.",
+		})
+	}
+
+	var req struct {
+		Status string `json:"status" validate:"required,oneof=active deactivated"`
+	}
+	if err := c.Bind(&req); err != nil {
+		h.logger.Warnw("Failed to bind card deactivation request",
+			"card_id", cardID,
+			"error", err,
+		)
+	}
+	err := h.service.CardDeactivationService(ctx, cardID, req.Status)
+	if err != nil {
+		h.logger.Errorw("Card deactivation failed",
+			"card_id", cardID,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Failed to deactivate card.",
+		})
+	}
+
+	h.logger.Infow("Card deactivated successfully",
+		"card_id", cardID,
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Card has been deactivated successfully.",
+	})
+}
+
 /*Recharge Machine Users Handler */
 func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -779,6 +825,7 @@ func (h *MainAdminHandler) DeleteMachineUserHandler(c echo.Context) error {
 		Message: "User deleted successfully.",
 	})
 }
+
 // func (h *MainAdminHandler) GetAllUsers(c echo.Context) error {
 // 	collegeId := strings.TrimSpace(c.Param("college_id"))
 // 	if collegeId == "" {

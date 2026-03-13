@@ -51,6 +51,7 @@ type RFIDCard struct {
 	USN       string `json:"usn" bson:"usn"`
 	Balance   string `json:"balance" bson:"balance"`
 	CollegeID string `json:"college_id" bson:"college_id"`
+	Status    string `json:"status" bson:"status"`
 }
 
 type InitializeCardRequest struct {

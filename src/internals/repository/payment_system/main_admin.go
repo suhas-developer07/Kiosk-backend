@@ -480,6 +480,21 @@ func (r *MainAdminRepo) DeleteRFIDCard(ctx context.Context, cardID string) error
 	return nil
 }
 
+func (r *MainAdminRepo) DeactivateRFIDCard(ctx context.Context, cardID string,status string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	update := bson.M{"$set": bson.M{"status": status}}
+	result, err := r.RFIDCardsCollection.UpdateOne(ctx, bson.M{"card_id": cardID}, update)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate RFID card: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return errors.New("RFID card not found for deactivation")
+	}
+	return nil
+}
+
 
 func (r *MainAdminRepo) GetCollegeIdByMachineID(ctx context.Context, machineID string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)

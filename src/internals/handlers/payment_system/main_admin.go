@@ -635,6 +635,31 @@ func (h *MainAdminHandler) CardDeativationHandler(c echo.Context) error {
 	})
 }
 
+func (h *MainAdminHandler) GetAllCardsHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	cards,err := h.service.GetAllCardsService(ctx)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch all cards",
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch cards at this time.",
+		})
+	}
+
+	h.logger.Infow("All cards retrieved successfully",
+		"card_count", len(cards),
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Cards retrieved successfully.",
+		Data:    cards,
+	})
+}
+
 /*Recharge Machine Users Handler */
 func (h *MainAdminHandler) CreateRechargeMachineUser(c echo.Context) error {
 	ctx := c.Request().Context()
@@ -744,7 +769,6 @@ func (h *MainAdminHandler) LoginRechargeMachineUser(c echo.Context) error {
 		},
 	})
 }
-
 /* Error Handling */
 func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email string) error {
 	switch {

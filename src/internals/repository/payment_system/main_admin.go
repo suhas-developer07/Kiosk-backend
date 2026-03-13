@@ -495,6 +495,35 @@ func (r *MainAdminRepo) DeactivateRFIDCard(ctx context.Context, cardID string,st
 	return nil
 }
 
+func (r *MainAdminRepo) GetAllCards(ctx context.Context) ([]model.RFIDCard, error) {
+	ctx,cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	var cards []model.RFIDCard
+	filter := bson.M{}
+	cursor, err := r.RFIDCardsCollection.Find(ctx, filter)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, errors.New("no RFID cards found")
+		}
+		return nil, fmt.Errorf("failed to query RFID cards: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var card model.RFIDCard
+		if decodeErr := cursor.Decode(&card); decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode RFID card record: %w", decodeErr)
+		}
+		cards = append(cards, card)
+	}
+
+	if cursorErr := cursor.Err(); cursorErr != nil {
+		return nil, fmt.Errorf("cursor error while reading RFID cards: %w", cursorErr)
+	}
+
+	return cards, nil
+}
 
 func (r *MainAdminRepo) GetCollegeIdByMachineID(ctx context.Context, machineID string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)

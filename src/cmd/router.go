@@ -90,6 +90,7 @@ func SetupRouter(
 	mainAdminAuth.GET("/machine/users/:machine_id",mainAdminHandler.GetMachineUsersByMachineIdHandler)
 	mainAdminAuth.DELETE("/machine/user/:machine_id/:user_id",mainAdminHandler.DeleteMachineUserHandler)
 	mainAdminAuth.POST("/machine/card/:card_id",mainAdminHandler.CardDeativationHandler)
+	mainAdminAuth.GET("/rfid/cards",mainAdminHandler.GetAllCardsHandler)
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")
@@ -125,4 +126,6 @@ func SetupRouter(
 	superAdminAuth.GET("/recharge/history", superAdminHandler.GetOverallCollgeRechargeHistory)
 	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachineCount)
 	superAdminAuth.GET("/machine/count/:college_id", superAdminHandler.GetTotalMachinesCountByCollege)
+	superAdminAuth.GET("/rfid/cards",mainAdminHandler.GetAllCardsHandler)
+	superAdminAuth.POST("/rfid/card/:card_id",mainAdminHandler.CardDeativationHandler)
 }

@@ -356,13 +356,17 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 		return errors.New("insufficient machine balance for this recharge")
 	}
 
-	CardBalance, err := s.repo.GetRFIDCardBalance(ctx, req.CardID)
+	card, err := s.repo.GetRFIDCardDetails(ctx, req.CardID)
 	if err != nil {
 		s.logger.Errorw("Failed to fetch RFID card balance for recharge",
 			"card_id", req.CardID,
 			"error", err,
 		)
 		return errors.New("RFID card not found or balance unavailable")
+	}
+
+	if card.Status == "deactivated"{
+		return errors.New("Card is not active right now. contact service centre to make your card active.")
 	}
 
 	err = s.repo.RechargeRFIDCard(ctx, req.CardID, req.RechargeAmount)
@@ -383,7 +387,7 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 			"new_balance", newBalance,
 			"error", err,
 		)
-		_ = s.repo.UpdateRFIDCardBalance(ctx, req.CardID, CardBalance) // Rollback RFID card recharge
+		_ = s.repo.UpdateRFIDCardBalance(ctx, req.CardID, card.Balance) // Rollback RFID card recharge
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
@@ -395,7 +399,7 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 			"error", err,
 		)
 		_ = s.repo.UpdateMachineBalance(ctx, req.MachineID, currentBalance)
-		_ = s.repo.UpdateRFIDCardBalance(ctx, req.CardID, CardBalance) // Rollback RFID card recharge
+		_ = s.repo.UpdateRFIDCardBalance(ctx, req.CardID, card.Balance) // Rollback RFID card recharge
 		return errors.New("failed to record recharge history. Transaction rolled back")
 	}
 

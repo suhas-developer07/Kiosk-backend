@@ -9,6 +9,7 @@ import (
 
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	domain "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/files"
+	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,9 +17,10 @@ import (
 )
 
 type FilesRepo struct {
-	client             *mongo.Client
-	FilesCollection    *mongo.Collection
-	PrintJobCollection *mongo.Collection
+	client              *mongo.Client
+	FilesCollection     *mongo.Collection
+	PrintJobCollection  *mongo.Collection
+	RFIDCardsCollection *mongo.Collection
 }
 
 func NewFilesRepo(db *mongo.Database, client *mongo.Client) *FilesRepo {
@@ -26,6 +28,7 @@ func NewFilesRepo(db *mongo.Database, client *mongo.Client) *FilesRepo {
 		client:             client,
 		FilesCollection:    db.Collection("files"),
 		PrintJobCollection: db.Collection("PrintJobs"),
+		RFIDCardsCollection: db.Collection("rfid_cards"),
 	}
 }
 
@@ -271,7 +274,7 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context, fileID string, reason
 	}
 
 	filter := bson.M{
-		"_id":            objectID,
+		"_id": objectID,
 	}
 
 	update := bson.M{
@@ -296,7 +299,7 @@ func (r *FilesRepo) DeleteFileRequest(ctx context.Context, fileID string, reason
 	return nil
 }
 
-func (r *FilesRepo) GetPendingDeleteRequestFiles(ctx context.Context)([]domain.File,error){
+func (r *FilesRepo) GetPendingDeleteRequestFiles(ctx context.Context) ([]domain.File, error) {
 
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -305,20 +308,20 @@ func (r *FilesRepo) GetPendingDeleteRequestFiles(ctx context.Context)([]domain.F
 		"delete_request.status": "pending",
 	}
 
-	cursor,err := r.FilesCollection.Find(ctx,filter)
-	if err!=nil{
-		if errors.Is(err,mongo.ErrNoDocuments){
-			return nil,nil
+	cursor, err := r.FilesCollection.Find(ctx, filter)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
 		}
-		return nil,fmt.Errorf("db.find error:%v",err)
+		return nil, fmt.Errorf("db.find error:%v", err)
 	}
 
 	var files []domain.File
 
-	if err := cursor.All(ctx,&files);err!=nil{
-		return nil,fmt.Errorf("cursor decode error:%v",err)
+	if err := cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error:%v", err)
 	}
-	return files,nil
+	return files, nil
 }
 
 func (r *FilesRepo) DeleteFilePermanently(ctx context.Context, fileID string) error {
@@ -436,9 +439,9 @@ func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
 	opts := options.Find().SetSort(bson.M{"uploaded_at": -1})
 
 	cursor, err := r.FilesCollection.Find(ctx, bson.M{}, opts)
-	if err!=nil{
-		fmt.Print("error",err)
-		return nil,err
+	if err != nil {
+		fmt.Print("error", err)
+		return nil, err
 	}
 
 	var files []domain.File
@@ -454,7 +457,7 @@ func (r *FilesRepo) TotalFiles(ctx context.Context) ([]domain.File, error) {
 func (r *FilesRepo) GetPendingDeleteRequests(ctx context.Context, facultyId string) ([]domain.File, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	objectID, err := primitive.ObjectIDFromHex(facultyId)
 	if err != nil {
 		return nil, fmt.Errorf("invalid faculty id")
@@ -464,20 +467,20 @@ func (r *FilesRepo) GetPendingDeleteRequests(ctx context.Context, facultyId stri
 		"faculty_id":            objectID,
 		"delete_request.status": "pending",
 	}
-	
+
 	cursor, err := r.FilesCollection.Find(ctx, filter)
 
-	if err!=nil{
-		if errors.Is(err,mongo.ErrNoDocuments){
-			return nil,nil
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
 		}
-		return nil,fmt.Errorf("db.Find error:%v",err)
+		return nil, fmt.Errorf("db.Find error:%v", err)
 	}
 	defer cursor.Close(ctx)
-	
+
 	var files []domain.File
 	if err = cursor.All(ctx, &files); err != nil {
-		return nil, fmt.Errorf("cursor decode error:%v",err)
+		return nil, fmt.Errorf("cursor decode error:%v", err)
 	}
 
 	return files, nil
@@ -486,7 +489,7 @@ func (r *FilesRepo) GetPendingDeleteRequests(ctx context.Context, facultyId stri
 func (r *FilesRepo) CalculateTotalRevenue(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	cursor, err := r.PrintJobCollection.Find(ctx, bson.M{})
 	if err != nil {
 		return 0, fmt.Errorf("db.Find error:%v", err)
@@ -524,4 +527,23 @@ func (r *FilesRepo) GetRecentPrintJobs(ctx context.Context) ([]domain.PrintJob, 
 	}
 
 	return printJobs, nil
+}
+
+func (r *FilesRepo) GetUsnByCardId(ctx context.Context,cardId string)(string,error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"card_id":cardId,
+	}
+
+	var card  model.RFIDCard
+
+	err := r.RFIDCardsCollection.FindOne(ctx,filter).Decode(&card)
+
+	if err != nil {
+		return "",fmt.Errorf("db.Find error:%v",err)
+	}
+
+	return card.USN,nil
 }

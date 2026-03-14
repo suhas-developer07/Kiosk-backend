@@ -13,6 +13,7 @@ import (
 	db "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
 
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
+	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
@@ -94,8 +95,14 @@ func (s *FileService) CreatePrintJobService(ctx context.Context, req domain.Prin
 		return apperrors.ErrFileNotFound
 	}
 
+	usn, err := s.FileRepo.GetUsnByCardId(ctx,req.CardID)
+	if err != nil {
+		return fmt.Errorf("service:failed to get usn by card id: %w", err)
+	}
+
 	printJob := domain.PrintJob{
 		FileId:              req.FileID,
+		USN:                 usn,
 		FileName:            req.FileName,
 		Copies:              req.Copies,
 		PrintingSide:        req.PrintingSide,
@@ -111,6 +118,11 @@ func (s *FileService) CreatePrintJobService(ctx context.Context, req domain.Prin
 	err = s.FileRepo.CreatePrintJob(ctx, printJob)
 	if err != nil {
 		return fmt.Errorf("service: create print job failed: %w", err)
+	}
+
+	ok := utils.UpdateRemainingPagesInTray(req.TotalSheets)
+	if !ok {
+		return errors.New("service:Page update error")
 	}
 
 	return nil
@@ -192,11 +204,10 @@ func (s *FileService) FetchPrintJobsService(ctx context.Context) ([]domain.Print
 	return data, nil
 }
 
-
-func (s *FileService) CalculateTotalRevenueService(ctx context.Context)(int,error){
+func (s *FileService) CalculateTotalRevenueService(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	
+
 	s.Logger.Info("Calculating total revenue")
 
 	totalRevenue, err := s.FileRepo.CalculateTotalRevenue(ctx)
@@ -207,7 +218,7 @@ func (s *FileService) CalculateTotalRevenueService(ctx context.Context)(int,erro
 	return totalRevenue, nil
 }
 
-func (s *FileService) GetRecentPrintJobsService(ctx context.Context)([]domain.PrintJob,error){
+func (s *FileService) GetRecentPrintJobsService(ctx context.Context) ([]domain.PrintJob, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

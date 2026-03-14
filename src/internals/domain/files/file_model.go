@@ -42,6 +42,7 @@ type FileUploadRequest struct {
 type PrintJob struct {
 	ID                  primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	FileId              primitive.ObjectID `bson:"file_id" json:"file_id"`
+	USN                 string             `bson:"USN" json:"USN"`
 	FileName            string             `bson:"file_name" json:"file_name"`
 	FileKey             string             `bson:"file_key" json:"-"`
 	Copies              int                `bson:"copies" json:"copies"`
@@ -57,6 +58,7 @@ type PrintJob struct {
 
 type PrintJobPayload struct {
 	FileID       primitive.ObjectID `json:"file_id" validate:"required"`
+	CardID       string             `json:"card_id" validate:"required"`
 	FileName     string             `json:"file_name" validate:"required,min=3"`
 	FileKey      string             `bson:"file_key" json:"-"`
 	Copies       int                `json:"copies" validate:"required,min=1,max=100"`

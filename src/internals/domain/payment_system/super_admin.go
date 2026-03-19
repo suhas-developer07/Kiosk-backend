@@ -114,3 +114,7 @@ type MachineCreateRequest struct {
 	MachineName string `json:"machine_name" bson:"machine_name" validate:"required"`
 	CollegeId   string `json:"college_id" bson:"college_id" validate:"required"`
 }
+
+type UpdateRFIDCard struct {
+	USN string `json:"usn"`
+}

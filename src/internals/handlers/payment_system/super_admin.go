@@ -187,7 +187,7 @@ func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
 		)
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Unable to create college. Please try again later.",
+			Error:  "Unable to create college. Please try again later." + err.Error(),
 		})
 	}
 
@@ -852,3 +852,76 @@ func (h *SuperAdminHandler) handleCreateMachineError(c echo.Context, err error, 
 		})
 	}
 }
+
+func (h *SuperAdminHandler) DeleteRechargeMachine(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	machine_id := c.Param("machine_id")
+	if machine_id == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "machine_id is missing in params",
+		})
+	}
+
+	err := h.service.DeleteRechargeMachine(ctx, machine_id)
+
+	if err != nil {
+		if errors.Is(err, apperrors.ErrMachineNotFound) {
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "machine is not found in the database",
+			})
+		}
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Error while deleting the machine" + err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Machine deleted successfully",
+	})
+}
+
+// func (h *SuperAdminHandler) UpdateRFIDCard(c echo.Context)error{
+// 	ctx := c.Request().Context()
+
+// 	var payload model.UpdateRFIDCard
+
+// 	cardId := c.Param("card_id")
+// 	if cardId == ""{
+// 		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+// 			Status: "error",
+// 			Error: "Card id is required to update the rfid card",
+// 		})
+// 	}
+
+// 	if err := c.Bind(&payload);err != nil {
+// 		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+// 			Status: "error",
+// 			Error: "data binding error.please send the correct formate of data",
+// 		})
+// 	}
+
+// 	err := h.service.UpdateRFIDCard(ctx,cardId,payload)
+
+// 	if err != nil {
+// 		if errors.Is(err,apperrors.ErrRFIDCardNotFound){
+// 			return c.JSON(http.StatusNotFound,domain.ErrorResponse{
+// 				Status: "error",
+// 				Error: "card not found in our database",
+// 			})
+// 		}
+// 		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+// 			Status: "error",
+// 			Error: "Something went wrong while updating the card" +err.Error(),
+// 		})
+// 	}
+
+// 	return c.JSON(http.StatusOK,domain.SuccessResponse{
+// 		Status: "success",
+// 		Message: "RFID Card updated successfully",
+// 	})
+// }

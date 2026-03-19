@@ -31,6 +31,7 @@ var (
 	ErrHistoryNotFound = errors.New("history not found")
 	ErrWardenNotFound  = errors.New("warden not found")
 	ErrCollegeNotFound = errors.New("college not found")
+	ErrRFIDCardNotFound = errors.New("card not found")
 )
 
 /*

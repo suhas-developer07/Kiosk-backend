@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	apperrors "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/errors"
 	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
@@ -458,6 +459,24 @@ func (s *SuperAdminRepository) GetTotalMachinesCount(ctx context.Context) (int64
 	return count, nil
 }
 
+func (s *SuperAdminRepository) DeleteRechargeMachine(ctx context.Context,machineId string)error{
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"machine_id":machineId,
+	}
+
+	_,err := s.machineCollection.DeleteOne(ctx,filter)
+	if err != nil {
+		if errors.Is(err,apperrors.ErrMachineNotFound){
+			return fmt.Errorf("This Machine is Not exist in our database")
+		}
+		return fmt.Errorf("db.Error While deleting machine")
+	}
+
+	return nil
+}
 /*Helper functions */
 
 func reverseRechargeHistory(history []model.CollegeRechargeHistory) []model.CollegeRechargeHistory {

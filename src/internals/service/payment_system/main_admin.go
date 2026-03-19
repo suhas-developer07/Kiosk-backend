@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	defaultOperationTimeout = 5 * time.Second
+	defaultOperationTimeout = 10 * time.Second
 	timezoneLocation        = "Asia/Kolkata"
 	initialMachineBalance   = "0"
 	dateFormat              = "2006-01-02"
@@ -365,7 +365,7 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 		return errors.New("RFID card not found or balance unavailable")
 	}
 
-	if card.Status == "deactivated"{
+	if card.Status == "deactivated" {
 		return errors.New("Card is not active right now. contact service centre to make your card active.")
 	}
 
@@ -391,7 +391,10 @@ func (s *MainAdminService) RechargeRFIDService(ctx context.Context, req model.Re
 		return errors.New("failed to update machine balance. Please try again")
 	}
 
-	if err := s.recordRFIDRechargeHistory(ctx, req); err != nil {
+	hitstoryctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := s.recordRFIDRechargeHistory(hitstoryctx, req); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
 			"machine_id", req.MachineID,
@@ -538,7 +541,9 @@ func (s *MainAdminService) InitializeCardService(ctx context.Context, req model.
 		RechargeAmount: req.RechargeAmount,
 	}
 
-	if err := s.recordRFIDRechargeHistory(ctx, rfidRechargeReq); err != nil {
+	hitstoryctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.recordRFIDRechargeHistory(hitstoryctx, rfidRechargeReq); err != nil {
 		// Rollback balance update on history insertion failure
 		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
 			"machine_id", req.MachineID,
@@ -633,7 +638,7 @@ func (s *MainAdminService) CardDeactivationService(ctx context.Context, cardID s
 	return nil
 }
 
-func (s *MainAdminService) GetAllCardsService(ctx context.Context)([]model.RFIDCard,error){
+func (s *MainAdminService) GetAllCardsService(ctx context.Context) ([]model.RFIDCard, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -653,6 +658,7 @@ func (s *MainAdminService) GetAllCardsService(ctx context.Context)([]model.RFIDC
 
 	return cards, nil
 }
+
 /* Recharge Machine User Services */
 func (s *MainAdminService) CreateRechargeMachineUserService(
 	ctx context.Context,
@@ -910,7 +916,7 @@ func (s *MainAdminService) recordRFIDRechargeHistory(
 	return nil
 }
 
-func (s *MainAdminService) GetMachineUsersByMachineIdService(ctx context.Context, machineId string)([]model.User,error){
+func (s *MainAdminService) GetMachineUsersByMachineIdService(ctx context.Context, machineId string) ([]model.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -935,7 +941,7 @@ func (s *MainAdminService) GetMachineUsersByMachineIdService(ctx context.Context
 	return users, nil
 }
 
-func (s *MainAdminService) DeleteMachineUserService(ctx context.Context, machineId string,userId string) error{
+func (s *MainAdminService) DeleteMachineUserService(ctx context.Context, machineId string, userId string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
@@ -944,7 +950,7 @@ func (s *MainAdminService) DeleteMachineUserService(ctx context.Context, machine
 		"user_id", userId,
 	)
 
-	err := s.repo.DeleteMachineUser(ctx, machineId,userId)
+	err := s.repo.DeleteMachineUser(ctx, machineId, userId)
 	if err != nil {
 		s.logger.Errorw("Failed to delete machine user",
 			"machine_id", machineId,

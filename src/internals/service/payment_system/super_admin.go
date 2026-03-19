@@ -596,3 +596,34 @@ func (s *SuperAdminService) recordCollegeRechargeHistory(ctx context.Context, re
 
 	return nil
 }
+
+
+func (s *SuperAdminService) DeleteRechargeMachine(ctx context.Context,machineId string)error{
+	ctx,cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	return s.repo.DeleteRechargeMachine(ctx,machineId)
+}
+
+// func (s *SuperAdminService) UpdateRFIDCard(ctx context.Context,cardId string,USN model.UpdateRFIDCard)error{
+// 	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+// 	defer cancel()
+
+// 	cardDetails,err := s.repo.GetRFIDCardById(ctx,cardId)
+
+// 	if err != nil {
+// 		if errors.Is(err,apperrors.ErrRFIDCardNotFound){
+// 			return apperrors.ErrRFIDCardNotFound
+// 		}
+// 		return err
+// 	}
+
+// 	cardDetails.USN = USN
+
+// 	err := s.repo.UpdateRFIDCard(ctx, cardDetails)
+// 	err != nil {
+		
+// 	}
+
+
+// }

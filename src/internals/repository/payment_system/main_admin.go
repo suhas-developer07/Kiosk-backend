@@ -305,23 +305,6 @@ func (r *MainAdminRepo) InsertRechargeRFIDHistory(ctx context.Context, history m
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
-	var user struct {
-		UserName string `bson:"user_name"`
-	}
-
-	userFilter := bson.M{"user_id": history.UserID}
-	userErr := r.UsersCollection.FindOne(ctx, userFilter).Decode(&user)
-
-	if userErr != nil {
-		if errors.Is(userErr, mongo.ErrNoDocuments) {
-			history.UserName = ""
-		} else {
-			return fmt.Errorf("failed to fetch user details: %w", userErr)
-		}
-	} else {
-		history.UserName = user.UserName
-	}
-
 	_, insertErr := r.RFIDRechargeMachineHistoryCollection.InsertOne(ctx, history)
 	if insertErr != nil {
 		return fmt.Errorf("failed to insert RFID recharge history: %w", insertErr)

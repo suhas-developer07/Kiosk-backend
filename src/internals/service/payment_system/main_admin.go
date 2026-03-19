@@ -541,21 +541,39 @@ func (s *MainAdminService) InitializeCardService(ctx context.Context, req model.
 		RechargeAmount: req.RechargeAmount,
 	}
 
-	hitstoryctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	//record history
+	historyCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := s.recordRFIDRechargeHistory(hitstoryctx, rfidRechargeReq); err != nil {
-		// Rollback balance update on history insertion failure
+
+	if err := s.recordRFIDRechargeHistory(historyCtx, rfidRechargeReq); err != nil {
 		s.logger.Errorw("Failed to record RFID recharge history, attempting rollback",
 			"machine_id", req.MachineID,
 			"card_id", req.CardID,
 			"usn", req.USN,
 			"error", err,
 		)
-		_ = s.repo.UpdateMachineBalance(ctx, req.MachineID, currentBalance)
-		_ = s.repo.DeleteRFIDCard(ctx, req.CardID) // Rollback card initialization
-		return errors.New("failed to record recharge history. Transaction rolled back")
-	}
 
+		rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer rollbackCancel()
+
+		if rbErr := s.repo.DeleteRFIDCard(rollbackCtx, req.CardID); rbErr != nil {
+			s.logger.Errorw("Rollback failed while deleting RFID card",
+				"machine_id", req.MachineID,
+				"card_id", req.CardID,
+				"error", rbErr,
+			)
+		}
+
+		if rbErr := s.repo.UpdateMachineBalance(rollbackCtx, req.MachineID, currentBalance); rbErr != nil {
+			s.logger.Errorw("Rollback failed while restoring machine balance",
+				"machine_id", req.MachineID,
+				"card_id", req.CardID,
+				"error", rbErr,
+			)
+		}
+
+		return fmt.Errorf("failed to record recharge history: %w", err)
+	}
 	s.logger.Infow("RFID card initialized successfully",
 		"card_id", req.CardID,
 		"usn", req.USN,

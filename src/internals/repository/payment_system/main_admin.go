@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	defaultQueryTimeout = 5 * time.Second
+	defaultQueryTimeout = 10 * time.Second
 
 	collectionMachines            = "recharge_machines"
 	collectionRechargeHistory     = "recharge_machine_history"
@@ -45,6 +45,7 @@ func NewMainAdminRepo(db *mongo.Database, client *mongo.Client) *MainAdminRepo {
 		RFIDCardsCollection:                  db.Collection(rfidCards),
 	}
 }
+
 /* College Repository methods */
 
 func (r *MainAdminRepo) GetCollegeForLogin(ctx context.Context, email string) (collegeID, collegename, hashedPassword, superadminID string, err error) {
@@ -123,7 +124,6 @@ func (repo *MainAdminRepo) GetMachinesByCollegeID(ctx context.Context, collegeID
 
 	return machines, nil
 }
-
 
 func (r *MainAdminRepo) GetMachineBalance(ctx context.Context, machineID string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
@@ -292,7 +292,7 @@ func (r *MainAdminRepo) GetAvailableMachines(ctx context.Context) ([]model.Machi
 		}
 		machines = append(machines, machine)
 	}
-	
+
 	if cursorErr := cursor.Err(); cursorErr != nil {
 		return nil, fmt.Errorf("cursor error while reading machines: %w", cursorErr)
 	}
@@ -345,13 +345,19 @@ func (r *MainAdminRepo) GetRFIDRechargeHistory(ctx context.Context, machineID st
 func (r *MainAdminRepo) InitializeRFIDCard(ctx context.Context, card model.RFIDCard) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
+
 	_, err := r.RFIDCardsCollection.InsertOne(ctx, card)
 	if err != nil {
+		// If card already exists → block duplicate
+		if mongo.IsDuplicateKeyError(err) {
+			return errors.New("card already initialized")
+		}
 		return fmt.Errorf("failed to initialize RFID card: %w", err)
 	}
+
 	return nil
 }
-func (r *MainAdminRepo) RechargeRFIDCard(ctx context.Context,cardID string, rechargeAmount string) error {
+func (r *MainAdminRepo) RechargeRFIDCard(ctx context.Context, cardID string, rechargeAmount string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 	var card model.RFIDCard
@@ -401,8 +407,7 @@ func (r *MainAdminRepo) GetRFIDCardBalance(ctx context.Context, cardID string) (
 		return "", errors.New("stored RFID card balance is in an invalid format")
 	}
 	return card.Balance, nil
-} 
-
+}
 
 func (r *MainAdminRepo) UpdateRFIDCardBalance(ctx context.Context, cardID string, newBalance string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
@@ -436,7 +441,7 @@ func (r *MainAdminRepo) GetUSNByCardID(ctx context.Context, cardID string) (stri
 }
 
 func (r *MainAdminRepo) GetRFIDCardDetails(ctx context.Context, cardID string) (model.RFIDCard, error) {
-	ctx,cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 	var card model.RFIDCard
 	err := r.RFIDCardsCollection.FindOne(ctx, bson.M{"card_id": cardID}).Decode(&card)
@@ -463,7 +468,7 @@ func (r *MainAdminRepo) DeleteRFIDCard(ctx context.Context, cardID string) error
 	return nil
 }
 
-func (r *MainAdminRepo) DeactivateRFIDCard(ctx context.Context, cardID string,status string) error {
+func (r *MainAdminRepo) DeactivateRFIDCard(ctx context.Context, cardID string, status string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -479,7 +484,7 @@ func (r *MainAdminRepo) DeactivateRFIDCard(ctx context.Context, cardID string,st
 }
 
 func (r *MainAdminRepo) GetAllCards(ctx context.Context) ([]model.RFIDCard, error) {
-	ctx,cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var cards []model.RFIDCard
@@ -630,4 +635,3 @@ func (r *MainAdminRepo) DeleteMachineUser(ctx context.Context, machineID string,
 	}
 	return nil
 }
-

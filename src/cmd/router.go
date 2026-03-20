@@ -56,6 +56,7 @@ func SetupRouter(
 	admin.POST("/signup", adminHandler.CreateAccount)
 	admin.POST("/signin", adminHandler.Signin)
 	admin.GET("/subjects", adminHandler.GetAvailableSubjectsHandler)
+	adminAuth.GET("/me",adminHandler.GetProfileDataHandler)
 	adminAuth.POST("/create-faculty", adminHandler.AddFacultyHandler)
 	adminAuth.GET("/get-faculties", adminHandler.GetFacultiesHandler)
 	adminAuth.GET("/total-faculties-count", adminHandler.GetTotalFacultiesCount)
@@ -78,6 +79,7 @@ func SetupRouter(
 	mainAdminAuth.Use(college_auth)
 
 	mainAdmin.POST("/college/signin", mainAdminHandler.CollegeLoginRequestHandler)
+	mainAdminAuth.GET("/me",mainAdminHandler.GetProfileDataHandler)
 	mainAdminAuth.POST("/machine/recharge", mainAdminHandler.RechargeMachineHandler)
 	mainAdminAuth.GET("/machine/balance/:machine_id", mainAdminHandler.GetMachineBalanceHandler)
 	mainAdminAuth.GET("/machine/recharge-history/:machine_id", mainAdminHandler.GetRechargeMachineHistoryHandler)
@@ -112,6 +114,7 @@ func SetupRouter(
 
 	superAdmin.POST("/signup", superAdminHandler.CreateSuperAdmin)
 	superAdmin.POST("/signin", superAdminHandler.LoginSuperAdminHandler)
+	superAdminAuth.GET("/me",superAdminHandler.GetProfileHandler)
 	superAdminAuth.POST("/college/create", superAdminHandler.CreateCollege)
 	superAdminAuth.POST("/college/recharge/:college_id", superAdminHandler.RechargeCollege)
 	superAdminAuth.GET("/college/recharge/history/:college_id", superAdminHandler.GetCollegeRechargeHistory)
@@ -128,7 +131,7 @@ func SetupRouter(
 	superAdminAuth.GET("/machine/count/:college_id", superAdminHandler.GetTotalMachinesCountByCollege)
 	superAdminAuth.GET("/rfid/cards",mainAdminHandler.GetAllCardsHandler)
 	superAdminAuth.POST("/rfid/card/:card_id",mainAdminHandler.CardDeativationHandler)
-	superAdminAuth.DELETE("/college/machine/delete/:machine_id",superAdminHandler.DeleteRechargeMachine)
-	//superAdminAuth.PUT("/college/machine/update/:machine_id",superAdminHandler.UpdateRFIDCard)
+	superAdminAuth.DELETE("/college/machine/delete/:machine_id",superAdminHandler.DeleteRechargeMachine)//new
+	superAdminAuth.PUT("/college/machine/update/:machine_id",superAdminHandler.UpdateRFIDCard)
 	
 }

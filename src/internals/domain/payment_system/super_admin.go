@@ -24,6 +24,13 @@ type SuperAdminLoginRequest struct {
 	SuperAdminPassword string `json:"super_admin_password" bson:"super_admin_password" validate:"required"`
 }
 
+type SuperAdminProfileResponse struct {
+	SuperAdminId    string `json:"super_admin_id" bson:"super_admin_id"`
+	SuperAdminName  string `json:"super_admin_name" bson:"super_admin_name"`
+	SuperAdminEmail string `json:"super_admin_email" bson:"super_admin_email"`
+	CreatedAt       string `json:"created_at" bson:"created_at"`
+}
+
 type SuperAdminResponse struct {
 	Token        string `json:"token"`
 	BalanceToken string `json:"balance_token"`

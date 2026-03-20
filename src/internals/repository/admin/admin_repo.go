@@ -74,3 +74,24 @@ func (r *AdminRepo) CreateAccount(ctx context.Context, req model.Admin) error {
 
 	return nil
 }
+
+func (r *AdminRepo) GetAdminByID(ctx context.Context, adminID primitive.ObjectID) (model.Admin, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"_id": adminID,
+	}
+
+	var admin model.Admin
+
+	err := r.Admin.FindOne(ctx, filter).Decode(&admin)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return model.Admin{}, apperrors.ErrAdminNotFound
+		}
+		return model.Admin{}, fmt.Errorf("db error: %v", err)
+	}
+
+	return admin, nil
+}

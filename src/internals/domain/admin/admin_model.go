@@ -15,6 +15,14 @@ type Admin struct {
 	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
+type AdminProfileResponse struct {
+	ID        primitive.ObjectID `json:"id"`
+	Username  string             `json:"username"`
+	Email     string             `json:"email"`
+	CreatedAt time.Time          `json:"created_at"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
 type SigninPayload struct {
 	Email    string `bson:"email" json:"email"`
 	Password string `bson:"password" json:"password"`

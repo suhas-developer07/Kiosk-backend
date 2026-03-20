@@ -568,6 +568,40 @@ func (h *AdminHandler) CreateAccount(c echo.Context) error {
 	})
 }
 
+func (h *AdminHandler) GetProfileDataHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	adminIDStr, ok := c.Get("admin_id").(string)
+	if !ok || adminIDStr == "" {
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "unauthorized access",
+		})
+	}
+
+	profile, err := h.adminService.GetProfileData(ctx, adminIDStr)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrAdminNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "admin not found",
+			})
+		default:
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to fetch profile",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "profile fetched successfully",
+		Data:    profile,
+	})
+}
+
 func (h *AdminHandler) GetAvailableSubjectsHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 

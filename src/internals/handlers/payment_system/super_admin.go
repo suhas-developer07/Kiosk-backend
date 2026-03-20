@@ -136,7 +136,39 @@ func (h *SuperAdminHandler) LoginSuperAdminHandler(c echo.Context) error {
 		},
 	})
 }
+func (h *SuperAdminHandler) GetProfileHandler(c echo.Context) error {
+	ctx := c.Request().Context()
 
+	superAdminID, ok := c.Get("super_admin_id").(string)
+	if !ok || superAdminID == "" {
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "unauthorized access",
+		})
+	}
+
+	profile, err := h.service.GetProfile(ctx, superAdminID)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrSuperAdminNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "super admin not found",
+			})
+		default:
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to fetch profile",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "profile fetched successfully",
+		Data:    profile,
+	})
+}
 /* Super Admin College Management Handlers  */
 
 func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
@@ -884,44 +916,55 @@ func (h *SuperAdminHandler) DeleteRechargeMachine(c echo.Context) error {
 		Message: "Machine deleted successfully",
 	})
 }
+func (h *SuperAdminHandler) UpdateRFIDCard(c echo.Context) error {
+	ctx := c.Request().Context()
 
-// func (h *SuperAdminHandler) UpdateRFIDCard(c echo.Context)error{
-// 	ctx := c.Request().Context()
+	cardId := c.Param("card_id")
+	if cardId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "card_id is required",
+		})
+	}
 
-// 	var payload model.UpdateRFIDCard
+	var payload model.UpdateRFIDCard
+	if err := c.Bind(&payload); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid request payload",
+		})
+	}
 
-// 	cardId := c.Param("card_id")
-// 	if cardId == ""{
-// 		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
-// 			Status: "error",
-// 			Error: "Card id is required to update the rfid card",
-// 		})
-// 	}
+	if strings.TrimSpace(payload.USN) == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "USN cannot be empty",
+		})
+	}
 
-// 	if err := c.Bind(&payload);err != nil {
-// 		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
-// 			Status: "error",
-// 			Error: "data binding error.please send the correct formate of data",
-// 		})
-// 	}
+	err := h.service.UpdateRFIDCard(ctx, cardId, payload)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrRFIDCardNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "RFID card not found",
+			})
+		case errors.Is(err, apperrors.ErrNoUpdateNeeded):
+			return c.JSON(http.StatusOK, domain.SuccessResponse{
+				Status:  "success",
+				Message: "No changes detected",
+			})
+		default:
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to update RFID card",
+			})
+		}
+	}
 
-// 	err := h.service.UpdateRFIDCard(ctx,cardId,payload)
-
-// 	if err != nil {
-// 		if errors.Is(err,apperrors.ErrRFIDCardNotFound){
-// 			return c.JSON(http.StatusNotFound,domain.ErrorResponse{
-// 				Status: "error",
-// 				Error: "card not found in our database",
-// 			})
-// 		}
-// 		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
-// 			Status: "error",
-// 			Error: "Something went wrong while updating the card" +err.Error(),
-// 		})
-// 	}
-
-// 	return c.JSON(http.StatusOK,domain.SuccessResponse{
-// 		Status: "success",
-// 		Message: "RFID Card updated successfully",
-// 	})
-// }
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "RFID card updated successfully",
+	})
+}

@@ -102,7 +102,7 @@ func (s *AdminService) AddFacultyService(ctx context.Context, req facultymodel.F
 		req.Password = hashed
 	}
 
-	if req.ClassHandling != "1PUC" && req.ClassHandling !="2PUC"{
+	if req.ClassHandling != "1PUC" && req.ClassHandling != "2PUC" {
 		return apperrors.ErrInvalidClassHandling
 	}
 
@@ -363,6 +363,32 @@ func (s *AdminService) CreateAccountService(ctx context.Context, req model.Accou
 	s.Logger.Infof("Account created successfully | email=%s", req.Email)
 
 	return nil
+}
+
+func (s *AdminService) GetProfileData(ctx context.Context, adminIDStr string) (*model.AdminProfileResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	adminID, err := primitive.ObjectIDFromHex(adminIDStr)
+	if err != nil {
+		return nil, apperrors.ErrInvalidID
+	}
+
+
+	admin, err := s.AdminRepo.GetAdminByID(ctx, adminID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &model.AdminProfileResponse{
+		ID:        admin.ID,
+		Username:  admin.Username,
+		Email:     admin.Email,
+		CreatedAt: admin.CreatedAt,
+		UpdatedAt: admin.UpdatedAt,
+	}
+
+	return response, nil
 }
 
 func (s *AdminService) GetAvailableSubjects(ctx context.Context) ([]subjects.Subject, error) {

@@ -25,6 +25,7 @@ type SuperAdminRepository struct {
 	collegeCollection                *mongo.Collection
 	collegeRechargeHistoryCollection *mongo.Collection
 	machineCollection                *mongo.Collection
+	RFIDCardsCollection               *mongo.Collection
 }
 
 func NewSuperAdminRepo(db *mongo.Database, client *mongo.Client) *SuperAdminRepository {
@@ -34,6 +35,7 @@ func NewSuperAdminRepo(db *mongo.Database, client *mongo.Client) *SuperAdminRepo
 		collegeCollection:                db.Collection(collectionColleges),
 		collegeRechargeHistoryCollection: db.Collection(collectionCollegeRechargeHistory),
 		machineCollection:                db.Collection(collectionMachines),
+		RFIDCardsCollection:              db.Collection(rfidCards),
 	}
 }
 
@@ -78,6 +80,27 @@ func (r *SuperAdminRepository) GetSuperAdminByEmail(ctx context.Context, email s
 	}
 
 	return &superAdmin, nil
+}
+
+func (r *SuperAdminRepository) GetSuperAdminByID(ctx context.Context, superAdminID string) (model.SuperAdmin, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{
+		"super_admin_id": superAdminID,
+	}
+
+	var admin model.SuperAdmin
+
+	err := r.superAdminCollection.FindOne(ctx, filter).Decode(&admin)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return model.SuperAdmin{}, apperrors.ErrSuperAdminNotFound
+		}
+		return model.SuperAdmin{}, fmt.Errorf("db error: %v", err)
+	}
+
+	return admin, nil
 }
 
 func (r *SuperAdminRepository) UpdateSuperAdminBalance(ctx context.Context, superAdminID, newBalance string) error {
@@ -199,7 +222,7 @@ func (r *SuperAdminRepository) GetCollegesBySuperAdminID(ctx context.Context, ad
 	return colleges, nil
 }
 
-func (r *SuperAdminRepository) GetCollegeByID(ctx context.Context, collegeID string) (*model.SuperAdminCollege, error) {
+func (r *SuperAdminRepository) GetSuperAdminCollegeByID(ctx context.Context, collegeID string) (*model.SuperAdminCollege, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
@@ -473,6 +496,53 @@ func (s *SuperAdminRepository) DeleteRechargeMachine(ctx context.Context,machine
 			return fmt.Errorf("This Machine is Not exist in our database")
 		}
 		return fmt.Errorf("db.Error While deleting machine")
+	}
+
+	return nil
+}
+
+func (s *SuperAdminRepository) GetRFIDCardById(ctx context.Context, cardId string) (model.RFIDCard, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{
+		"card_id": cardId,
+	}
+
+	var card model.RFIDCard
+
+	err := s.RFIDCardsCollection.FindOne(ctx, filter).Decode(&card)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return model.RFIDCard{}, apperrors.ErrRFIDCardNotFound
+		}
+		return model.RFIDCard{}, fmt.Errorf("db error: %v", err)
+	}
+
+	return card, nil
+}
+
+func (s *SuperAdminRepository) UpdateRFIDCard(ctx context.Context, card model.RFIDCard) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{
+		"card_id": card.CardID,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"usn": card.USN,
+		},
+	}
+
+	result, err := s.RFIDCardsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("db error while updating: %v", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return apperrors.ErrRFIDCardNotFound
 	}
 
 	return nil

@@ -55,4 +55,5 @@ var (
 	ErrConnectionFailed    = errors.New("connection failed")
 	ErrTimeout             = errors.New("operation timeout")
 	ErrTransactionRollback = errors.New("transaction rollback")
+	ErrNoUpdateNeeded      = errors.New("no update needed")
 )

@@ -93,3 +93,15 @@ type UserAccessLoginRequest struct {
 type UserAccessDeleteRequest struct {
 	UserId string `json:"user_id" validate:"required"`
 }
+
+
+type MainAdminProfileResponse struct {
+	SuperAdminId string `json:"super_admin_id"`
+	CollegeID    string `json:"college_id"`
+	CollegeName  string `json:"college_name"`
+	CollegeEmail string `json:"college_email"`
+	CollegePhone string `json:"college_phone"`
+	CollegeAddress string `json:"college_address"`
+	Balance      string `json:"balance"`
+	CreatedAt    string `json:"created_at"`
+}

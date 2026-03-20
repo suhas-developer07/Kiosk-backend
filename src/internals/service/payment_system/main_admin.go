@@ -67,6 +67,29 @@ func (s *MainAdminService) CollegeLoginService(ctx context.Context, req model.Co
 	}, nil
 }
 
+func (s *MainAdminService) GetProfileData(ctx context.Context, collegeID string) (*model.MainAdminProfileResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	college, err := s.repo.GetCollegeByID(ctx, collegeID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &model.MainAdminProfileResponse{
+		SuperAdminId:  college.SuperAdminId,
+		CollegeID:     college.CollegeID,
+		CollegeName:   college.CollegeName,
+		CollegeEmail:  college.CollegeEmail,
+		CollegePhone:  college.CollegePhone,
+		CollegeAddress: college.CollegeAddress,
+		Balance:       college.Balance,
+		CreatedAt:     college.CreatedAt,
+	}
+
+	return response, nil
+}
+
 /* Recharge Machine Services */
 func (s *MainAdminService) GetMachinesByCollegeID(ctx context.Context, collegeID string) ([]model.Machine, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)

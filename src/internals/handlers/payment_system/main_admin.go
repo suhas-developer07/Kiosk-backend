@@ -70,6 +70,40 @@ func (h *MainAdminHandler) CollegeLoginRequestHandler(c echo.Context) error {
 	})
 }
 
+func (h *MainAdminHandler) GetProfileDataHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	collegeID, ok := c.Get("college_id").(string)
+	if !ok || collegeID == "" {
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "unauthorized access",
+		})
+	}
+
+	profile, err := h.service.GetProfileData(ctx, collegeID)
+	if err != nil {
+		switch {
+		case errors.Is(err, apperrors.ErrCollegeNotFound):
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "college not found",
+			})
+		default:
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "failed to fetch profile",
+			})
+		}
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "profile fetched successfully",
+		Data:    profile,
+	})
+}
+
 /* Recharge Machine Handlers */
 func (h *MainAdminHandler) RechargeMachineHandler(c echo.Context) error {
 	ctx := c.Request().Context()

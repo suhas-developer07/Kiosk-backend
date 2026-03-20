@@ -64,6 +64,27 @@ func (r *MainAdminRepo) GetCollegeForLogin(ctx context.Context, email string) (c
 	return college.CollegeID, college.CollegeName, college.CollegePassword, college.SuperAdminId, nil
 }
 
+func (r *MainAdminRepo) GetCollegeByID(ctx context.Context, collegeID string) (model.SuperAdminCollege, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{
+		"college_id": collegeID,
+	}
+
+	var college model.SuperAdminCollege
+
+	err := r.CollegeCollection.FindOne(ctx, filter).Decode(&college)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return model.SuperAdminCollege{}, apperrors.ErrCollegeNotFound
+		}
+		return model.SuperAdminCollege{}, fmt.Errorf("db error: %v", err)
+	}
+
+	return college, nil
+}
+
 func (r *MainAdminRepo) GetCollegeBalance(ctx context.Context, collegeID string) (string, error) {
 	var college struct {
 		Balance string `bson:"balance"`

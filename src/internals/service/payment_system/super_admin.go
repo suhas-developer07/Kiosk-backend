@@ -137,6 +137,25 @@ func (s *SuperAdminService) LoginSuperAdminService(ctx context.Context, req mode
 	return accessToken, superAdmin.SuperAdminEmail, superAdmin.SuperAdminName, nil
 }
 
+func (s *SuperAdminService) GetProfile(ctx context.Context, superAdminID string) (*model.SuperAdminProfileResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	admin, err := s.repo.GetSuperAdminByID(ctx, superAdminID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &model.SuperAdminProfileResponse{
+		SuperAdminId:    admin.SuperAdminId,
+		SuperAdminName:  admin.SuperAdminName,
+		SuperAdminEmail: admin.SuperAdminEmail,
+		CreatedAt:       admin.CreatedAt,
+	}
+
+	return response, nil
+}
+
 /*  College Management Services  */
 
 func (s *SuperAdminService) CreateCollege(ctx context.Context, req model.CollegeCreateRequest, superAdminID string) (*model.CollegeResponse, error) {
@@ -232,7 +251,7 @@ func (s *SuperAdminService) GetCollegeDetails(ctx context.Context, collegeID str
 		return nil, errors.New("college ID is required")
 	}
 
-	college, err := s.repo.GetCollegeByID(ctx, collegeID)
+	college, err := s.repo.GetSuperAdminCollegeByID(ctx, collegeID)
 	if err != nil {
 		s.logger.Errorw("Failed to fetch college details",
 			"college_id", collegeID,
@@ -252,7 +271,7 @@ func (s *SuperAdminService) DeleteCollege(ctx context.Context, collegeID string)
 		return errors.New("college ID is required")
 	}
 
-	college, err := s.repo.GetCollegeByID(ctx, collegeID)
+	college, err := s.repo.GetSuperAdminCollegeByID(ctx, collegeID)
 	if err != nil {
 		s.logger.Errorw("Failed to verify college before deletion",
 			"college_id", collegeID,
@@ -604,26 +623,24 @@ func (s *SuperAdminService) DeleteRechargeMachine(ctx context.Context,machineId 
 
 	return s.repo.DeleteRechargeMachine(ctx,machineId)
 }
+func (s *SuperAdminService) UpdateRFIDCard(ctx context.Context, cardId string, payload model.UpdateRFIDCard) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-// func (s *SuperAdminService) UpdateRFIDCard(ctx context.Context,cardId string,USN model.UpdateRFIDCard)error{
-// 	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
-// 	defer cancel()
+	card, err := s.repo.GetRFIDCardById(ctx, cardId)
+	if err != nil {
+		return err
+	}
 
-// 	cardDetails,err := s.repo.GetRFIDCardById(ctx,cardId)
+	if card.USN == payload.USN {
+		return apperrors.ErrNoUpdateNeeded
+	}
 
-// 	if err != nil {
-// 		if errors.Is(err,apperrors.ErrRFIDCardNotFound){
-// 			return apperrors.ErrRFIDCardNotFound
-// 		}
-// 		return err
-// 	}
+	card.USN = payload.USN
 
-// 	cardDetails.USN = USN
+	if err := s.repo.UpdateRFIDCard(ctx, card); err != nil {
+		return err
+	}
 
-// 	err := s.repo.UpdateRFIDCard(ctx, cardDetails)
-// 	err != nil {
-		
-// 	}
-
-
-// }
+	return nil
+}

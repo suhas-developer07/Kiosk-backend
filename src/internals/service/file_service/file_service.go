@@ -69,7 +69,7 @@ func (s *FileService) GetFileByGradeAndSubjectService(ctx context.Context, grade
 
 func (s *FileService) CreatePrintJobService(ctx context.Context, req domain.PrintJobPayload) error {
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	s.Logger.Infof(

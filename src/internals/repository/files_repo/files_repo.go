@@ -549,7 +549,7 @@ func (r *FilesRepo) GetRFIDCardById(ctx context.Context, cardId string) (model.R
 }
 
 func (r *FilesRepo) UpdateCardBalance(ctx context.Context, cardId string, bal string) error {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	filter := bson.M{

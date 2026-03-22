@@ -25,9 +25,9 @@ type FilesRepo struct {
 
 func NewFilesRepo(db *mongo.Database, client *mongo.Client) *FilesRepo {
 	return &FilesRepo{
-		client:             client,
-		FilesCollection:    db.Collection("files"),
-		PrintJobCollection: db.Collection("PrintJobs"),
+		client:              client,
+		FilesCollection:     db.Collection("files"),
+		PrintJobCollection:  db.Collection("PrintJobs"),
 		RFIDCardsCollection: db.Collection("rfid_cards"),
 	}
 }
@@ -529,21 +529,46 @@ func (r *FilesRepo) GetRecentPrintJobs(ctx context.Context) ([]domain.PrintJob, 
 	return printJobs, nil
 }
 
-func (r *FilesRepo) GetUsnByCardId(ctx context.Context,cardId string)(string,error){
-	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+func (r *FilesRepo) GetRFIDCardById(ctx context.Context, cardId string) (model.RFIDCard, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	filter := bson.M{
-		"card_id":cardId,
+		"card_id": cardId,
 	}
 
-	var card  model.RFIDCard
+	var card model.RFIDCard
 
-	err := r.RFIDCardsCollection.FindOne(ctx,filter).Decode(&card)
+	err := r.RFIDCardsCollection.FindOne(ctx, filter).Decode(&card)
 
 	if err != nil {
-		return "",fmt.Errorf("db.Find error:%v",err)
+		return model.RFIDCard{}, fmt.Errorf("db.Find error:%v", err)
 	}
 
-	return card.USN,nil
+	return card, nil
+}
+
+func (r *FilesRepo) UpdateCardBalance(ctx context.Context, cardId string, bal string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"card_id": cardId,
+	}
+
+	newBalance := bson.M{
+		"$set": bson.M{
+			"balance": bal,
+		},
+	}
+
+	result, err := r.RFIDCardsCollection.UpdateOne(ctx, filter, newBalance)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("Card not found to update the balance")
+	}
+	return nil
 }

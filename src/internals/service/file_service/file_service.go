@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -95,14 +96,27 @@ func (s *FileService) CreatePrintJobService(ctx context.Context, req domain.Prin
 		return apperrors.ErrFileNotFound
 	}
 
-	usn, err := s.FileRepo.GetUsnByCardId(ctx,req.CardID)
+	card, err := s.FileRepo.GetRFIDCardById(ctx, req.CardID)
 	if err != nil {
 		return fmt.Errorf("service:failed to get usn by card id: %w", err)
 	}
 
+	BalanceInt, err := strconv.Atoi(card.Balance)
+	if err != nil {
+		return fmt.Errorf("Balance is not in correct formate. please contact support,Error:%v",err)
+	}
+
+	newBalance := BalanceInt - req.Amount
+
+	newBalanceStr := strconv.Itoa(newBalance)
+
+	if err := s.FileRepo.UpdateCardBalance(ctx, card.CardID, newBalanceStr); err != nil {
+		return fmt.Errorf("Error updating Card Balance,Error:%v", err)
+	}
+
 	printJob := domain.PrintJob{
 		FileId:              req.FileID,
-		USN:                 usn,
+		USN:                 card.USN,
 		FileName:            req.FileName,
 		Copies:              req.Copies,
 		PrintingSide:        req.PrintingSide,

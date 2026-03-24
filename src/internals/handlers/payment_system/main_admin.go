@@ -672,7 +672,7 @@ func (h *MainAdminHandler) CardDeativationHandler(c echo.Context) error {
 func (h *MainAdminHandler) GetAllCardsHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	cards,err := h.service.GetAllCardsService(ctx)
+	cards, err := h.service.GetAllCardsService(ctx)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch all cards",
 			"error", err,
@@ -803,38 +803,6 @@ func (h *MainAdminHandler) LoginRechargeMachineUser(c echo.Context) error {
 		},
 	})
 }
-/* Error Handling */
-func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email string) error {
-	switch {
-	case errors.Is(err, apperrors.ErrFacultyNotFound):
-		h.logger.Warnw("User not found during login",
-			"email", email,
-		)
-		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid email or password.",
-		})
-
-	case errors.Is(err, apperrors.ErrInvalidPassword):
-		h.logger.Warnw("Invalid password during login",
-			"email", email,
-		)
-		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Invalid email or password.",
-		})
-
-	default:
-		h.logger.Errorw("Unexpected error during login",
-			"email", email,
-			"error", err,
-		)
-		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
-			Status: "error",
-			Error:  "Unable to process login at this time. Please try again later.",
-		})
-	}
-}
 
 func (h *MainAdminHandler) GetMachineUsersByMachineIdHandler(c echo.Context) error {
 	machineId := strings.TrimSpace(c.Param("machine_id"))
@@ -882,4 +850,40 @@ func (h *MainAdminHandler) DeleteMachineUserHandler(c echo.Context) error {
 		Status:  "success",
 		Message: "User deleted successfully.",
 	})
+}
+
+// func (h *MainAdminHandler) UpdateMachineUser(c echo.Context)error{
+	
+// }
+/* Error Handling */
+func (h *MainAdminHandler) handleLoginError(c echo.Context, err error, email string) error {
+	switch {
+	case errors.Is(err, apperrors.ErrFacultyNotFound):
+		h.logger.Warnw("User not found during login",
+			"email", email,
+		)
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Invalid email or password.",
+		})
+
+	case errors.Is(err, apperrors.ErrInvalidPassword):
+		h.logger.Warnw("Invalid password during login",
+			"email", email,
+		)
+		return c.JSON(http.StatusUnauthorized, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Invalid email or password.",
+		})
+
+	default:
+		h.logger.Errorw("Unexpected error during login",
+			"email", email,
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to process login at this time. Please try again later.",
+		})
+	}
 }

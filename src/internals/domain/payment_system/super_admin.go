@@ -75,6 +75,13 @@ type CollegeCreateRequest struct {
 	CollegeAddress  string `json:"college_address" bson:"college_address" validate:"required"`
 }
 
+type CollegeUpdateRequest struct {
+	CollegeName     string `json:"college_name"`
+	CollegeEmail    string `json:"college_email"`
+	CollegePhone    string `json:"college_phone"`
+	CollegeAdress   string `json:"college_address"`
+}
+
 type CollegeResponse struct {
 	SuperAdminId string `json:"super_admin_id"`
 	CollegeID    string `json:"college_id"`
@@ -120,6 +127,10 @@ type MachineCreateRequest struct {
 	MachineNo   string `json:"machine_no" bson:"machine_no" validate:"required"`
 	MachineName string `json:"machine_name" bson:"machine_name" validate:"required"`
 	CollegeId   string `json:"college_id" bson:"college_id" validate:"required"`
+}
+
+type MachineUpdateRequest struct{
+	
 }
 
 type UpdateRFIDCard struct {

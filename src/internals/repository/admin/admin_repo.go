@@ -18,10 +18,10 @@ type AdminRepo struct {
 	Admin  *mongo.Collection
 }
 
-func NewAdminRepo(db *mongo.Database,client *mongo.Client) *AdminRepo{
+func NewAdminRepo(db *mongo.Database, client *mongo.Client) *AdminRepo {
 	return &AdminRepo{
 		client: client,
-		Admin: db.Collection("admin") ,
+		Admin:  db.Collection("admin"),
 	}
 }
 
@@ -42,7 +42,6 @@ func (r *AdminRepo) GetAdminByEmail(ctx context.Context, email string) (*model.A
 
 	return &Admin, nil
 }
-
 
 func (r *AdminRepo) CreateAccount(ctx context.Context, req model.Admin) error {
 
@@ -94,4 +93,24 @@ func (r *AdminRepo) GetAdminByID(ctx context.Context, adminID primitive.ObjectID
 	}
 
 	return admin, nil
+}
+
+func (r *AdminRepo) DeleteFaculty(ctx context.Context, facultyId primitive.ObjectID) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"_id": facultyId,
+	}
+
+	res,err := r.Admin.DeleteOne(ctx, filter)
+
+	if err != nil {
+		return fmt.Errorf("db error :%v", err)
+	}
+
+	if res.DeletedCount == 0 {
+		return fmt.Errorf("db deletion error:%v",err)
+	}
+	return nil
 }

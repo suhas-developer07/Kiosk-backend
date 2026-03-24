@@ -169,6 +169,7 @@ func (h *SuperAdminHandler) GetProfileHandler(c echo.Context) error {
 		Data:    profile,
 	})
 }
+
 /* Super Admin College Management Handlers  */
 
 func (h *SuperAdminHandler) CreateCollege(c echo.Context) error {
@@ -966,5 +967,103 @@ func (h *SuperAdminHandler) UpdateRFIDCard(c echo.Context) error {
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
 		Message: "RFID card updated successfully",
+	})
+}
+
+func (h *SuperAdminHandler) DeleteRFIDCardHandler(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	cardId := strings.TrimSpace(c.Param("card_id"))
+
+	if cardId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Card id is required to delete the card",
+		})
+	}
+
+	err := h.service.DeleteRFIDCard(ctx, cardId)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Card deleted successfully",
+	})
+}
+
+func (h *SuperAdminHandler) UpdateCollege(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	var req model.CollegeUpdateRequest
+
+	collegeId := strings.TrimSpace(c.Param("college_id"))
+
+	if collegeId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "College Id is required to update the college",
+		})
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "payload is not in valid formate",
+		})
+	}
+
+	err := h.service.UpdateCollege(ctx, req,collegeId)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "College Updated Successfully",
+	})
+}
+
+func (h *SuperAdminHandler) UpdateMachine(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	var req model.CollegeUpdateRequest
+
+	machineId := strings.TrimSpace(c.Param("machine_id"))
+
+	if machineId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Machine Id is required to update the machine",
+		})
+	}
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "payload is not in valid format",
+		})
+	}
+
+	err := h.service.UpdateMachine(ctx, req, machineId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Machine Updated Successfully",
 	})
 }

@@ -391,9 +391,27 @@ func (s *AdminService) GetProfileData(ctx context.Context, adminIDStr string) (*
 	return response, nil
 }
 
+func (s *AdminService) DeletFacultyService(ctx context.Context,facultyIdStr string)(error){
+	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+	defer cancel()
+
+	facultyId,err := primitive.ObjectIDFromHex(facultyIdStr)
+	if err != nil {
+		return apperrors.ErrInvalidID
+	}
+
+	err = s.AdminRepo.DeleteFaculty(ctx,facultyId)
+
+	if err != nil{
+		return fmt.Errorf("Error deleting faculty,Error:%v",err)
+	}
+	return err
+}
+
 func (s *AdminService) GetAvailableSubjects(ctx context.Context) ([]subjects.Subject, error) {
 
 	s.Logger.Infow("fetching available subjects")
 
 	return subjects.AllSubjects(), nil
 }
+

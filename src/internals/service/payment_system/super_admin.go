@@ -12,6 +12,7 @@ import (
 	model "github.com/suhas-developer07/Kiosk-backend/src/internals/domain/payment_system"
 	repository "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/payment_system"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.uber.org/zap"
 )
 
@@ -643,4 +644,47 @@ func (s *SuperAdminService) UpdateRFIDCard(ctx context.Context, cardId string, p
 	}
 
 	return nil
+}
+
+
+func (s *SuperAdminService) DeleteRFIDCard(ctx context.Context,cardId string)error{
+	ctx,cancel := context.WithTimeout(ctx,defaultOperationTimeout)
+	defer cancel()
+
+	return s.repo.DeleteRFIDCard(ctx,cardId)
+}
+
+
+func (s *SuperAdminService) UpdateCollege(ctx context.Context,req model.CollegeUpdateRequest,collegeId string)error{
+	ctx,cancel := context.WithTimeout(ctx,defaultOperationTimeout)
+	defer cancel()
+
+	return s.repo.UpdateCollege(ctx,req,collegeId)
+}
+
+func (s *SuperAdminService) UpdateMachine(ctx context.Context,req model.CollegeUpdateRequest,machineId string) error {
+
+
+	updateData := bson.M{}
+
+	if req.CollegeName != "" {
+		updateData["college_name"] = req.CollegeName
+	}
+	if req.CollegeEmail != "" {
+		updateData["college_email"] = req.CollegeEmail
+	}
+	if req.CollegePhone != "" {
+		updateData["college_phone"] = req.CollegePhone
+	}
+	if req.CollegeAdress != "" {
+		updateData["college_address"] = req.CollegeAdress
+	}
+
+	if len(updateData) == 0 {
+		return errors.New("no fields to update")
+	}
+
+	updateData["updated_at"] = time.Now()
+
+	return s.repo.UpdateMachine(ctx, machineId, updateData)
 }

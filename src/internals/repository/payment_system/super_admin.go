@@ -25,7 +25,7 @@ type SuperAdminRepository struct {
 	collegeCollection                *mongo.Collection
 	collegeRechargeHistoryCollection *mongo.Collection
 	machineCollection                *mongo.Collection
-	RFIDCardsCollection               *mongo.Collection
+	RFIDCardsCollection              *mongo.Collection
 }
 
 func NewSuperAdminRepo(db *mongo.Database, client *mongo.Client) *SuperAdminRepository {
@@ -381,7 +381,7 @@ func (r *SuperAdminRepository) GetOverallCollegeRechargeHistory(ctx context.Cont
 			return nil, fmt.Errorf("failed to decode overall recharge history record: %w", err)
 		}
 		recharges = append(recharges, recharge)
-	}	
+	}
 	recharges = reverseRechargeHistory(recharges)
 	return recharges, nil
 }
@@ -404,6 +404,24 @@ func (r *SuperAdminRepository) GetCollegeNameByID(ctx context.Context, collegeID
 
 	return result.CollegeName, nil
 }
+
+func (r *SuperAdminRepository) GetCollegeById(ctx context.Context,collegeId string)(model.SuperAdminCollege,error){
+	ctx,cancel := context.WithTimeout(ctx,defaultQueryTimeout)
+	defer cancel()
+
+	var college model.SuperAdminCollege
+
+	err := r.collegeCollection.FindOne(ctx,bson.M{"college_id":collegeId}).Decode(college)
+	if err != nil {
+		if errors.Is(err,mongo.ErrNoDocuments){
+			return model.SuperAdminCollege{},fmt.Errorf("No College Found in this id,Error:%v",err)
+		}
+		return model.SuperAdminCollege{},fmt.Errorf("db.Error Getting college by id ,Error:%v",err)
+	}
+
+	return college,nil
+}
+
 /* Machine Repository Methods */
 
 func (r *SuperAdminRepository) CreateMachine(ctx context.Context, machine model.Machine) error {
@@ -482,17 +500,17 @@ func (s *SuperAdminRepository) GetTotalMachinesCount(ctx context.Context) (int64
 	return count, nil
 }
 
-func (s *SuperAdminRepository) DeleteRechargeMachine(ctx context.Context,machineId string)error{
-	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+func (s *SuperAdminRepository) DeleteRechargeMachine(ctx context.Context, machineId string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	filter := bson.M{
-		"machine_id":machineId,
+		"machine_id": machineId,
 	}
 
-	_,err := s.machineCollection.DeleteOne(ctx,filter)
+	_, err := s.machineCollection.DeleteOne(ctx, filter)
 	if err != nil {
-		if errors.Is(err,apperrors.ErrMachineNotFound){
+		if errors.Is(err, apperrors.ErrMachineNotFound) {
 			return fmt.Errorf("This Machine is Not exist in our database")
 		}
 		return fmt.Errorf("db.Error While deleting machine")
@@ -543,6 +561,68 @@ func (s *SuperAdminRepository) UpdateRFIDCard(ctx context.Context, card model.RF
 
 	if result.MatchedCount == 0 {
 		return apperrors.ErrRFIDCardNotFound
+	}
+
+	return nil
+}
+
+func (r *SuperAdminRepository) DeleteRFIDCard(ctx context.Context, cardID string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	result, err := r.RFIDCardsCollection.DeleteOne(ctx, bson.M{"card_id": cardID})
+	if err != nil {
+		return fmt.Errorf("failed to delete RFID card: %w", err)
+	}
+	if result.DeletedCount == 0 {
+		return errors.New("RFID card not found for deletion")
+	}
+	return nil
+}
+
+func (r *SuperAdminRepository) UpdateCollege(ctx context.Context, req model.CollegeUpdateRequest,collegeId string) error {
+	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
+	defer cancel()
+
+	filter := bson.M{
+		"college_id": collegeId,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"college_name":     req.CollegeName,
+			"college_email":    req.CollegeEmail,
+			"college_phone":    req.CollegePhone,
+			"college_address":  req.CollegeAdress,
+		},
+	}
+
+	result, err := r.collegeCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("db.error Update failed,Error:%v", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("There is not Colleges in our database on this id")
+	}
+	return nil
+}
+
+func (r *SuperAdminRepository) UpdateMachine(ctx context.Context,machineId string,updateData bson.M) error {
+
+	filter := bson.M{"machine_id": machineId}
+
+	update := bson.M{
+		"$set": updateData,
+	}
+
+	result, err := r.machineCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("machine not found")
 	}
 
 	return nil

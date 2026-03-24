@@ -625,3 +625,30 @@ func (h *AdminHandler) GetAvailableSubjectsHandler(c echo.Context) error {
 		},
 	})
 }
+
+func (h *AdminHandler) DeleteFacultyHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	facultyId := strings.TrimSpace(c.Param("faculty_id"))
+
+	if facultyId == ""{
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "faculty id is required to delete the faculty",
+		})
+	}
+
+	err := h.adminService.DeletFacultyService(ctx,facultyId)
+	if err != nil{
+		h.Logger.Errorw("failed to delete the faculty","error",err)
+		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+			Status: "error",
+			Error: "Failed to delete the faculty"+err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Faculty deleted successfully",
+	})
+}

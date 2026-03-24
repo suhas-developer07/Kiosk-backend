@@ -78,6 +78,7 @@ type CollegeCreateRequest struct {
 type CollegeUpdateRequest struct {
 	CollegeName     string `json:"college_name"`
 	CollegeEmail    string `json:"college_email"`
+	CollegePassword string `json:"college_password"`
 	CollegePhone    string `json:"college_phone"`
 	CollegeAdress   string `json:"college_address"`
 }

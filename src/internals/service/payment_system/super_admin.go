@@ -655,15 +655,16 @@ func (s *SuperAdminService) DeleteRFIDCard(ctx context.Context,cardId string)err
 }
 
 
-func (s *SuperAdminService) UpdateCollege(ctx context.Context,req model.CollegeUpdateRequest,collegeId string)error{
+func (s *SuperAdminService) UpdateMachine(ctx context.Context,machineName string ,machineId string)error{
 	ctx,cancel := context.WithTimeout(ctx,defaultOperationTimeout)
 	defer cancel()
 
-	return s.repo.UpdateCollege(ctx,req,collegeId)
+	return s.repo.UpdateMachine(ctx,machineId,machineName)
 }
 
-func (s *SuperAdminService) UpdateMachine(ctx context.Context,req model.CollegeUpdateRequest,machineId string) error {
-
+func (s *SuperAdminService) UpdateCollege(ctx context.Context,req model.CollegeUpdateRequest,collegeId string) error {
+	ctx,cancel := context.WithTimeout(ctx,defaultOperationTimeout)
+	defer cancel()
 
 	updateData := bson.M{}
 
@@ -679,6 +680,13 @@ func (s *SuperAdminService) UpdateMachine(ctx context.Context,req model.CollegeU
 	if req.CollegeAdress != "" {
 		updateData["college_address"] = req.CollegeAdress
 	}
+	if req.CollegePassword != ""{
+		HashPass,err := utils.HashPassword(req.CollegePassword)
+		if err != nil{
+			return fmt.Errorf("Error Hashing Password,Error:%v",err)
+		}
+		updateData["college_password"]=HashPass
+	}
 
 	if len(updateData) == 0 {
 		return errors.New("no fields to update")
@@ -686,5 +694,5 @@ func (s *SuperAdminService) UpdateMachine(ctx context.Context,req model.CollegeU
 
 	updateData["updated_at"] = time.Now()
 
-	return s.repo.UpdateMachine(ctx, machineId, updateData)
+	return s.repo.UpdateCollege(ctx, collegeId, updateData)
 }

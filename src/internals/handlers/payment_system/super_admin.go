@@ -1036,7 +1036,9 @@ func (h *SuperAdminHandler) UpdateCollege(c echo.Context) error {
 func (h *SuperAdminHandler) UpdateMachine(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	var req model.CollegeUpdateRequest
+	var req struct{
+		MachineName string  `json:"machine_name"`
+	}
 
 	machineId := strings.TrimSpace(c.Param("machine_id"))
 
@@ -1054,7 +1056,7 @@ func (h *SuperAdminHandler) UpdateMachine(c echo.Context) error {
 		})
 	}
 
-	err := h.service.UpdateMachine(ctx, req, machineId)
+	err := h.service.UpdateMachine(ctx, req.MachineName, machineId)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",

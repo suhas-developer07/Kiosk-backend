@@ -1008,3 +1008,16 @@ func (s *MainAdminService) DeleteMachineUserService(ctx context.Context, machine
 
 	return nil
 }
+
+
+func (s *MainAdminService) UpdateMachineUserPassword(ctx context.Context,passoword string,userId string)error{
+	ctx,cancel := context.WithTimeout(ctx,defaultOperationTimeout)
+	defer cancel()
+
+	PassHash,err := utils.HashPassword(passoword)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.UpdateMachineUserPassword(ctx,PassHash,userId)
+}

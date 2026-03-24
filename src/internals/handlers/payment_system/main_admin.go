@@ -2,6 +2,7 @@ package paymentsystem
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -852,6 +853,42 @@ func (h *MainAdminHandler) DeleteMachineUserHandler(c echo.Context) error {
 	})
 }
 
+func (h *MainAdminHandler) UpdateMachineUserPassword(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	userId := strings.TrimSpace(c.Param("user_id"))
+
+	if userId == ""{
+		return fmt.Errorf("User id is required to upadate the password")
+	}
+
+	var req struct {
+		Password string `json:"password" validate:"required"`
+	}
+
+	if err := c.Bind(&req);err!=nil{
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "Invalid Body",
+		})
+	}
+
+	err := h.service.UpdateMachineUserPassword(ctx,req.Password,userId)
+
+	if err != nil{
+		h.logger.Errorw("Password update failed","Error",err)
+
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "Password update failed"+err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Password updated ",
+	})
+}
 // func (h *MainAdminHandler) UpdateMachineUser(c echo.Context)error{
 	
 // }

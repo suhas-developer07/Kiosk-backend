@@ -260,3 +260,32 @@ func (r *FacultyRepo) GetFacultiesByStream(ctx context.Context, stream string) (
 	}
 	return Faculty, nil
 }
+
+func (r *FacultyRepo) UpdateFaculty(
+	ctx context.Context,
+	facultyId primitive.ObjectID,
+	updateData bson.M,
+) error {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"_id": facultyId,
+	}
+
+	update := bson.M{
+		"$set": updateData,
+	}
+
+	result, err := r.FacultyCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update faculty: %w", err)
+	}
+
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("faculty not found")
+	}
+
+	return nil
+}

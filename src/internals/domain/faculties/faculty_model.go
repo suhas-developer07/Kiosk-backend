@@ -71,3 +71,14 @@ type FacultyPayload struct {
 	PhoneNumber   string             `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
 	Gender        string             `bson:"gender" json:"gender" validate:"required,oneof=male female other"`
 }
+
+type FacultyUpdateRequest struct {
+	Username      string             `json:"username"`
+	Email         string             `json:"email"`
+	Password      string             `json:"password"`
+	Subjects      []subjects.Subject `json:"subjects"`
+	Stream        string             `json:"stream"`
+	ClassHandling string             `json:"class_handling"`
+	PhoneNumber   string             `json:"phone_number"`
+	Gender        string             `json:"gender"`
+}

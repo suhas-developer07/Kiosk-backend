@@ -652,3 +652,41 @@ func (h *AdminHandler) DeleteFacultyHandler(c echo.Context)error{
 		Message: "Faculty deleted successfully",
 	})
 }
+
+func (h *AdminHandler) UpdateFacultyHandler(c echo.Context)error{
+	ctx := c.Request().Context()
+
+	facultyId := strings.TrimSpace(c.Param("faculty_id"))
+	
+	if facultyId == ""{
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "Error",
+			Error: "faculty id is required to update the faculty",
+		})
+	}
+
+	var req facultymodel.FacultyUpdateRequest
+
+	if err := c.Bind(&req);err!=nil{
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "Invalid Body",
+		})
+	}
+
+	err := h.adminService.UpdateFaculty(ctx,req,facultyId)
+
+	if err != nil {
+		h.Logger.Errorw("Faculty update failed","error",err)
+
+		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+			Status: "error",
+			Error: "Faculty update failed"+err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK,domain.SuccessResponse{
+		Status: "success",
+		Message: "Faculty updated successfully",
+	})
+}

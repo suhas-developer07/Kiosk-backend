@@ -656,3 +656,29 @@ func (r *MainAdminRepo) DeleteMachineUser(ctx context.Context, machineID string,
 	}
 	return nil
 }
+
+func (r *MainAdminRepo) UpdateMachineUserPassword(ctx context.Context, passHash string, userId string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"user_id": userId,
+	}
+
+	update := bson.M{
+		"$set": bson.M{
+			"password": passHash,
+		},
+	}
+
+	result, err := r.UsersCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("db.Error password update failed,Error:%v",err)
+	}
+
+	if result.MatchedCount == 0 {
+		return errors.New("user not found ")
+	}
+
+	return nil
+}

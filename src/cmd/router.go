@@ -70,6 +70,7 @@ func SetupRouter(
 	adminAuth.GET("/pending-delete-request-count", adminHandler.PendingDeleteRequestCountHandler)
 	adminAuth.DELETE("/files/delete/:file_id", adminHandler.DeleteFileHandler)
 	adminAuth.DELETE("/faculty/update/:faculty_id", adminHandler.DeleteFacultyHandler)
+	adminAuth.PUT("/faculty/update/:faculty_id",adminHandler.UpdateFacultyHandler)
 	/*
 	 Paymemt system routes
 	*/
@@ -93,7 +94,7 @@ func SetupRouter(
 	mainAdminAuth.DELETE("/machine/user/:machine_id/:user_id", mainAdminHandler.DeleteMachineUserHandler)
 	mainAdminAuth.POST("/machine/card/:card_id", mainAdminHandler.CardDeativationHandler)
 	mainAdminAuth.GET("/rfid/cards", mainAdminHandler.GetAllCardsHandler)
-	//mainAdminAuth.PUT("/machine/user/update/", mainAdminHandler.UpdateMachineUser)
+	mainAdminAuth.PUT("/machine/user/update/:user_id", mainAdminHandler.UpdateMachineUserPassword)
 
 	/*machine user routes*/
 	machineUser := e.Group("/machine-user")
@@ -132,7 +133,7 @@ func SetupRouter(
 	superAdminAuth.GET("/machine/count/:college_id", superAdminHandler.GetTotalMachinesCountByCollege)
 	superAdminAuth.GET("/rfid/cards", mainAdminHandler.GetAllCardsHandler)
 	superAdminAuth.POST("/rfid/card/:card_id", mainAdminHandler.CardDeativationHandler)
-	superAdminAuth.DELETE("/college/machine/delete/:machine_id", superAdminHandler.DeleteRechargeMachine) //new
+	superAdminAuth.DELETE("/college/machine/delete/:machine_id", superAdminHandler.DeleteRechargeMachine)
 	superAdminAuth.PUT("/machine/update/:machine_id", superAdminHandler.UpdateMachine)
 	superAdminAuth.PUT("/college/machine/update/:card_id", superAdminHandler.UpdateRFIDCard)
 	superAdminAuth.DELETE("/rfid/delete/:card_id", superAdminHandler.DeleteRFIDCardHandler)

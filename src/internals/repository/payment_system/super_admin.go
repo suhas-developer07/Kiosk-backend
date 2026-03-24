@@ -580,43 +580,40 @@ func (r *SuperAdminRepository) DeleteRFIDCard(ctx context.Context, cardID string
 	return nil
 }
 
-func (r *SuperAdminRepository) UpdateCollege(ctx context.Context, req model.CollegeUpdateRequest,collegeId string) error {
+func (r *SuperAdminRepository) UpdateMachine(ctx context.Context,machineId string, machineName string) error {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	filter := bson.M{
-		"college_id": collegeId,
+		"machine_id":machineId,
 	}
 
 	update := bson.M{
-		"$set": bson.M{
-			"college_name":     req.CollegeName,
-			"college_email":    req.CollegeEmail,
-			"college_phone":    req.CollegePhone,
-			"college_address":  req.CollegeAdress,
+		"$set":bson.M{
+			"machine_name":machineName,
 		},
 	}
 
-	result, err := r.collegeCollection.UpdateOne(ctx, filter, update)
+	result,err := r.machineCollection.UpdateOne(ctx,filter,update)
 	if err != nil {
-		return fmt.Errorf("db.error Update failed,Error:%v", err)
+		return fmt.Errorf("db.Error:%v",err)
 	}
 
 	if result.MatchedCount == 0 {
-		return fmt.Errorf("There is not Colleges in our database on this id")
+		return fmt.Errorf("Machine not found in our database")
 	}
 	return nil
 }
 
-func (r *SuperAdminRepository) UpdateMachine(ctx context.Context,machineId string,updateData bson.M) error {
+func (r *SuperAdminRepository) UpdateCollege(ctx context.Context,college_id string,updateData bson.M) error {
 
-	filter := bson.M{"machine_id": machineId}
+	filter := bson.M{"college_id": college_id}
 
 	update := bson.M{
 		"$set": updateData,
 	}
 
-	result, err := r.machineCollection.UpdateOne(ctx, filter, update)
+	result, err := r.collegeCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}

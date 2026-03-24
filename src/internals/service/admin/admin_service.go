@@ -17,6 +17,7 @@ import (
 	filesdb "github.com/suhas-developer07/Kiosk-backend/src/internals/repository/files_repo"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/filestore"
 	"github.com/suhas-developer07/Kiosk-backend/src/pkg/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
 )
@@ -374,7 +375,6 @@ func (s *AdminService) GetProfileData(ctx context.Context, adminIDStr string) (*
 		return nil, apperrors.ErrInvalidID
 	}
 
-
 	admin, err := s.AdminRepo.GetAdminByID(ctx, adminID)
 	if err != nil {
 		return nil, err
@@ -391,27 +391,83 @@ func (s *AdminService) GetProfileData(ctx context.Context, adminIDStr string) (*
 	return response, nil
 }
 
-func (s *AdminService) DeletFacultyService(ctx context.Context,facultyIdStr string)(error){
-	ctx,cancel := context.WithTimeout(ctx,5*time.Second)
+func (s *AdminService) DeletFacultyService(ctx context.Context, facultyIdStr string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	facultyId,err := primitive.ObjectIDFromHex(facultyIdStr)
+	facultyId, err := primitive.ObjectIDFromHex(facultyIdStr)
 	if err != nil {
 		return apperrors.ErrInvalidID
 	}
 
-	err = s.AdminRepo.DeleteFaculty(ctx,facultyId)
+	err = s.AdminRepo.DeleteFaculty(ctx, facultyId)
 
-	if err != nil{
-		return fmt.Errorf("Error deleting faculty,Error:%v",err)
+	if err != nil {
+		return fmt.Errorf("Error deleting faculty,Error:%v", err)
 	}
 	return err
 }
+func (s *AdminService) UpdateFaculty(
+	ctx context.Context,
+	req facultymodel.FacultyUpdateRequest,
+	facultyId string,
+) error {
 
+	objID, err := primitive.ObjectIDFromHex(facultyId)
+	if err != nil {
+		return errors.New("invalid faculty id")
+	}
+
+	updateData := bson.M{}
+
+	if req.Username != "" {
+		updateData["username"] = req.Username
+	}
+	if req.Email != "" {
+		updateData["email"] = req.Email
+	}
+	if req.Stream != "" {
+		updateData["stream"] = req.Stream
+	}
+	if req.ClassHandling != "" {
+		updateData["class_handling"] = req.ClassHandling
+	}
+	if req.PhoneNumber != "" {
+		updateData["phone_number"] = req.PhoneNumber
+	}
+	if req.Gender != "" {
+		updateData["gender"] = req.Gender
+	}
+
+	// Subjects (slice check)
+	if req.Subjects != nil {
+		for _, sub := range req.Subjects {
+			if !subjects.IsValidSubject(string(sub)) {
+				return fmt.Errorf("Invalid subject :%s", sub)
+			}
+			updateData["subjects"] = sub
+		}
+	}
+
+	if req.Password != "" {
+		hashPass, err := utils.HashPassword(req.Password)
+		if err != nil {
+			return fmt.Errorf("Error Hashing password,Error:%v", err)
+		}
+		updateData["password"] = string(hashPass)
+	}
+
+	if len(updateData) == 0 {
+		return errors.New("no fields to update")
+	}
+
+	updateData["updated_at"] = time.Now()
+
+	return s.FacultyRepo.UpdateFaculty(ctx, objID, updateData)
+}
 func (s *AdminService) GetAvailableSubjects(ctx context.Context) ([]subjects.Subject, error) {
 
 	s.Logger.Infow("fetching available subjects")
 
 	return subjects.AllSubjects(), nil
 }
-

@@ -131,7 +131,7 @@ func SetupRouter(
 	superAdminAuth.GET("/recharge/history", superAdminHandler.GetOverallCollgeRechargeHistory)
 	superAdminAuth.GET("/machine/count", superAdminHandler.GetTotalMachineCount)
 	superAdminAuth.GET("/machine/count/:college_id", superAdminHandler.GetTotalMachinesCountByCollege)
-	superAdminAuth.GET("/rfid/cards", mainAdminHandler.GetAllCardsHandler)
+	superAdminAuth.GET("/rfid/cards/:college_id", superAdminHandler.GetRFIDCardsByCollegeId)
 	superAdminAuth.POST("/rfid/card/:card_id", mainAdminHandler.CardDeativationHandler)
 	superAdminAuth.DELETE("/college/machine/delete/:machine_id", superAdminHandler.DeleteRechargeMachine)
 	superAdminAuth.PUT("/machine/update/:machine_id", superAdminHandler.UpdateMachine)

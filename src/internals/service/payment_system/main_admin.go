@@ -679,13 +679,13 @@ func (s *MainAdminService) CardDeactivationService(ctx context.Context, cardID s
 	return nil
 }
 
-func (s *MainAdminService) GetAllCardsService(ctx context.Context) ([]model.RFIDCard, error) {
+func (s *MainAdminService) GetAllCardsService(ctx context.Context,collegeId string) ([]model.RFIDCard, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
 	defer cancel()
 
 	s.logger.Infow("Fetching all RFID cards")
 
-	cards, err := s.repo.GetAllCards(ctx)
+	cards, err := s.repo.GetAllCards(ctx,collegeId)
 	if err != nil {
 		s.logger.Errorw("Failed to fetch all RFID cards",
 			"error", err,

@@ -1069,3 +1069,37 @@ func (h *SuperAdminHandler) UpdateMachine(c echo.Context) error {
 		Message: "Machine Updated Successfully",
 	})
 }
+
+func (h *SuperAdminHandler) GetRFIDCardsByCollegeId(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	collegeId := strings.TrimSpace(c.Param("college_id"))
+
+	if collegeId == ""{
+		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+			Status: "error",
+			Error: "College Id is required to fetch the rfid cards",
+		})
+	}
+
+	cards, err := h.service.GetRFIDCardsByCollegeId(ctx,collegeId)
+	if err != nil {
+		h.logger.Errorw("Failed to fetch all cards",
+			"error", err,
+		)
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "Unable to fetch cards at this time.",
+		})
+	}
+
+	h.logger.Infow("All cards retrieved successfully",
+		"card_count", len(cards),
+	)
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "Cards retrieved successfully.",
+		Data:    cards,
+	})
+}

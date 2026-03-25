@@ -673,7 +673,9 @@ func (h *MainAdminHandler) CardDeativationHandler(c echo.Context) error {
 func (h *MainAdminHandler) GetAllCardsHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
-	cards, err := h.service.GetAllCardsService(ctx)
+	collegeId := strings.TrimSpace(c.Get("college_id").(string))
+
+	cards, err := h.service.GetAllCardsService(ctx,collegeId)
 	if err != nil {
 		h.logger.Errorw("Failed to fetch all cards",
 			"error", err,

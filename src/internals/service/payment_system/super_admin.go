@@ -655,6 +655,28 @@ func (s *SuperAdminService) DeleteRFIDCard(ctx context.Context,cardId string)err
 }
 
 
+func (s *SuperAdminService) GetRFIDCardsByCollegeId(ctx context.Context,collegeId string) ([]model.RFIDCard, error) {
+	ctx, cancel := context.WithTimeout(ctx, defaultOperationTimeout)
+	defer cancel()
+
+	s.logger.Infow("Fetching all RFID cards")
+
+	cards, err := s.repo.GetRFIDCardsByCollegeId(ctx,collegeId)
+	if err != nil {
+		s.logger.Errorw("Failed to fetch all RFID cards",
+			"error", err,
+		)
+		return nil, errors.New("unable to fetch RFID cards at this time")
+	}
+
+	s.logger.Infow("RFID cards fetched successfully",
+		"card_count", len(cards),
+	)
+
+	return cards, nil
+}
+
+
 func (s *SuperAdminService) UpdateMachine(ctx context.Context,machineName string ,machineId string)error{
 	ctx,cancel := context.WithTimeout(ctx,defaultOperationTimeout)
 	defer cancel()

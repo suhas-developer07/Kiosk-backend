@@ -504,12 +504,14 @@ func (r *MainAdminRepo) DeactivateRFIDCard(ctx context.Context, cardID string, s
 	return nil
 }
 
-func (r *MainAdminRepo) GetAllCards(ctx context.Context) ([]model.RFIDCard, error) {
+func (r *MainAdminRepo) GetAllCards(ctx context.Context, collegeId string) ([]model.RFIDCard, error) {
 	ctx, cancel := context.WithTimeout(ctx, defaultQueryTimeout)
 	defer cancel()
 
 	var cards []model.RFIDCard
-	filter := bson.M{}
+	filter := bson.M{
+		"college_id":collegeId,
+	}
 	cursor, err := r.RFIDCardsCollection.Find(ctx, filter)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -673,7 +675,7 @@ func (r *MainAdminRepo) UpdateMachineUserPassword(ctx context.Context, passHash 
 
 	result, err := r.UsersCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		return fmt.Errorf("db.Error password update failed,Error:%v",err)
+		return fmt.Errorf("db.Error password update failed,Error:%v", err)
 	}
 
 	if result.MatchedCount == 0 {

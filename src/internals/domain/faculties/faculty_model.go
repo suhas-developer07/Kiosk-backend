@@ -1,6 +1,9 @@
 package faculties
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/suhas-developer07/Kiosk-backend/src/internals/domain/subjects"
@@ -62,16 +65,15 @@ type Faculty struct {
 }
 
 type FacultyPayload struct {
-	Username      string             `bson:"username" json:"username" validate:"required"`
-	Email         string             `bson:"email" json:"email" validate:"required"`
-	Password      string             `bson:"password" json:"password" validate:"required,min=6"`
-	Subjects      []subjects.Subject `bson:"subjects" json:"subjects" validate:"required"`
-	Stream        string             `bson:"stream" json:"stream" validate:"required,oneof=science commerce arts"`
-	ClassHandling string             `bson:"class_handling" json:"class_handling"`
-	PhoneNumber   string             `bson:"phone_number,omitempty" json:"phone_number,omitempty"`
-	Gender        string             `bson:"gender" json:"gender" validate:"required,oneof=male female other"`
+	Username      string             `json:"username" validate:"required"`
+	Email         string             `json:"email" validate:"required,email"`
+	Password      string             `json:"password" validate:"required,min=6"`
+	Subjects      []subjects.Subject `json:"subjects" validate:"required,min=1,dive,required"`
+	Stream        string             `json:"stream" validate:"required,oneof=science commerce arts"`
+	ClassHandling string             `json:"class_handling" validate:"required,oneof=1PUC 2PUC"`
+	PhoneNumber   string             `json:"phone_number,omitempty"`
+	Gender        string             `json:"gender" validate:"required,oneof=male female other"`
 }
-
 type FacultyUpdateRequest struct {
 	Username      string             `json:"username"`
 	Email         string             `json:"email"`
@@ -81,4 +83,39 @@ type FacultyUpdateRequest struct {
 	ClassHandling string             `json:"class_handling"`
 	PhoneNumber   string             `json:"phone_number"`
 	Gender        string             `json:"gender"`
+}
+
+func (f *FacultyPayload) UnmarshalJSON(data []byte) error {
+	type Alias FacultyPayload
+
+	aux := &struct {
+		Subjects interface{} `json:"subjects"`
+		*Alias
+	}{
+		Alias: (*Alias)(f),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	switch v := aux.Subjects.(type) {
+
+	case string:
+		f.Subjects = []subjects.Subject{subjects.Subject(strings.ToLower(v))}
+
+	case []interface{}:
+		for _, s := range v {
+			str, ok := s.(string)
+			if !ok {
+				return fmt.Errorf("invalid subject format")
+			}
+			f.Subjects = append(f.Subjects, subjects.Subject(strings.ToLower(str)))
+		}
+
+	default:
+		return fmt.Errorf("subjects must be string or array")
+	}
+
+	return nil
 }

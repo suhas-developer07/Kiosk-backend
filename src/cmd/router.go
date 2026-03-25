@@ -69,7 +69,7 @@ func SetupRouter(
 	adminAuth.GET("/pending-delete-request-files", adminHandler.GetPendingDeleteRequestFilesHandler)
 	adminAuth.GET("/pending-delete-request-count", adminHandler.PendingDeleteRequestCountHandler)
 	adminAuth.DELETE("/files/delete/:file_id", adminHandler.DeleteFileHandler)
-	adminAuth.DELETE("/faculty/update/:faculty_id", adminHandler.DeleteFacultyHandler)
+	adminAuth.DELETE("/faculty/delete/:faculty_id", adminHandler.DeleteFacultyHandler)
 	adminAuth.PUT("/faculty/update/:faculty_id",adminHandler.UpdateFacultyHandler)
 	/*
 	 Paymemt system routes

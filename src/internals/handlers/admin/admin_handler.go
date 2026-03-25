@@ -46,7 +46,7 @@ func (h *AdminHandler) GetFacultiesHandler(c echo.Context) error {
 
 		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error:  "failed to fetch faculties",
+			Error:  "failed to fetch faculties"+err.Error(),
 		})
 	}
 
@@ -105,7 +105,6 @@ func (h *AdminHandler) GetFacultiesByStreamHandler(c echo.Context) error {
 		Data:    faculty,
 	})
 }
-
 func (h *AdminHandler) AddFacultyHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
@@ -114,48 +113,48 @@ func (h *AdminHandler) AddFacultyHandler(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  "Invalid Body",
+			Error:  "Invalid request body",
 		})
 	}
 
 	if err := h.validate.Struct(&req); err != nil {
 		msg := utils.FormatValidationError(err)
-		h.Logger.Warnf("Account validation failed | payload=%v | error=%v", req, msg)
+		h.Logger.Warnf("Validation failed | error=%v", msg)
 
 		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error:  err.Error(),
+			Error:  msg,
 		})
 	}
 
-	err := h.adminService.AddFacultyService(ctx, req)
+	if err := h.adminService.AddFacultyService(ctx, req); err != nil {
 
-	if err != nil {
 		switch {
 		case errors.Is(err, apperrors.ErrEmailAlreadyExists):
-			h.Logger.Warnf("Email already exists | email=%s", req.Email)
 			return c.JSON(http.StatusConflict, domain.ErrorResponse{
 				Status: "error",
-				Error:  "Email already exists.",
+				Error:  "Email already exists",
 			})
-		
-		case errors.Is(err,apperrors.ErrInvalidClassHandling):
-			return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+
+		case errors.Is(err, apperrors.ErrInvalidClassHandling):
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 				Status: "error",
-				Error: err.Error(),
+				Error:  err.Error(),
 			})
 
 		default:
-			h.Logger.Errorf("Failed to Add the faculty | email=%s | error=%v", req.Email, err)
+			h.Logger.Errorf("Add faculty failed | email=%s | err=%v", req.Email, err)
+
 			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 				Status: "error",
 				Error:  "Internal server error",
 			})
 		}
 	}
+
 	return c.JSON(http.StatusOK, domain.SuccessResponse{
 		Status:  "success",
-		Message: "Faculty successfully Added ",
+		Message: "Faculty added successfully",
 	})
 }
 

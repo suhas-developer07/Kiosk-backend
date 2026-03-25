@@ -81,59 +81,46 @@ func (s *AdminService) GetFacultiesByStreamService(
 
 	return faculties, nil
 }
-
 func (s *AdminService) AddFacultyService(ctx context.Context, req facultymodel.FacultyPayload) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	req.Email = strings.TrimSpace(strings.ToLower(req.Email))
 
-	//validating the subjects
+	// validate subjects
 	for _, sub := range req.Subjects {
 		if !subjects.IsValidSubject(string(sub)) {
-			return fmt.Errorf("Invalid subject :%s", sub)
+			return fmt.Errorf("invalid subject: %s", sub)
 		}
 	}
 
-	if req.Password != "" {
-		hashed, err := utils.HashPassword(req.Password)
-		if err != nil {
-			return fmt.Errorf("failed to hash password: %w", err)
-		}
-		req.Password = hashed
+	hashed, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return fmt.Errorf("hash error: %w", err)
 	}
-
-	if req.ClassHandling != "1PUC" && req.ClassHandling != "2PUC" {
-		return apperrors.ErrInvalidClassHandling
-	}
-
-	s.Logger.Infof("Adding Faculty| email=%s", req.Email)
 
 	faculty := facultymodel.Faculty{
 		ID:            primitive.NewObjectID(),
 		Username:      req.Username,
 		Email:         req.Email,
-		Password:      req.Password,
-		Subjects:      req.Subjects,
+		Password:      hashed,
+		Subjects:      req.Subjects, // ✅ ALWAYS ARRAY NOW
 		Stream:        req.Stream,
 		ClassHandling: req.ClassHandling,
 		Gender:        req.Gender,
+		PhoneNumber:   req.PhoneNumber,
 		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(), // ✅ FIXED
 	}
 
-	err := s.FacultyRepo.CreateAccount(ctx, faculty)
-	switch {
-	case errors.Is(err, apperrors.ErrEmailAlreadyExists):
-		return apperrors.ErrEmailAlreadyExists
-
-	case err != nil:
-		return fmt.Errorf("failed to add faculty: %w", err)
+	if err := s.FacultyRepo.CreateAccount(ctx, faculty); err != nil {
+		return err
 	}
-	s.Logger.Infof("Failed to add faculty successfully | email=%s", req.Email)
+
+	s.Logger.Infof("Faculty added | email=%s", req.Email)
 
 	return nil
 }
-
 func (s *AdminService) GetTotalFacultiesCountService(ctx context.Context) (uint32, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

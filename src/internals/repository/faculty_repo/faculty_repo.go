@@ -29,7 +29,6 @@ func NewFacultyRepo(db *mongo.Database, client *mongo.Client) *FacultyRepo {
 }
 
 func (r *FacultyRepo) CreateAccount(ctx context.Context, req domain.Faculty) error {
-
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -41,19 +40,17 @@ func (r *FacultyRepo) CreateAccount(ctx context.Context, req domain.Faculty) err
 
 	err := r.FacultyCollection.FindOne(ctx, filter).Decode(&exists)
 
-	switch {
-	case err == nil:
+	if err == nil {
 		return apperrors.ErrEmailAlreadyExists
+	}
 
-	case errors.Is(err, mongo.ErrNoDocuments):
-		// do nothing -> proced to insert
-	default:
-		return fmt.Errorf("database error during email check: %w", err)
+	if !errors.Is(err, mongo.ErrNoDocuments) {
+		return fmt.Errorf("email check error: %w", err)
 	}
 
 	_, err = r.FacultyCollection.InsertOne(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to insert faculty account: %w", err)
+		return fmt.Errorf("insert failed: %w", err)
 	}
 
 	return nil

@@ -625,67 +625,79 @@ func (h *AdminHandler) GetAvailableSubjectsHandler(c echo.Context) error {
 	})
 }
 
-func (h *AdminHandler) DeleteFacultyHandler(c echo.Context)error{
+func (h *AdminHandler) DeleteFacultyHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	facultyId := strings.TrimSpace(c.Param("faculty_id"))
 
-	if facultyId == ""{
-		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+	if facultyId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error: "faculty id is required to delete the faculty",
+			Error:  "faculty id is required",
 		})
 	}
 
-	err := h.adminService.DeletFacultyService(ctx,facultyId)
-	if err != nil{
-		h.Logger.Errorw("failed to delete the faculty","error",err)
-		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
-			Status: "error",
-			Error: "Failed to delete the faculty"+err.Error(),
-		})
+	err := h.adminService.DeletFacultyService(ctx, facultyId)
+	if err != nil {
+
+		switch err {
+		case apperrors.ErrInvalidID:
+			return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+				Status: "error",
+				Error:  "invalid faculty id",
+			})
+
+		case apperrors.ErrFacultyNotFound:
+			return c.JSON(http.StatusNotFound, domain.ErrorResponse{
+				Status: "error",
+				Error:  "faculty not found",
+			})
+
+		default:
+			h.Logger.Errorw("failed to delete faculty", "error", err)
+			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+				Status: "error",
+				Error:  "internal server error",
+			})
+		}
 	}
 
-	return c.JSON(http.StatusOK,domain.SuccessResponse{
-		Status: "success",
-		Message: "Faculty deleted successfully",
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "faculty deleted successfully",
 	})
 }
-
-func (h *AdminHandler) UpdateFacultyHandler(c echo.Context)error{
+func (h *AdminHandler) UpdateFacultyHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	facultyId := strings.TrimSpace(c.Param("faculty_id"))
-	
-	if facultyId == ""{
-		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
-			Status: "Error",
-			Error: "faculty id is required to update the faculty",
+	if facultyId == "" {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "faculty id is required",
 		})
 	}
 
 	var req facultymodel.FacultyUpdateRequest
 
-	if err := c.Bind(&req);err!=nil{
-		return c.JSON(http.StatusBadRequest,domain.ErrorResponse{
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
 			Status: "error",
-			Error: "Invalid Body",
+			Error:  "Invalid request body",
 		})
 	}
 
-	err := h.adminService.UpdateFaculty(ctx,req,facultyId)
+	if err := h.adminService.UpdateFaculty(ctx, req, facultyId); err != nil {
+		h.Logger.Errorw("Faculty update failed", "error", err)
 
-	if err != nil {
-		h.Logger.Errorw("Faculty update failed","error",err)
-
-		return c.JSON(http.StatusInternalServerError,domain.ErrorResponse{
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 			Status: "error",
-			Error: "Faculty update failed"+err.Error(),
+			Error:  err.Error()+req.ClassHandling,
 		})
 	}
 
-	return c.JSON(http.StatusOK,domain.SuccessResponse{
-		Status: "success",
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
 		Message: "Faculty updated successfully",
 	})
 }

@@ -267,9 +267,7 @@ func (r *FacultyRepo) UpdateFaculty(
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	filter := bson.M{
-		"_id": facultyId,
-	}
+	filter := bson.M{"_id": facultyId}
 
 	update := bson.M{
 		"$set": updateData,
@@ -281,7 +279,24 @@ func (r *FacultyRepo) UpdateFaculty(
 	}
 
 	if result.MatchedCount == 0 {
-		return fmt.Errorf("faculty not found")
+		return errors.New("faculty not found")
+	}
+
+	return nil
+}
+func (r *FacultyRepo) DeleteFaculty(ctx context.Context, facultyId primitive.ObjectID) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": facultyId}
+
+	res, err := r.FacultyCollection.DeleteOne(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("db error: %w", err)
+	}
+
+	if res.DeletedCount == 0 {
+		return apperrors.ErrFacultyNotFound
 	}
 
 	return nil

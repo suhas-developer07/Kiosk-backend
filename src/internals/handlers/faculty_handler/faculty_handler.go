@@ -68,7 +68,7 @@ func (h *FacultyHandler) Signin(c echo.Context) error {
 			h.Logger.Errorf("Signin failed | error=%v", err)
 			return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
 				Status: "error",
-				Error:  "Internal server error",
+				Error:  "Internal server error"+err.Error(),
 			})
 		}
 	}

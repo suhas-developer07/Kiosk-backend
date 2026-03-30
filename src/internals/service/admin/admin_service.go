@@ -387,12 +387,12 @@ func (s *AdminService) DeletFacultyService(ctx context.Context, facultyIdStr str
 		return apperrors.ErrInvalidID
 	}
 
-	err = s.AdminRepo.DeleteFaculty(ctx, facultyId)
-
+	err = s.FacultyRepo.DeleteFaculty(ctx, facultyId)
 	if err != nil {
-		return fmt.Errorf("Error deleting faculty,Error:%v", err)
+		return err 
 	}
-	return err
+
+	return nil
 }
 func (s *AdminService) UpdateFaculty(
 	ctx context.Context,
@@ -410,38 +410,45 @@ func (s *AdminService) UpdateFaculty(
 	if req.Username != "" {
 		updateData["username"] = req.Username
 	}
+
 	if req.Email != "" {
-		updateData["email"] = req.Email
+		updateData["email"] = strings.ToLower(strings.TrimSpace(req.Email))
 	}
+
 	if req.Stream != "" {
 		updateData["stream"] = req.Stream
 	}
+
 	if req.ClassHandling != "" {
+		if req.ClassHandling != "1PUC" && req.ClassHandling != "2PUC" &&req.ClassHandling != "both" {
+			return apperrors.ErrInvalidClassHandling
+		}
 		updateData["class_handling"] = req.ClassHandling
 	}
+
 	if req.PhoneNumber != "" {
 		updateData["phone_number"] = req.PhoneNumber
 	}
+
 	if req.Gender != "" {
 		updateData["gender"] = req.Gender
 	}
 
-	// Subjects (slice check)
 	if req.Subjects != nil {
 		for _, sub := range req.Subjects {
 			if !subjects.IsValidSubject(string(sub)) {
-				return fmt.Errorf("Invalid subject :%s", sub)
+				return fmt.Errorf("invalid subject: %s", sub)
 			}
-			updateData["subjects"] = sub
 		}
+		updateData["subjects"] = req.Subjects 
 	}
 
 	if req.Password != "" {
 		hashPass, err := utils.HashPassword(req.Password)
 		if err != nil {
-			return fmt.Errorf("Error Hashing password,Error:%v", err)
+			return fmt.Errorf("error hashing password: %w", err)
 		}
-		updateData["password"] = string(hashPass)
+		updateData["password"] = hashPass
 	}
 
 	if len(updateData) == 0 {
@@ -452,6 +459,7 @@ func (s *AdminService) UpdateFaculty(
 
 	return s.FacultyRepo.UpdateFaculty(ctx, objID, updateData)
 }
+
 func (s *AdminService) GetAvailableSubjects(ctx context.Context) ([]subjects.Subject, error) {
 
 	s.Logger.Infow("fetching available subjects")

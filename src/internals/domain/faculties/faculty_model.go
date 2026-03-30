@@ -70,7 +70,7 @@ type FacultyPayload struct {
 	Password      string             `json:"password" validate:"required,min=6"`
 	Subjects      []subjects.Subject `json:"subjects" validate:"required,min=1,dive,required"`
 	Stream        string             `json:"stream" validate:"required,oneof=science commerce arts"`
-	ClassHandling string             `json:"class_handling" validate:"required,oneof=1PUC 2PUC"`
+	ClassHandling string             `json:"class_handling" validate:"required,oneof=1PUC 2PUC both"`
 	PhoneNumber   string             `json:"phone_number,omitempty"`
 	Gender        string             `json:"gender" validate:"required,oneof=male female other"`
 }
@@ -112,6 +112,43 @@ func (f *FacultyPayload) UnmarshalJSON(data []byte) error {
 			}
 			f.Subjects = append(f.Subjects, subjects.Subject(strings.ToLower(str)))
 		}
+
+	default:
+		return fmt.Errorf("subjects must be string or array")
+	}
+
+	return nil
+}
+
+func (f *FacultyUpdateRequest) UnmarshalJSON(data []byte) error {
+	type Alias FacultyUpdateRequest
+
+	aux := &struct {
+		Subjects interface{} `json:"subjects"`
+		*Alias
+	}{
+		Alias: (*Alias)(f),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	switch v := aux.Subjects.(type) {
+
+	case string:
+		f.Subjects = []subjects.Subject{subjects.Subject(strings.ToLower(v))}
+
+	case []interface{}:
+		for _, s := range v {
+			str, ok := s.(string)
+			if !ok {
+				return fmt.Errorf("invalid subject format")
+			}
+			f.Subjects = append(f.Subjects, subjects.Subject(strings.ToLower(str)))
+		}
+
+	case nil:
 
 	default:
 		return fmt.Errorf("subjects must be string or array")

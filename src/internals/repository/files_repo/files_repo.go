@@ -97,6 +97,38 @@ func (r *FilesRepo) GetFileByGradeAndSubject(
 	return files, nil
 }
 
+
+func (r *FilesRepo) GetFileByGrade(
+	ctx context.Context,
+	grade string,
+) ([]domain.File, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"grade":   grade,
+	}
+
+	opts := options.Find().SetSort(bson.M{"uploaded_at": -1})
+
+	cursor, err := r.FilesCollection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("db.Find error: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var files []domain.File
+	if err = cursor.All(ctx, &files); err != nil {
+		return nil, fmt.Errorf("cursor decode error: %w", err)
+	}
+
+	if len(files) == 0 {
+		return []domain.File{}, nil
+	}
+
+	return files, nil
+}
 func (r *FilesRepo) GetFileByID(ctx context.Context, id string) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

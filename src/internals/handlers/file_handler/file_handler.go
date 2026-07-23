@@ -93,6 +93,58 @@ func (h *FileHandler) GetFilesByGradeAndSubjectHandler(c echo.Context) error {
 	})
 }
 
+
+func (h *FileHandler) GetFilesByGrade(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	grade := strings.TrimSpace(strings.ToUpper(c.Param("grade")))
+
+	if grade == ""{
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "grade is required fields",
+		})
+	}
+
+	allowedGrades := map[string]bool{"1PUC": true, "2PUC": true}
+	if !allowedGrades[grade] {
+		return c.JSON(http.StatusBadRequest, domain.ErrorResponse{
+			Status: "error",
+			Error:  "invalid grade; allowed values: 1PUC, 2PUC",
+		})
+	}
+
+	h.Logger.Infof("Fetching files | Grade=%s | IP=%s",
+		grade, c.RealIP(),
+	)
+
+	files, err := h.FileService.GetFileByGradeService(ctx, grade)
+	if err != nil {
+		h.Logger.Errorf("Failed to fetch files | Grade=%s | Error=%v",
+			grade, err,
+		)
+
+		return c.JSON(http.StatusInternalServerError, domain.ErrorResponse{
+			Status: "error",
+			Error:  "internal error fetching files",
+		})
+	}
+
+	if len(files) == 0 {
+		return c.JSON(http.StatusOK, domain.SuccessResponse{
+			Status:  "success",
+			Message: "no files available for selected grade and subject",
+			Data:    []domain.File{},
+		})
+	}
+
+	return c.JSON(http.StatusOK, domain.SuccessResponse{
+		Status:  "success",
+		Message: "files fetched successfully",
+		Data:    files,
+	})
+}
+
 func (h *FileHandler) AccessFileHandler(c echo.Context) error {
 	ctx := c.Request().Context()
 

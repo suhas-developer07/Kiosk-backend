@@ -26,6 +26,7 @@ func SetupRouter(
 	/* Files Handler routes */
 	files := e.Group("/files")
 	files.GET("/:grade/:subject", fileHandler.GetFilesByGradeAndSubjectHandler)
+	files.GET("/:grade", fileHandler.GetFilesByGrade)
 	files.GET("/accessfile/:file_id", fileHandler.AccessFileHandler)
 	files.POST("/printjobs", fileHandler.CreatePrintJobsHandler)
 	/*Faculty Handler routes*/

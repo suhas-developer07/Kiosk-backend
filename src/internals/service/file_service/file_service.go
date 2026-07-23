@@ -67,6 +67,31 @@ func (s *FileService) GetFileByGradeAndSubjectService(ctx context.Context, grade
 	return files, nil
 }
 
+func (s *FileService) GetFileByGradeService(ctx context.Context, grade string) ([]domain.File, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	grade = strings.TrimSpace(strings.ToUpper(grade))
+
+	if grade != "1PUC" && grade != "2PUC" {
+		return nil, apperrors.ErrInvalidGrade
+	}
+
+	s.Logger.Infof("fetching files: grade=%s", grade)
+
+	files, err := s.FileRepo.GetFileByGrade(ctx, grade)
+
+	if err != nil {
+		return nil, fmt.Errorf("service: get files: %w", err)
+	}
+
+	if len(files) == 0 {
+		return []domain.File{}, nil
+	}
+
+	return files, nil
+}
+
 func (s *FileService) CreatePrintJobService(ctx context.Context, req domain.PrintJobPayload) error {
 
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
